@@ -8,9 +8,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  maxWidth?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, maxWidth = '600px' }: ModalProps) {
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,7 +43,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     }}>
       <div className="card" style={{
         width: '100%',
-        maxWidth: '600px',
+        maxWidth: maxWidth,
         maxHeight: '90vh',
         overflowY: 'auto',
         position: 'relative',

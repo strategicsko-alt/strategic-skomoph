@@ -265,18 +265,24 @@ export default function WorkshopPage() {
   // --- CRUD for Objectives ---
   const handleOpenObjModal = (stAutoId: string, stId: string, obj: any = null) => {
     setEditingObj({ ...obj, _stAutoId: stAutoId, _stId: stId });
-    setFormData(obj || { name: '', initiative_activity: '' });
+    setFormData(obj || { name: '', initiative_activity: '', ia_ssjj: '', ia_rph: '', ia_ssor: '', ia_rphst: '', ia_phakee: '' });
     setIsObjModalOpen(true);
   };
 
   const saveObj = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    const iaPayload = {
+      name: formData.name,
+      initiative_activity: formData.initiative_activity,
+      ia_ssjj: formData.ia_ssjj,
+      ia_rph: formData.ia_rph,
+      ia_ssor: formData.ia_ssor,
+      ia_rphst: formData.ia_rphst,
+      ia_phakee: formData.ia_phakee,
+    };
     if (editingObj?.id) {
-      const { error } = await supabase.from('objectives').update({
-        name: formData.name,
-        initiative_activity: formData.initiative_activity
-      }).eq('id', editingObj.id);
+      const { error } = await supabase.from('objectives').update(iaPayload).eq('id', editingObj.id);
       if (error) alert('Error: ' + error.message);
     } else {
       const auto_id = generateObjId(editingObj._stAutoId);
@@ -288,8 +294,7 @@ export default function WorkshopPage() {
       const { error } = await supabase.from('objectives').insert([{
         strategy_id: editingObj._stId,
         auto_id,
-        name: formData.name,
-        initiative_activity: formData.initiative_activity,
+        ...iaPayload,
         order_index
       }]);
       if (error) alert('Error: ' + error.message);
@@ -619,10 +624,25 @@ export default function WorkshopPage() {
                               </div>
 
                               <div style={{ padding: '1rem' }}>
-                                {obj.initiative_activity && (
-                                  <div style={{ marginBottom: '0.75rem', padding: '0.65rem 0.875rem', backgroundColor: `${themeColor}10`, borderLeft: `3px solid ${themeColor}`, borderRadius: '0 var(--radius-sm) var(--radius-sm) 0' }}>
-                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: themeColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>กิจกรรมริเริ่ม</span>
-                                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem' }}>{obj.initiative_activity}</p>
+                                {(obj.initiative_activity || obj.ia_ssjj || obj.ia_rph || obj.ia_ssor || obj.ia_rphst || obj.ia_phakee) && (
+                                  <div style={{ marginBottom: '0.75rem', border: `1px solid ${themeColor}40`, borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                                    <div style={{ backgroundColor: `${themeColor}15`, padding: '0.5rem 0.875rem', borderBottom: `1px solid ${themeColor}30` }}>
+                                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: themeColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>กิจกรรมริเริ่ม (Initiative Activities)</span>
+                                    </div>
+                                    {obj.initiative_activity && (
+                                      <div style={{ padding: '0.65rem 0.875rem', borderBottom: `1px solid ${themeColor}20` }}>
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--secondary-foreground)' }}>ภาพรวม</span>
+                                        <p style={{ margin: '0.2rem 0 0', fontSize: '0.875rem' }}>{obj.initiative_activity}</p>
+                                      </div>
+                                    )}
+                                    {[{key: 'ia_ssjj', label: 'สสจ.'}, {key: 'ia_rph', label: 'รพ.'}, {key: 'ia_ssor', label: 'สสอ.'}, {key: 'ia_rphst', label: 'รพ.สต.'}, {key: 'ia_phakee', label: 'ภาคี'}].map(({key, label}) =>
+                                      obj[key] ? (
+                                        <div key={key} style={{ padding: '0.65rem 0.875rem', borderBottom: `1px solid ${themeColor}20`, display: 'flex', gap: '0.75rem' }}>
+                                          <span style={{ fontWeight: 700, color: themeColor, fontSize: '0.8rem', minWidth: '48px', flexShrink: 0 }}>{label}</span>
+                                          <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6 }}>{obj[key]}</p>
+                                        </div>
+                                      ) : null
+                                    )}
                                   </div>
                                 )}
 
@@ -790,17 +810,46 @@ export default function WorkshopPage() {
         </form>
       </Modal>
 
-      <Modal isOpen={isObjModalOpen} onClose={() => setIsObjModalOpen(false)} title={editingObj?.id ? `แก้ไขเป้าประสงค์ (${editingObj.auto_id})` : 'เพิ่มเป้าประสงค์ใหม่'}>
-        <form onSubmit={saveObj} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <Modal isOpen={isObjModalOpen} onClose={() => setIsObjModalOpen(false)} title={editingObj?.id ? `แก้ไขเป้าประสงค์ (${editingObj.auto_id})` : 'เพิ่มเป้าประสงค์ใหม่'} maxWidth="800px">
+        <form onSubmit={saveObj} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ชื่อเป้าประสงค์ <span style={{ color: 'red' }}>*</span></label>
             <input type="text" className="input-field" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="เช่น ลดอัตราป่วย..." />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>กิจกรรมริเริ่ม (Initiative Activity)</label>
-            <textarea className="input-field" rows={3} value={formData.initiative_activity || ''} onChange={e => setFormData({ ...formData, initiative_activity: e.target.value })} placeholder="ระบุกิจกรรมหรือโครงการริเริ่มที่จะขับเคลื่อนเป้าประสงค์นี้..." />
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ภาพรวมกิจกรรมริเริ่ม (Initiative Activity)</label>
+            <textarea className="input-field" rows={3} value={formData.initiative_activity || ''} onChange={e => setFormData({ ...formData, initiative_activity: e.target.value })} placeholder="ระบุกิจกรรมหรือโครงการริเริ่มโดยภาพรวม..." />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: 'var(--secondary)', padding: '0.6rem 1rem', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>แยกตามหน่วยงาน</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)', marginLeft: '0.5rem' }}>(กรอกข้อมูลเฉพาะหน่วยงานที่เกี่ยวข้อง)</span>
+            </div>
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {[
+                { key: 'ia_ssjj', label: 'สสจ.', placeholder: 'กิจกรรมที่สำนักงานสาธารณสุขจังหวัดรับผิดชอบ...' },
+                { key: 'ia_rph', label: 'รพ.', placeholder: 'กิจกรรมที่โรงพยาบาลรับผิดชอบ...' },
+                { key: 'ia_ssor', label: 'สสอ.', placeholder: 'กิจกรรมที่สำนักงานสาธารณสุขอำเภอรับผิดชอบ...' },
+                { key: 'ia_rphst', label: 'รพ.สต.', placeholder: 'กิจกรรมที่โรงพยาบาลส่งเสริมสุขภาพตำบลรับผิดชอบ...' },
+                { key: 'ia_phakee', label: 'ภาคี', placeholder: 'กิจกรรมที่ภาคีเครือข่ายรับผิดชอบ...' },
+              ].map(({ key, label, placeholder }) => (
+                <div key={key}>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--primary)' }}>{label}</label>
+                  <textarea
+                    className="input-field"
+                    rows={4}
+                    value={formData[key] || ''}
+                    onChange={e => setFormData({ ...formData, [key]: e.target.value })}
+                    placeholder={placeholder}
+                    style={{ fontSize: '0.875rem', lineHeight: '1.6', resize: 'vertical', minHeight: '90px' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
             <button type="button" onClick={() => setIsObjModalOpen(false)} className="btn-secondary">ยกเลิก</button>
             <button type="submit" className="btn-primary" disabled={isSaving}>{isSaving ? 'กำลังบันทึก...' : 'บันทึก'}</button>
           </div>
