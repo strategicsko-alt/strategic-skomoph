@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { KrTableClient } from '@/components/KrTableClient';
+import { ExportButton } from '@/components/ExportButton';
 import { 
   Briefcase, 
   GitBranch, 

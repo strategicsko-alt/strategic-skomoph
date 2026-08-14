@@ -141,3 +141,38 @@ button {
 .btn-secondary:hover {
   background-color: var(--border);
 }
+
+/* Print Styles */
+@media print {
+  /* ซ่อนเมนูนำทางและปุ่มที่ไม่จำเป็นในกระดาษพิมพ์ */
+  .hide-on-print, nav, header, button {
+    display: none !important;
+  }
+
+  /* จัดสีพื้นหลังให้เป็นสีขาว และข้อความเป็นสีดำเพื่อประหยัดหมึก */
+  body, .container {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* ปรับเงาและเส้นขอบให้พิมพ์ชัดเจนขึ้น */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* ปรับการขึ้นหน้าใหม่ เพื่อไม่ให้ตารางหรือ Section ถูกตัดขาดครึ่ง */
+  .collapsible-section, .kr-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 1rem !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* เปิดแสดงเนื้อหาทั้งหมดโดยบังคับให้ไม่ซ่อนในเวลาพิมพ์ */
+  .collapsible-content {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
