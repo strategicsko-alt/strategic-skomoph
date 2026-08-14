@@ -1,69 +1,143 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 
-export default function Home() {
+export const revalidate = 60; // Revalidate every 60 seconds
+
+export default async function DashboardPage() {
+  // Fetch Core Organization Data
+  const { data: coreData } = await supabase
+    .from('core_organization')
+    .select('*')
+    .order('id', { ascending: true })
+    .limit(1)
+    .single();
+
+  // Fetch Strategic Issues and Objectives for the Roadmap
+  const { data: strategies } = await supabase
+    .from('strategic_issues')
+    .select(`
+      id, name, order_index,
+      objectives (
+        id, auto_id, strategy_name,
+        key_results (
+          id, auto_id, name, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status
+        )
+      )
+    `)
+    .order('order_index', { ascending: true });
+
+  const vision = coreData?.vision || 'กำลังโหลดวิสัยทัศน์...';
+  const mission = coreData?.mission || 'กำลังโหลดพันธกิจ...';
+  const ultimateGoal = coreData?.ultimate_goal || 'กำลังโหลดเป้าประสงค์...';
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main style={{ minHeight: '100vh', paddingBottom: '4rem' }}>
+      {/* Header Section */}
+      <header style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', padding: '2rem 1.5rem', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>ยุทธศาสตร์สุขภาพ 5 ปี จังหวัดสระแก้ว</h1>
+        <p style={{ opacity: 0.9 }}>(พ.ศ. 2570 - 2574)</p>
+        <div style={{ marginTop: '1rem' }}>
+          <Link href="/editor/login" className="btn-secondary" style={{ backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.3)', color: 'white', fontSize: '0.875rem', padding: '0.5rem 1rem' }}>
+            เข้าสู่ระบบจัดการข้อมูล
+          </Link>
+        </div>
+      </header>
+
+      {/* Bento Grid - Core Data */}
+      <section className="bento-grid">
+        <div className="card" style={{ gridColumn: '1 / -1', background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)', color: 'white' }}>
+          <h2 style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '0.5rem' }}>เป้าประสงค์สูงสุด (Ultimate Goal)</h2>
+          <p style={{ fontSize: '1.5rem', fontWeight: '600' }}>{ultimateGoal}</p>
+        </div>
+
+        <div className="card" style={{ gridColumn: 'auto / span 1' }}>
+          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>วิสัยทัศน์ (Vision)</h2>
+          <p>{vision}</p>
+        </div>
+
+        <div className="card" style={{ gridColumn: 'auto / span 1' }}>
+          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>พันธกิจ (Mission)</h2>
+          <p>{mission}</p>
+        </div>
+
+        {/* Placeholder for SWOT if needed on dashboard */}
+        <div className="card" style={{ gridColumn: 'auto / span 1' }}>
+          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>ภาพรวมการประเมิน (SWOT)</h2>
+          <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.875rem' }}>
+            จุดแข็ง จุดอ่อน โอกาส และอุปสรรค เพื่อการพัฒนาอย่างยั่งยืน
           </p>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* 5-Year Strategic Roadmap */}
+      <section style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 1.5rem' }}>
+        <div className="card" style={{ overflowX: 'auto' }}>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--secondary)', paddingBottom: '0.75rem' }}>
+            Roadmap ยุทธศาสตร์ 5 ปี
+          </h2>
+          
+          {strategies && strategies.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: '800px' }}>
+              {strategies.map((strategy: any) => (
+                <div key={strategy.id} style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>{strategy.name}</h3>
+                  
+                  {strategy.objectives?.map((obj: any) => (
+                    <div key={obj.id} style={{ marginBottom: '1.5rem', backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+                      <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
+                        <span style={{ color: 'var(--primary)' }}>[{obj.auto_id}]</span> {obj.strategy_name}
+                      </h4>
+                      
+                      {/* KR Timeline Table */}
+                      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem', fontSize: '0.875rem', backgroundColor: 'var(--card)' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: 'var(--primary)', color: 'white', textAlign: 'left' }}>
+                            <th style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm) 0 0 0' }}>Key Result</th>
+                            <th style={{ padding: '0.5rem' }}>สถานะ</th>
+                            <th style={{ padding: '0.5rem' }}>ปี 2570</th>
+                            <th style={{ padding: '0.5rem' }}>ปี 2571</th>
+                            <th style={{ padding: '0.5rem' }}>ปี 2572</th>
+                            <th style={{ padding: '0.5rem' }}>ปี 2573</th>
+                            <th style={{ padding: '0.5rem', borderRadius: '0 var(--radius-sm) 0 0' }}>ปี 2574</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {obj.key_results?.map((kr: any) => (
+                            <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '0.75rem 0.5rem', fontWeight: '500' }}>
+                                <span style={{ color: 'var(--primary)' }}>[{kr.auto_id}]</span> {kr.name}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>
+                                <span style={{ padding: '0.25rem 0.5rem', backgroundColor: kr.measurement_status === 'พร้อมวัด' ? 'var(--success)' : 'var(--warning)', color: 'white', borderRadius: '99px', fontSize: '0.75rem' }}>
+                                  {kr.measurement_status || '-'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>{kr.target_2570 || '-'}</td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>{kr.target_2571 || '-'}</td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>{kr.target_2572 || '-'}</td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>{kr.target_2573 || '-'}</td>
+                              <td style={{ padding: '0.75rem 0.5rem', fontWeight: '600', color: 'var(--primary)' }}>{kr.target_2574 || '-'}</td>
+                            </tr>
+                          ))}
+                          {(!obj.key_results || obj.key_results.length === 0) && (
+                            <tr>
+                              <td colSpan={7} style={{ padding: '1rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>ยังไม่มีข้อมูล Key Result</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ textAlign: 'center', padding: '3rem', color: 'var(--secondary-foreground)' }}>
+              ยังไม่มีข้อมูลยุทธศาสตร์ กรุณาเพิ่มข้อมูลในระบบจัดการ
+            </p>
+          )}
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
