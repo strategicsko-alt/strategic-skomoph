@@ -91,7 +91,7 @@ export default function WorkshopPage() {
   // --- CRUD for Strategic Issues ---
   const handleOpenIssueModal = (issue: any = null) => {
     setEditingIssue(issue);
-    setFormData(issue || { name: '', description: '' });
+    setFormData(issue || { name: '', description: '', theme_color: '#0284c7' });
     setIsIssueModalOpen(true);
   };
 
@@ -103,13 +103,15 @@ export default function WorkshopPage() {
       // Update
       await supabase.from('strategic_issues').update({ 
         name: formData.name, 
-        description: formData.description 
+        description: formData.description,
+        theme_color: formData.theme_color
       }).eq('id', editingIssue.id);
     } else {
       // Insert
       const { data } = await supabase.from('strategic_issues').insert([{ 
         name: formData.name, 
         description: formData.description,
+        theme_color: formData.theme_color,
         order_index: strategicIssues.length
       }]).select();
       if (data && data[0]) setActiveIssue(data[0].id);
@@ -243,7 +245,7 @@ export default function WorkshopPage() {
                   padding: '0.75rem 1rem',
                   backgroundColor: activeIssue === issue.id ? 'var(--secondary)' : 'transparent',
                   border: 'none',
-                  borderLeft: activeIssue === issue.id ? '3px solid var(--primary)' : '3px solid transparent',
+                  borderLeft: activeIssue === issue.id ? `4px solid ${issue.theme_color || 'var(--primary)'}` : '4px solid transparent',
                   borderRadius: '0 var(--radius-md) var(--radius-md) 0',
                   cursor: 'pointer',
                   fontWeight: activeIssue === issue.id ? 600 : 400,
@@ -268,7 +270,7 @@ export default function WorkshopPage() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: currentIssueData.theme_color || 'var(--primary)', marginBottom: '0.5rem' }}>
                   {currentIssueData.name}
                 </h2>
                 <p style={{ color: 'var(--secondary-foreground)' }}>{currentIssueData.description || 'ไม่มีคำอธิบาย'}</p>
@@ -386,6 +388,13 @@ export default function WorkshopPage() {
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>คำอธิบายเพิ่มเติม</label>
             <textarea className="input-field" rows={3} value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="รายละเอียดของยุทธศาสตร์..." />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>สีธีม (Theme Color)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <input type="color" value={formData.theme_color || '#0284c7'} onChange={e => setFormData({...formData, theme_color: e.target.value})} style={{ width: '50px', height: '40px', padding: '0', cursor: 'pointer' }} />
+              <input type="text" className="input-field" value={formData.theme_color || '#0284c7'} onChange={e => setFormData({...formData, theme_color: e.target.value})} style={{ width: '120px' }} />
+            </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
             <button type="button" onClick={() => setIsIssueModalOpen(false)} className="btn-secondary">ยกเลิก</button>

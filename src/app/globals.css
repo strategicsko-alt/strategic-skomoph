@@ -34,25 +34,7 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    
-    --primary: #38bdf8;
-    --primary-hover: #7dd3fc;
-    --primary-foreground: #0284c7;
-    
-    --secondary: #1e293b;
-    --secondary-foreground: #cbd5e1;
-    
-    --card: #1e293b;
-    --card-foreground: #f8fafc;
-    
-    --border: #334155;
-    --input: #334155;
-  }
-}
+
 
 * {
   box-sizing: border-box;

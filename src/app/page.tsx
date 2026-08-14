@@ -79,19 +79,19 @@ export default async function DashboardPage() {
           {strategies && strategies.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: '800px' }}>
               {strategies.map((strategy: any) => (
-                <div key={strategy.id} style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>{strategy.name}</h3>
+                <div key={strategy.id} style={{ borderLeft: `4px solid ${strategy.theme_color || 'var(--primary)'}`, paddingLeft: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', color: strategy.theme_color || 'var(--foreground)' }}>{strategy.name}</h3>
                   
                   {strategy.objectives?.map((obj: any) => (
                     <div key={obj.id} style={{ marginBottom: '1.5rem', backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                       <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
-                        <span style={{ color: 'var(--primary)' }}>[{obj.auto_id}]</span> {obj.strategy_name}
+                        <span style={{ color: strategy.theme_color || 'var(--primary)' }}>[{obj.auto_id}]</span> {obj.strategy_name}
                       </h4>
                       
                       {/* KR Timeline Table */}
                       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem', fontSize: '0.875rem', backgroundColor: 'var(--card)' }}>
                         <thead>
-                          <tr style={{ backgroundColor: 'var(--primary)', color: 'white', textAlign: 'left' }}>
+                          <tr style={{ backgroundColor: strategy.theme_color || 'var(--primary)', color: 'white', textAlign: 'left' }}>
                             <th style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm) 0 0 0' }}>Key Result</th>
                             <th style={{ padding: '0.5rem' }}>สถานะ</th>
                             <th style={{ padding: '0.5rem' }}>ปี 2570</th>
