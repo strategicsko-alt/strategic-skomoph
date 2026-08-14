@@ -394,7 +394,7 @@ export default function WorkshopPage() {
   const handleOpenKrModal = (parentType: 'strategic_issue' | 'objective', parentAutoId: string, parentId: string, kr: any = null) => {
     setEditingKr({ ...kr, _parentType: parentType, _parentAutoId: parentAutoId, _parentId: parentId });
     setFormData(kr || {
-      name: '', measurement_status: 'ต้องสร้างระบบวัดใหม่',
+      name: '', measurement_status: 'สร้างใหม่',
       target_2570: '', target_2571: '', target_2572: '', target_2573: '', target_2574: '',
       responsible_group: ''
     });
@@ -1105,9 +1105,9 @@ export default function WorkshopPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>สถานะความพร้อมวัด</label>
-              <select className="input-field" value={formData.measurement_status || 'ต้องสร้างระบบวัดใหม่'} onChange={e => setFormData({ ...formData, measurement_status: e.target.value })}>
+              <select className="input-field" value={formData.measurement_status || 'สร้างใหม่'} onChange={e => setFormData({ ...formData, measurement_status: e.target.value })}>
                 <option value="พร้อมวัด">พร้อมวัด</option>
-                <option value="ต้องสร้างระบบวัดใหม่">ต้องสร้างระบบวัดใหม่</option>
+                <option value="สร้างใหม่">สร้างใหม่</option>
               </select>
             </div>
             <div>
