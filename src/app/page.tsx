@@ -25,7 +25,7 @@ export default async function DashboardPage() {
   const { data: strategies } = await supabase
     .from('strategic_issues')
     .select(`
-      id, name, order_index, theme_color,
+      id, auto_id, name, order_index, theme_color,
       strategic_outcome_indicators (
         id, name
       ),
@@ -36,7 +36,10 @@ export default async function DashboardPage() {
         )
       )
     `)
-    .order('order_index', { ascending: true });
+    .order('order_index', { ascending: true })
+    .order('order_index', { foreignTable: 'strategic_outcome_indicators', ascending: true })
+    .order('order_index', { foreignTable: 'objectives', ascending: true })
+    .order('order_index', { foreignTable: 'objectives.key_results', ascending: true });
 
   const vision = coreData?.vision || 'ยังไม่มีข้อมูลวิสัยทัศน์';
   const missions = coreListItems?.filter((i: any) => i.item_type === 'mission') || [];
@@ -133,7 +136,10 @@ export default async function DashboardPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: '800px' }}>
               {strategies.map((strategy: any) => (
                 <div key={strategy.id} style={{ borderLeft: `4px solid ${strategy.theme_color || 'var(--primary)'}`, paddingLeft: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', color: strategy.theme_color || 'var(--foreground)' }}>{strategy.name}</h3>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', color: strategy.theme_color || 'var(--foreground)' }}>
+                    <span style={{ color: 'var(--secondary-foreground)', marginRight: '0.5rem', fontWeight: 700 }}>[{strategy.auto_id}]</span>
+                    {strategy.name}
+                  </h3>
                   
                   {strategy.strategic_outcome_indicators?.length > 0 && (
                     <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>

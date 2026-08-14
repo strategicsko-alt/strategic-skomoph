@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronRight, AlertCircle, ArrowUp, ArrowDown } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
 export default function WorkshopPage() {
@@ -38,7 +38,10 @@ export default function WorkshopPage() {
           key_results (*)
         )
       `)
-      .order('order_index', { ascending: true });
+      .order('order_index', { ascending: true })
+      .order('order_index', { foreignTable: 'strategic_outcome_indicators', ascending: true })
+      .order('order_index', { foreignTable: 'objectives', ascending: true })
+      .order('order_index', { foreignTable: 'objectives.key_results', ascending: true });
       
     if (data) {
       setStrategicIssues(data);
@@ -56,39 +59,54 @@ export default function WorkshopPage() {
   // --- Helpers for Auto-ID Generation ---
   // In a production app, this should ideally be done in a database function to prevent race conditions.
   // We'll calculate it on the client for simplicity.
-  const generateObjId = () => {
+  const generateIssueId = () => {
     let maxId = 0;
     strategicIssues.forEach(issue => {
-      issue.objectives?.forEach((obj: any) => {
-        const num = parseInt(obj.auto_id.replace('O', ''));
-        if (num > maxId) maxId = num;
-      });
+      if (issue.auto_id) {
+        const num = parseInt(issue.auto_id.replace('S', ''));
+        if (!isNaN(num) && num > maxId) maxId = num;
+      }
     });
-    return `O${maxId + 1}`;
+    return `S${maxId + 1}`;
   };
 
-  const generateKrId = (objId: string) => {
-    // Find the objective
-    let obj: any = null;
+  const generateObjId = (issueAutoId: string) => {
+    let maxId = 0;
+    const issue = strategicIssues.find(i => i.auto_id === issueAutoId);
+    if (issue && issue.objectives) {
+      issue.objectives.forEach((obj: any) => {
+        if (obj.auto_id) {
+          const parts = obj.auto_id.split('.');
+          if (parts.length > 1) {
+            const num = parseInt(parts[1]);
+            if (!isNaN(num) && num > maxId) maxId = num;
+          }
+        }
+      });
+    }
+    const parentNum = issueAutoId ? issueAutoId.replace('S', '') : 'X';
+    return `O${parentNum}.${maxId + 1}`;
+  };
+
+  const generateKrId = (objAutoId: string) => {
+    let maxId = 0;
     strategicIssues.forEach(issue => {
-      const found = issue.objectives?.find((o: any) => o.auto_id === objId);
-      if (found) obj = found;
-    });
-
-    if (!obj) return 'KRX.1';
-
-    let maxSubId = 0;
-    obj.key_results?.forEach((kr: any) => {
-      const parts = kr.auto_id.split('.');
-      if (parts.length > 1) {
-        const subId = parseInt(parts[1]);
-        if (subId > maxSubId) maxSubId = subId;
+      const obj = issue.objectives?.find((o: any) => o.auto_id === objAutoId);
+      if (obj && obj.key_results) {
+        obj.key_results.forEach((kr: any) => {
+          if (kr.auto_id) {
+            const parts = kr.auto_id.split('.');
+            if (parts.length > 2) {
+              const num = parseInt(parts[2]);
+              if (!isNaN(num) && num > maxId) maxId = num;
+            }
+          }
+        });
       }
     });
     
-    // Auto-ID format: KR[objNum].[subNum] e.g. KR16.1
-    const objNum = objId.replace('O', '');
-    return `KR${objNum}.${maxSubId + 1}`;
+    const parentStr = objAutoId ? objAutoId.replace('O', 'KR') : 'KRX.X';
+    return `${parentStr}.${maxId + 1}`;
   };
 
   // --- CRUD for Strategic Issues ---
@@ -112,7 +130,9 @@ export default function WorkshopPage() {
       if (error) alert('Error updating: ' + error.message);
     } else {
       // Insert
+      const auto_id = generateIssueId();
       const { data, error } = await supabase.from('strategic_issues').insert([{ 
+        auto_id,
         name: formData.name, 
         description: formData.description,
         theme_color: formData.theme_color,
@@ -185,11 +205,13 @@ export default function WorkshopPage() {
         strategy_name: formData.strategy_name
       }).eq('id', editingObj.id);
     } else {
-      const auto_id = generateObjId();
+      const currentIssue = strategicIssues.find(i => i.id === activeIssue);
+      const auto_id = generateObjId(currentIssue?.auto_id);
       await supabase.from('objectives').insert([{ 
         strategic_issue_id: activeIssue,
         auto_id,
-        strategy_name: formData.strategy_name
+        strategy_name: formData.strategy_name,
+        order_index: currentIssue?.objectives?.length || 0
       }]);
     }
     
@@ -236,10 +258,16 @@ export default function WorkshopPage() {
       await supabase.from('key_results').update(payload).eq('id', editingKr.id);
     } else {
       const auto_id = generateKrId(editingKr._objAutoId);
+      let order_index = 0;
+      strategicIssues.forEach(issue => {
+        const obj = issue.objectives?.find((o: any) => o.id === editingKr._objId);
+        if (obj && obj.key_results) order_index = obj.key_results.length;
+      });
       await supabase.from('key_results').insert([{ 
         ...payload,
         objective_id: editingKr._objId,
-        auto_id
+        auto_id,
+        order_index
       }]);
     }
     
@@ -252,6 +280,34 @@ export default function WorkshopPage() {
     if (!confirm('ยืนยันการลบ Key Result นี้?')) return;
     await supabase.from('key_results').delete().eq('id', id);
     fetchData();
+  };
+
+  // --- Ordering Logic ---
+  const swapOrder = async (table: string, id1: string, order1: number, id2: string, order2: number) => {
+    setIsSaving(true);
+    let newOrder1 = order2;
+    let newOrder2 = order1;
+    if (order1 === order2) {
+      newOrder1 = order1 - 1;
+      newOrder2 = order2 + 1;
+    }
+    await Promise.all([
+      supabase.from(table).update({ order_index: newOrder1 }).eq('id', id1),
+      supabase.from(table).update({ order_index: newOrder2 }).eq('id', id2)
+    ]);
+    await fetchData();
+    setIsSaving(false);
+  };
+
+  const moveItem = async (table: string, currentItem: any, direction: 'up' | 'down', list: any[]) => {
+    const currentIndex = list.findIndex(i => i.id === currentItem.id);
+    if (direction === 'up' && currentIndex > 0) {
+      const prevItem = list[currentIndex - 1];
+      await swapOrder(table, currentItem.id, currentItem.order_index, prevItem.id, prevItem.order_index);
+    } else if (direction === 'down' && currentIndex < list.length - 1) {
+      const nextItem = list[currentIndex + 1];
+      await swapOrder(table, currentItem.id, currentItem.order_index, nextItem.id, nextItem.order_index);
+    }
   };
 
   const currentIssueData = strategicIssues.find(issue => issue.id === activeIssue);
@@ -273,26 +329,30 @@ export default function WorkshopPage() {
           ) : strategicIssues.length === 0 ? (
             <p style={{ padding: '1rem', textAlign: 'center', color: 'var(--secondary-foreground)', fontSize: '0.875rem' }}>ยังไม่มีข้อมูลยุทธศาสตร์</p>
           ) : (
-            strategicIssues.map((issue) => (
-              <button
-                key={issue.id}
-                onClick={() => setActiveIssue(issue.id)}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '0.75rem 1rem',
-                  backgroundColor: activeIssue === issue.id ? 'var(--secondary)' : 'transparent',
-                  border: 'none',
-                  borderLeft: activeIssue === issue.id ? `4px solid ${issue.theme_color || 'var(--primary)'}` : '4px solid transparent',
-                  borderRadius: '0 var(--radius-md) var(--radius-md) 0',
-                  cursor: 'pointer',
-                  fontWeight: activeIssue === issue.id ? 600 : 400,
-                  color: activeIssue === issue.id ? 'var(--primary)' : 'var(--foreground)',
-                  marginBottom: '0.25rem'
-                }}
-              >
-                {issue.name}
-              </button>
+            strategicIssues.map((issue, idx) => (
+              <div key={issue.id} style={{ display: 'flex', marginBottom: '0.25rem' }}>
+                <button
+                  onClick={() => setActiveIssue(issue.id)}
+                  style={{
+                    flex: 1,
+                    textAlign: 'left',
+                    padding: '0.75rem 1rem',
+                    backgroundColor: activeIssue === issue.id ? 'var(--secondary)' : 'transparent',
+                    border: 'none',
+                    borderLeft: activeIssue === issue.id ? `4px solid ${issue.theme_color || 'var(--primary)'}` : '4px solid transparent',
+                    cursor: 'pointer',
+                    fontWeight: activeIssue === issue.id ? 600 : 400,
+                    color: activeIssue === issue.id ? 'var(--primary)' : 'var(--foreground)'
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--secondary-foreground)', marginRight: '0.5rem' }}>[{issue.auto_id}]</span>
+                  {issue.name}
+                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: activeIssue === issue.id ? 'var(--secondary)' : 'transparent', borderRadius: '0 var(--radius-md) var(--radius-md) 0' }}>
+                  <button disabled={idx === 0 || isSaving} onClick={() => moveItem('strategic_issues', issue, 'up', strategicIssues)} style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1, padding: '0.25rem' }}><ArrowUp size={14} /></button>
+                  <button disabled={idx === strategicIssues.length - 1 || isSaving} onClick={() => moveItem('strategic_issues', issue, 'down', strategicIssues)} style={{ background: 'none', border: 'none', cursor: idx === strategicIssues.length - 1 ? 'default' : 'pointer', opacity: idx === strategicIssues.length - 1 ? 0.3 : 1, padding: '0.25rem' }}><ArrowDown size={14} /></button>
+                </div>
+              </div>
             ))
           )}
         </div>
@@ -346,6 +406,9 @@ export default function WorkshopPage() {
                       <span style={{ fontWeight: 500 }}>{ind.name}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      <button disabled={idx === 0 || isSaving} onClick={() => moveItem('strategic_outcome_indicators', ind, 'up', currentIssueData.strategic_outcome_indicators)} style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}><ArrowUp size={16} /></button>
+                      <button disabled={idx === currentIssueData.strategic_outcome_indicators.length - 1 || isSaving} onClick={() => moveItem('strategic_outcome_indicators', ind, 'down', currentIssueData.strategic_outcome_indicators)} style={{ background: 'none', border: 'none', cursor: idx === currentIssueData.strategic_outcome_indicators.length - 1 ? 'default' : 'pointer', opacity: idx === currentIssueData.strategic_outcome_indicators.length - 1 ? 0.3 : 1 }}><ArrowDown size={16} /></button>
+                      <div style={{ width: '1px', backgroundColor: 'var(--border)', margin: '0 0.25rem' }}></div>
                       <button onClick={() => handleOpenIndicatorModal(ind)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}><Edit2 size={16} /></button>
                       <button onClick={() => deleteIndicator(ind.id)} style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer' }}><Trash2 size={16} /></button>
                     </div>
@@ -371,7 +434,7 @@ export default function WorkshopPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {currentIssueData.objectives?.map((obj: any) => (
+                {currentIssueData.objectives?.map((obj: any, idx: number) => (
                   <div key={obj.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
                     {/* Objective Header */}
                     <div style={{ backgroundColor: 'var(--secondary)', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -383,7 +446,10 @@ export default function WorkshopPage() {
                           <h4 style={{ fontWeight: 600, fontSize: '1.125rem' }}>{obj.strategy_name}</h4>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button disabled={idx === 0 || isSaving} onClick={() => moveItem('objectives', obj, 'up', currentIssueData.objectives)} style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1, padding: '0.5rem' }}><ArrowUp size={16} /></button>
+                        <button disabled={idx === currentIssueData.objectives.length - 1 || isSaving} onClick={() => moveItem('objectives', obj, 'down', currentIssueData.objectives)} style={{ background: 'none', border: 'none', cursor: idx === currentIssueData.objectives.length - 1 ? 'default' : 'pointer', opacity: idx === currentIssueData.objectives.length - 1 ? 0.3 : 1, padding: '0.5rem' }}><ArrowDown size={16} /></button>
+                        <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border)', margin: '0 0.5rem' }}></div>
                         <button onClick={() => handleOpenObjModal(obj)} className="btn-secondary" style={{ padding: '0.5rem' }}><Edit2 size={16} /></button>
                         <button onClick={() => deleteObj(obj.id)} className="btn-secondary" style={{ padding: '0.5rem', color: 'var(--destructive)' }}><Trash2 size={16} /></button>
                       </div>
@@ -414,7 +480,7 @@ export default function WorkshopPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {obj.key_results?.map((kr: any) => (
+                              {obj.key_results?.map((kr: any, krIdx: number) => (
                                 <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
                                   <td style={{ padding: '0.75rem 0', fontWeight: 500, color: 'var(--primary)' }}>{kr.auto_id}</td>
                                   <td style={{ padding: '0.75rem 0' }}>{kr.name}</td>
@@ -425,8 +491,11 @@ export default function WorkshopPage() {
                                   </td>
                                   <td style={{ padding: '0.75rem 0' }}>{kr.target_2570 || '-'}</td>
                                   <td style={{ padding: '0.75rem 0', fontWeight: 600 }}>{kr.target_2574 || '-'}</td>
-                                  <td style={{ padding: '0.75rem 0', textAlign: 'right' }}>
-                                    <button onClick={() => handleOpenKrModal(obj.auto_id, obj.id, kr)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', marginRight: '0.5rem' }}><Edit2 size={16} /></button>
+                                  <td style={{ padding: '0.75rem 0', textAlign: 'right', display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                    <button disabled={krIdx === 0 || isSaving} onClick={() => moveItem('key_results', kr, 'up', obj.key_results)} style={{ background: 'none', border: 'none', cursor: krIdx === 0 ? 'default' : 'pointer', opacity: krIdx === 0 ? 0.3 : 1 }}><ArrowUp size={14} /></button>
+                                    <button disabled={krIdx === obj.key_results.length - 1 || isSaving} onClick={() => moveItem('key_results', kr, 'down', obj.key_results)} style={{ background: 'none', border: 'none', cursor: krIdx === obj.key_results.length - 1 ? 'default' : 'pointer', opacity: krIdx === obj.key_results.length - 1 ? 0.3 : 1 }}><ArrowDown size={14} /></button>
+                                    <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border)', margin: '0 0.25rem' }}></div>
+                                    <button onClick={() => handleOpenKrModal(obj.auto_id, obj.id, kr)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}><Edit2 size={16} /></button>
                                     <button onClick={() => deleteKr(kr.id)} style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer' }}><Trash2 size={16} /></button>
                                   </td>
                                 </tr>
