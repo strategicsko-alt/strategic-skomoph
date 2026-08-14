@@ -129,7 +129,20 @@ export default function KPIDictionaryPage() {
             </thead>
             <tbody>
               {(selectedGroup ? keyResults.filter(kr => kr.responsible_group === selectedGroup) : keyResults).map((kr) => {
-                const hasKpi = kr.kpi_dictionaries && kr.kpi_dictionaries.length > 0;
+                const kpi = kr.kpi_dictionaries?.[0];
+                const hasKpi = !!kpi;
+                
+                let isComplete = false;
+                if (hasKpi) {
+                  const fields = [
+                    kpi.definition, kpi.numerator, kpi.denominator, kpi.inclusion_criteria,
+                    kpi.exclusion_criteria, kpi.data_source, kpi.data_collection_method,
+                    kpi.cutoff_date, kpi.frequency, kpi.responsible_person,
+                    kpi.proposed_target, kpi.rationale, kpi.risk_warning, kpi.prerequisite
+                  ];
+                  // Consider complete only if all fields have some text
+                  isComplete = fields.every(field => field && String(field).trim() !== '');
+                }
                 
                 return (
                   <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -142,9 +155,15 @@ export default function KPIDictionaryPage() {
                     </td>
                     <td style={{ padding: '1rem' }}>
                       {hasKpi ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--success)', fontWeight: 500 }}>
-                          <CheckCircle2 size={16} /> บันทึกแล้ว
-                        </span>
+                        isComplete ? (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--success)', fontWeight: 500 }}>
+                            <CheckCircle2 size={16} /> สมบูรณ์
+                          </span>
+                        ) : (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#eab308', fontWeight: 500 }}>
+                            <Edit2 size={14} /> ไม่สมบูรณ์
+                          </span>
+                        )
                       ) : (
                         <span style={{ color: 'var(--secondary-foreground)' }}>ยังไม่ระบุ</span>
                       )}
