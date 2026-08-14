@@ -22,7 +22,7 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: true });
 
   // Fetch Strategic Issues and Objectives for the Roadmap
-  const { data: strategies } = await supabase
+  const { data: rawStrategies } = await supabase
     .from('strategic_issues')
     .select(`
       id, auto_id, name, order_index, theme_color,
@@ -30,20 +30,30 @@ export default async function DashboardPage() {
         id, name
       ),
       strategies (
-        id, auto_id, name,
+        id, auto_id, name, order_index,
         objectives (
-          id, auto_id, name,
+          id, auto_id, name, order_index,
           key_results (
-            id, auto_id, name, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status
+            id, auto_id, name, order_index, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status
           )
         )
       )
     `)
-    .order('order_index', { ascending: true })
-    .order('order_index', { foreignTable: 'strategic_outcome_indicators', ascending: true })
-    .order('order_index', { foreignTable: 'strategies', ascending: true })
-    .order('order_index', { foreignTable: 'strategies.objectives', ascending: true })
-    .order('order_index', { foreignTable: 'strategies.objectives.key_results', ascending: true });
+    .order('order_index', { ascending: true });
+
+  // Sort nested relations in JS (PostgREST doesn't support nested foreignTable ordering)
+  const strategies = (rawStrategies || []).map((issue: any) => ({
+    ...issue,
+    strategic_outcome_indicators: (issue.strategic_outcome_indicators || []),
+    strategies: (issue.strategies || []).sort((a: any, b: any) => a.order_index - b.order_index).map((st: any) => ({
+      ...st,
+      objectives: (st.objectives || []).sort((a: any, b: any) => a.order_index - b.order_index).map((obj: any) => ({
+        ...obj,
+        key_results: (obj.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index),
+      })),
+    })),
+  }));
+
 
   const vision = coreData?.vision || 'ยังไม่มีข้อมูลวิสัยทัศน์';
   const missions = coreListItems?.filter((i: any) => i.item_type === 'mission') || [];

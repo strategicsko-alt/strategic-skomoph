@@ -43,16 +43,26 @@ export default function WorkshopPage() {
           )
         )
       `)
-      .order('order_index', { ascending: true })
-      .order('order_index', { foreignTable: 'strategic_outcome_indicators', ascending: true })
-      .order('order_index', { foreignTable: 'strategies', ascending: true })
-      .order('order_index', { foreignTable: 'strategies.objectives', ascending: true })
-      .order('order_index', { foreignTable: 'strategies.objectives.key_results', ascending: true });
+      .order('order_index', { ascending: true });
+
+    if (error) console.error('fetchData error:', error.message);
       
     if (data) {
-      setStrategicIssues(data);
-      if (data.length > 0 && !activeIssue) {
-        setActiveIssue(data[0].id);
+      // Sort nested relations in JavaScript (Supabase doesn't support deeply nested foreignTable ordering)
+      const sorted = data.map((issue: any) => ({
+        ...issue,
+        strategic_outcome_indicators: (issue.strategic_outcome_indicators || []).sort((a: any, b: any) => a.order_index - b.order_index),
+        strategies: (issue.strategies || []).sort((a: any, b: any) => a.order_index - b.order_index).map((st: any) => ({
+          ...st,
+          objectives: (st.objectives || []).sort((a: any, b: any) => a.order_index - b.order_index).map((obj: any) => ({
+            ...obj,
+            key_results: (obj.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index),
+          })),
+        })),
+      }));
+      setStrategicIssues(sorted);
+      if (sorted.length > 0 && !activeIssue) {
+        setActiveIssue(sorted[0].id);
       }
     }
     setLoading(false);
