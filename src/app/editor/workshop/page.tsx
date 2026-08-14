@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, Trash2, Edit2, ArrowUp, ArrowDown, Folder } from 'lucide-react';
+import { Plus, Trash2, Edit2, ArrowUp, ArrowDown, Folder, RefreshCw, Check } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
 export default function WorkshopPage() {
@@ -10,6 +10,8 @@ export default function WorkshopPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIssue, setActiveIssue] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   // Modals state
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
@@ -30,6 +32,79 @@ export default function WorkshopPage() {
 
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // --- Cascade Auto-Renumbering for All Hierarchy Levels ---
+  const renumberAllHierarchy = async (issuesList: any[]) => {
+    const updates: Promise<any>[] = [];
+
+    issuesList.forEach((issue, issueIdx) => {
+      const issueNum = issueIdx + 1;
+      const expectedIssueId = `S${issueNum}`;
+
+      if (issue.auto_id !== expectedIssueId || issue.order_index !== issueIdx) {
+        updates.push(
+          supabase.from('strategic_issues').update({
+            auto_id: expectedIssueId,
+            order_index: issueIdx
+          }).eq('id', issue.id)
+        );
+        issue.auto_id = expectedIssueId;
+        issue.order_index = issueIdx;
+      }
+
+      (issue.strategies || []).forEach((st: any, stIdx: number) => {
+        const stNum = stIdx + 1;
+        const expectedStId = `ST${issueNum}.${stNum}`;
+
+        if (st.auto_id !== expectedStId || st.order_index !== stIdx) {
+          updates.push(
+            supabase.from('strategies').update({
+              auto_id: expectedStId,
+              order_index: stIdx
+            }).eq('id', st.id)
+          );
+          st.auto_id = expectedStId;
+          st.order_index = stIdx;
+        }
+
+        (st.objectives || []).forEach((obj: any, objIdx: number) => {
+          const objNum = objIdx + 1;
+          const expectedObjId = `O${issueNum}.${stNum}.${objNum}`;
+
+          if (obj.auto_id !== expectedObjId || obj.order_index !== objIdx) {
+            updates.push(
+              supabase.from('objectives').update({
+                auto_id: expectedObjId,
+                order_index: objIdx
+              }).eq('id', obj.id)
+            );
+            obj.auto_id = expectedObjId;
+            obj.order_index = objIdx;
+          }
+
+          (obj.key_results || []).forEach((kr: any, krIdx: number) => {
+            const krNum = krIdx + 1;
+            const expectedKrId = `KR${issueNum}.${stNum}.${objNum}.${krNum}`;
+
+            if (kr.auto_id !== expectedKrId || kr.order_index !== krIdx) {
+              updates.push(
+                supabase.from('key_results').update({
+                  auto_id: expectedKrId,
+                  order_index: krIdx
+                }).eq('id', kr.id)
+              );
+              kr.auto_id = expectedKrId;
+              kr.order_index = krIdx;
+            }
+          });
+        });
+      });
+    });
+
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
+  };
 
   // Fetch data
   const fetchData = async () => {
@@ -55,15 +130,19 @@ export default function WorkshopPage() {
     if (issueData) {
       const sorted = issueData.map((issue: any) => ({
         ...issue,
-        strategic_outcome_indicators: (issue.strategic_outcome_indicators || []).sort((a: any, b: any) => a.order_index - b.order_index),
-        strategies: (issue.strategies || []).sort((a: any, b: any) => a.order_index - b.order_index).map((st: any) => ({
+        strategic_outcome_indicators: (issue.strategic_outcome_indicators || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+        strategies: (issue.strategies || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)).map((st: any) => ({
           ...st,
-          objectives: (st.objectives || []).sort((a: any, b: any) => a.order_index - b.order_index).map((obj: any) => ({
+          objectives: (st.objectives || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)).map((obj: any) => ({
             ...obj,
-            key_results: (obj.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index),
+            key_results: (obj.key_results || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)),
           })),
         })),
-      }));
+      })).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0));
+
+      // Auto synchronize all IDs across all hierarchy levels in database
+      await renumberAllHierarchy(sorted);
+
       setStrategicIssues(sorted);
       if (sorted.length > 0 && !activeIssue) {
         setActiveIssue(sorted[0].id);
@@ -85,76 +164,12 @@ export default function WorkshopPage() {
     fetchData();
   }, []);
 
-  // --- Helpers for Auto-ID Generation ---
-  const generateIssueId = () => {
-    let maxId = 0;
-    strategicIssues.forEach(issue => {
-      if (issue.auto_id) {
-        const num = parseInt(issue.auto_id.replace('S', ''));
-        if (!isNaN(num) && num > maxId) maxId = num;
-      }
-    });
-    return `S${maxId + 1}`;
-  };
-
-  const generateStrategyId = (issueAutoId: string) => {
-    let maxId = 0;
-    const issue = strategicIssues.find(i => i.auto_id === issueAutoId);
-    if (issue && issue.strategies) {
-      issue.strategies.forEach((st: any) => {
-        if (st.auto_id) {
-          const parts = st.auto_id.split('.');
-          if (parts.length > 1) {
-            const num = parseInt(parts[1]);
-            if (!isNaN(num) && num > maxId) maxId = num;
-          }
-        }
-      });
-    }
-    const parentNum = issueAutoId ? issueAutoId.replace('S', '') : 'X';
-    return `ST${parentNum}.${maxId + 1}`;
-  };
-
-  const generateObjId = (stAutoId: string) => {
-    let maxId = 0;
-    strategicIssues.forEach(issue => {
-      const st = issue.strategies?.find((s: any) => s.auto_id === stAutoId);
-      if (st && st.objectives) {
-        st.objectives.forEach((obj: any) => {
-          if (obj.auto_id) {
-            const parts = obj.auto_id.split('.');
-            if (parts.length > 2) {
-              const num = parseInt(parts[2]);
-              if (!isNaN(num) && num > maxId) maxId = num;
-            }
-          }
-        });
-      }
-    });
-    const parentStr = stAutoId ? stAutoId.replace('ST', 'O') : 'OX.X';
-    return `${parentStr}.${maxId + 1}`;
-  };
-
-  const generateKrId = (objAutoId: string) => {
-    let maxId = 0;
-    strategicIssues.forEach(issue => {
-      issue.strategies?.forEach((st: any) => {
-        const obj = st.objectives?.find((o: any) => o.auto_id === objAutoId);
-        if (obj && obj.key_results) {
-          obj.key_results.forEach((kr: any) => {
-            if (kr.auto_id) {
-              const parts = kr.auto_id.split('.');
-              if (parts.length > 3) {
-                const num = parseInt(parts[3]);
-                if (!isNaN(num) && num > maxId) maxId = num;
-              }
-            }
-          });
-        }
-      });
-    });
-    const parentStr = objAutoId ? objAutoId.replace('O', 'KR') : 'KRX.X.X';
-    return `${parentStr}.${maxId + 1}`;
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    await fetchData();
+    setIsSyncing(false);
+    setSyncSuccess(true);
+    setTimeout(() => setSyncSuccess(false), 3000);
   };
 
   // --- CRUD for Strategic Issues ---
@@ -175,7 +190,7 @@ export default function WorkshopPage() {
       }).eq('id', editingIssue.id);
       if (error) alert('Error updating: ' + error.message);
     } else {
-      const auto_id = generateIssueId();
+      const auto_id = `S${strategicIssues.length + 1}`;
       const { data, error } = await supabase.from('strategic_issues').insert([{
         auto_id,
         name: formData.name,
@@ -192,10 +207,10 @@ export default function WorkshopPage() {
   };
 
   const deleteIssue = async (id: string) => {
-    if (!confirm('ยืนยันการลบยุทธศาสตร์นี้? ข้อมูลทั้งหมดภายใต้จะถูกลบด้วย')) return;
+    if (!confirm('ยืนยันการลบยุทธศาสตร์นี้? ข้อมูลทั้งหมดภายใต้จะถูกลบไปด้วย')) return;
     await supabase.from('strategic_issues').delete().eq('id', id);
     if (activeIssue === id) setActiveIssue(null);
-    fetchData();
+    await fetchData();
   };
 
   // --- CRUD for Outcome Indicators ---
@@ -212,9 +227,11 @@ export default function WorkshopPage() {
       const { error } = await supabase.from('strategic_outcome_indicators').update({ name: formData.name }).eq('id', editingIndicator.id);
       if (error) alert('Error updating: ' + error.message);
     } else {
+      const currentIssue = strategicIssues.find(i => i.id === activeIssue);
       const { error } = await supabase.from('strategic_outcome_indicators').insert([{
         strategic_issue_id: activeIssue,
-        name: formData.name
+        name: formData.name,
+        order_index: currentIssue?.strategic_outcome_indicators?.length || 0
       }]);
       if (error) alert('Error inserting: ' + error.message);
     }
@@ -226,7 +243,7 @@ export default function WorkshopPage() {
   const deleteIndicator = async (id: string) => {
     if (!confirm('ยืนยันการลบตัวชี้วัดนี้?')) return;
     await supabase.from('strategic_outcome_indicators').delete().eq('id', id);
-    fetchData();
+    await fetchData();
   };
 
   // --- CRUD for Strategies ---
@@ -242,8 +259,12 @@ export default function WorkshopPage() {
     if (editingStrategy?.id) {
       await supabase.from('strategies').update({ name: formData.name }).eq('id', editingStrategy.id);
     } else {
-      const currentIssue = strategicIssues.find(i => i.id === activeIssue);
-      const auto_id = generateStrategyId(currentIssue?.auto_id);
+      const issueIdx = strategicIssues.findIndex(i => i.id === activeIssue);
+      const currentIssue = strategicIssues[issueIdx];
+      const issueNum = issueIdx >= 0 ? issueIdx + 1 : 1;
+      const nextStNum = (currentIssue?.strategies?.length || 0) + 1;
+      const auto_id = `ST${issueNum}.${nextStNum}`;
+
       await supabase.from('strategies').insert([{
         strategic_issue_id: activeIssue,
         auto_id,
@@ -257,9 +278,9 @@ export default function WorkshopPage() {
   };
 
   const deleteStrategy = async (id: string) => {
-    if (!confirm('ยืนยันการลบกลยุทธ์นี้? ข้อมูลทั้งหมดภายใต้จะถูกลบด้วย')) return;
+    if (!confirm('ยืนยันการลบกลยุทธ์นี้? ข้อมูลทั้งหมดภายใต้จะถูกลบไปด้วย')) return;
     await supabase.from('strategies').delete().eq('id', id);
-    fetchData();
+    await fetchData();
   };
 
   // --- CRUD for Objectives ---
@@ -285,12 +306,26 @@ export default function WorkshopPage() {
       const { error } = await supabase.from('objectives').update(iaPayload).eq('id', editingObj.id);
       if (error) alert('Error: ' + error.message);
     } else {
-      const auto_id = generateObjId(editingObj._stAutoId);
       let order_index = 0;
-      strategicIssues.forEach(issue => {
-        const st = issue.strategies?.find((s: any) => s.id === editingObj._stId);
-        if (st && st.objectives) order_index = st.objectives.length;
+      let issueNum = 1;
+      let stNum = 1;
+
+      strategicIssues.forEach((issue, iIdx) => {
+        const st = issue.strategies?.find((s: any, sIdx: number) => {
+          if (s.id === editingObj._stId) {
+            stNum = sIdx + 1;
+            return true;
+          }
+          return false;
+        });
+        if (st) {
+          issueNum = iIdx + 1;
+          if (st.objectives) order_index = st.objectives.length;
+        }
       });
+
+      const auto_id = `O${issueNum}.${stNum}.${order_index + 1}`;
+
       const { error } = await supabase.from('objectives').insert([{
         strategy_id: editingObj._stId,
         auto_id,
@@ -305,9 +340,9 @@ export default function WorkshopPage() {
   };
 
   const deleteObj = async (id: string) => {
-    if (!confirm('ยืนยันการลบเป้าประสงค์นี้? Key Results ทั้งหมดจะถูกลบด้วย')) return;
+    if (!confirm('ยืนยันการลบเป้าประสงค์นี้? Key Results ทั้งหมดจะถูกลบไปด้วย')) return;
     await supabase.from('objectives').delete().eq('id', id);
-    fetchData();
+    await fetchData();
   };
 
   // --- CRUD for Key Results ---
@@ -338,14 +373,30 @@ export default function WorkshopPage() {
       const { error } = await supabase.from('key_results').update(payload).eq('id', editingKr.id);
       if (error) alert('Error: ' + error.message);
     } else {
-      const auto_id = generateKrId(editingKr._objAutoId);
       let order_index = 0;
-      strategicIssues.forEach(issue => {
-        issue.strategies?.forEach((st: any) => {
-          const obj = st.objectives?.find((o: any) => o.id === editingKr._objId);
-          if (obj && obj.key_results) order_index = obj.key_results.length;
+      let issueNum = 1;
+      let stNum = 1;
+      let objNum = 1;
+
+      strategicIssues.forEach((issue, iIdx) => {
+        issue.strategies?.forEach((st: any, sIdx: number) => {
+          const obj = st.objectives?.find((o: any, oIdx: number) => {
+            if (o.id === editingKr._objId) {
+              objNum = oIdx + 1;
+              return true;
+            }
+            return false;
+          });
+          if (obj) {
+            issueNum = iIdx + 1;
+            stNum = sIdx + 1;
+            if (obj.key_results) order_index = obj.key_results.length;
+          }
         });
       });
+
+      const auto_id = `KR${issueNum}.${stNum}.${objNum}.${order_index + 1}`;
+
       const { error } = await supabase.from('key_results').insert([{
         ...payload,
         objective_id: editingKr._objId,
@@ -362,7 +413,7 @@ export default function WorkshopPage() {
   const deleteKr = async (id: string) => {
     if (!confirm('ยืนยันการลบ Key Result นี้?')) return;
     await supabase.from('key_results').delete().eq('id', id);
-    fetchData();
+    await fetchData();
   };
 
   // --- CRUD for Projects ---
@@ -417,7 +468,7 @@ export default function WorkshopPage() {
   const deleteProject = async (id: string) => {
     if (!confirm('ยืนยันการลบโครงการนี้?')) return;
     await supabase.from('projects').delete().eq('id', id);
-    fetchData();
+    await fetchData();
   };
 
   const toggleStrategySelection = (strategyId: string) => {
@@ -431,12 +482,9 @@ export default function WorkshopPage() {
   // --- Ordering Logic ---
   const swapOrder = async (table: string, id1: string, order1: number, id2: string, order2: number) => {
     setIsSaving(true);
-    let newOrder1 = order2;
-    let newOrder2 = order1;
-    if (order1 === order2) { newOrder1 = order1 - 1; newOrder2 = order2 + 1; }
     await Promise.all([
-      supabase.from(table).update({ order_index: newOrder1 }).eq('id', id1),
-      supabase.from(table).update({ order_index: newOrder2 }).eq('id', id2)
+      supabase.from(table).update({ order_index: order2 }).eq('id', id1),
+      supabase.from(table).update({ order_index: order1 }).eq('id', id2)
     ]);
     await fetchData();
     setIsSaving(false);
@@ -446,10 +494,10 @@ export default function WorkshopPage() {
     const currentIndex = list.findIndex(i => i.id === currentItem.id);
     if (direction === 'up' && currentIndex > 0) {
       const prevItem = list[currentIndex - 1];
-      await swapOrder(table, currentItem.id, currentItem.order_index, prevItem.id, prevItem.order_index);
+      await swapOrder(table, currentItem.id, currentIndex, prevItem.id, currentIndex - 1);
     } else if (direction === 'down' && currentIndex < list.length - 1) {
       const nextItem = list[currentIndex + 1];
-      await swapOrder(table, currentItem.id, currentItem.order_index, nextItem.id, nextItem.order_index);
+      await swapOrder(table, currentItem.id, currentIndex, nextItem.id, currentIndex + 1);
     }
   };
 
@@ -466,10 +514,25 @@ export default function WorkshopPage() {
       {/* Sidebar */}
       <div style={{ width: '300px', backgroundColor: 'var(--card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ fontWeight: 600 }}>ยุทธศาสตร์</h3>
-          <button onClick={() => handleOpenIssueModal()} className="btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}>
-            <Plus size={16} /> เพิ่ม
-          </button>
+          <div>
+            <h3 style={{ fontWeight: 600 }}>ยุทธศาสตร์</h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>เรียงตามลำดับ S1 - S4</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.35rem' }}>
+            <button 
+              onClick={handleManualSync} 
+              className="btn-secondary" 
+              title="จัดเรียงรหัสลำดับอัตโนมัติทั้งหมด"
+              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+              disabled={isSyncing}
+            >
+              {syncSuccess ? <Check size={14} style={{ color: 'var(--success)' }} /> : <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />}
+              {isSyncing ? '...' : syncSuccess ? 'ตรงแล้ว' : 'ซิงค์รหัส'}
+            </button>
+            <button onClick={() => handleOpenIssueModal()} className="btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}>
+              <Plus size={16} /> เพิ่ม
+            </button>
+          </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
           {loading ? (
@@ -513,7 +576,14 @@ export default function WorkshopPage() {
             {/* Issue Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: themeColor, marginBottom: '0.5rem' }}>{currentIssueData.name}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span style={{ backgroundColor: themeColor, color: 'white', padding: '0.15rem 0.6rem', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 700 }}>
+                    {currentIssueData.auto_id}
+                  </span>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: themeColor, margin: 0 }}>
+                    {currentIssueData.name}
+                  </h2>
+                </div>
                 <p style={{ color: 'var(--secondary-foreground)' }}>{currentIssueData.description || 'ไม่มีคำอธิบาย'}</p>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -660,7 +730,7 @@ export default function WorkshopPage() {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                                       <thead>
                                         <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', color: 'var(--secondary-foreground)' }}>
-                                          <th style={{ padding: '0.5rem 0.25rem', width: '90px' }}>รหัส</th>
+                                          <th style={{ padding: '0.5rem 0.25rem', width: '105px' }}>รหัส</th>
                                           <th style={{ padding: '0.5rem 0.25rem' }}>ชื่อเป้าหมาย</th>
                                           <th style={{ padding: '0.5rem 0.25rem', width: '90px', textAlign: 'center' }}>สถานะ</th>
                                           <th style={{ padding: '0.5rem 0.25rem', width: '52px', textAlign: 'center' }}>2570</th>
@@ -674,7 +744,7 @@ export default function WorkshopPage() {
                                       <tbody>
                                         {obj.key_results?.map((kr: any, krIdx: number) => (
                                           <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                            <td style={{ padding: '0.5rem 0.25rem', fontWeight: 500, color: themeColor, fontSize: '0.8rem' }}>{kr.auto_id}</td>
+                                            <td style={{ padding: '0.5rem 0.25rem', fontWeight: 600, color: themeColor, fontSize: '0.8rem' }}>{kr.auto_id}</td>
                                             <td style={{ padding: '0.5rem 0.25rem' }}>{kr.name}</td>
                                             <td style={{ padding: '0.5rem 0.25rem', textAlign: 'center' }}>
                                               <span style={{ padding: '0.15rem 0.4rem', backgroundColor: kr.measurement_status === 'พร้อมวัด' ? 'var(--success)' : 'var(--warning)', color: 'white', borderRadius: '99px', fontSize: '0.65rem', whiteSpace: 'nowrap' }}>
