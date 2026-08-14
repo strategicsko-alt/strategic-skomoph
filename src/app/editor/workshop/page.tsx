@@ -101,19 +101,21 @@ export default function WorkshopPage() {
     
     if (editingIssue?.id) {
       // Update
-      await supabase.from('strategic_issues').update({ 
+      const { error } = await supabase.from('strategic_issues').update({ 
         name: formData.name, 
         description: formData.description,
         theme_color: formData.theme_color
       }).eq('id', editingIssue.id);
+      if (error) alert('Error updating: ' + error.message);
     } else {
       // Insert
-      const { data } = await supabase.from('strategic_issues').insert([{ 
+      const { data, error } = await supabase.from('strategic_issues').insert([{ 
         name: formData.name, 
         description: formData.description,
         theme_color: formData.theme_color,
         order_index: strategicIssues.length
       }]).select();
+      if (error) alert('Error inserting: ' + error.message);
       if (data && data[0]) setActiveIssue(data[0].id);
     }
     
