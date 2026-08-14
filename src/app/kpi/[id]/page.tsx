@@ -3,8 +3,8 @@ import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default async function KpiViewPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function KpiViewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
   // Fetch KR and KPI data
   const { data: kr, error } = await supabase
@@ -17,7 +17,21 @@ export default async function KpiViewPage({ params }: { params: { id: string } }
     .maybeSingle();
 
   if (error || !kr) {
-    return notFound();
+    return (
+      <div style={{ padding: '4rem 2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--destructive, #ef4444)', marginBottom: '1rem' }}>
+          ไม่พบข้อมูลตัวชี้วัด (Key Result)
+        </h2>
+        <p style={{ color: 'var(--secondary-foreground, #6b7280)', marginBottom: '0.5rem' }}>
+          รหัสอ้างอิง: {id}
+        </p>
+        {error && (
+          <p style={{ color: '#ef4444', backgroundColor: '#fef2f2', padding: '1rem', borderRadius: '8px', display: 'inline-block' }}>
+            ข้อผิดพลาดจากฐานข้อมูล: {error.message}
+          </p>
+        )}
+      </div>
+    );
   }
 
   const kpiData = kr.kpi_dictionaries?.[0];
