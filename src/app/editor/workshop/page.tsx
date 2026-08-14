@@ -47,6 +47,7 @@ export default function WorkshopPage() {
   const [editingObj, setEditingObj] = useState<any>(null);
   const [editingKr, setEditingKr] = useState<any>(null);
   const [editingProject, setEditingProject] = useState<any>(null);
+  const [initiativeList, setInitiativeList] = useState<string[]>(['']);
   const [selectedStrategyIds, setSelectedStrategyIds] = useState<string[]>([]);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [movingKr, setMovingKr] = useState<any>(null);
@@ -310,15 +311,36 @@ export default function WorkshopPage() {
   const handleOpenObjModal = (stAutoId: string, stId: string, obj: any = null) => {
     setEditingObj({ ...obj, _stAutoId: stAutoId, _stId: stId });
     setFormData(obj || { name: '', initiative_activity: '', ia_ssjj: '', ia_rph: '', ia_ssor: '', ia_rphst: '', ia_phakee: '' });
+    
+    // Parse initiative_activity into array
+    let ia_parsed = [''];
+    const ia_raw = obj?.initiative_activity;
+    if (ia_raw) {
+      try {
+        const parsed = JSON.parse(ia_raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          ia_parsed = parsed;
+        } else {
+          ia_parsed = [ia_raw];
+        }
+      } catch (e) {
+        ia_parsed = [ia_raw];
+      }
+    }
+    setInitiativeList(ia_parsed);
+    
     setIsObjModalOpen(true);
   };
 
   const saveObj = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    
+    const cleanList = initiativeList.filter(i => i.trim() !== '');
+    
     const iaPayload = {
       name: formData.name,
-      initiative_activity: formData.initiative_activity,
+      initiative_activity: cleanList.length > 0 ? JSON.stringify(cleanList) : null,
       ia_ssjj: formData.ia_ssjj,
       ia_rph: formData.ia_rph,
       ia_ssor: formData.ia_ssor,
@@ -767,7 +789,19 @@ export default function WorkshopPage() {
                                     {obj.initiative_activity && (
                                       <div style={{ padding: '0.65rem 0.875rem', borderBottom: `1px solid ${themeColor}20` }}>
                                         <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--secondary-foreground)' }}>ภาพรวม</span>
-                                        <p style={{ margin: '0.2rem 0 0', fontSize: '0.875rem' }}>{obj.initiative_activity}</p>
+                                        {(() => {
+                                          try {
+                                            const parsed = JSON.parse(obj.initiative_activity);
+                                            if (Array.isArray(parsed)) {
+                                              return (
+                                                <ul style={{ margin: '0.2rem 0 0', paddingLeft: '1.25rem', fontSize: '0.875rem' }}>
+                                                  {parsed.map((item, i) => <li key={i}>{item}</li>)}
+                                                </ul>
+                                              );
+                                            }
+                                          } catch (e) {}
+                                          return <p style={{ margin: '0.2rem 0 0', fontSize: '0.875rem' }}>{obj.initiative_activity}</p>;
+                                        })()}
                                       </div>
                                     )}
                                     {[{key: 'ia_ssjj', label: 'สสจ.'}, {key: 'ia_rph', label: 'รพ.'}, {key: 'ia_ssor', label: 'สสอ.'}, {key: 'ia_rphst', label: 'รพ.สต.'}, {key: 'ia_phakee', label: 'ภาคี'}].map(({key, label}) =>
@@ -987,9 +1021,44 @@ export default function WorkshopPage() {
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ชื่อเป้าประสงค์ <span style={{ color: 'red' }}>*</span></label>
             <input type="text" className="input-field" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="เช่น ลดอัตราป่วย..." />
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ภาพรวมกิจกรรมริเริ่ม (Initiative Activity)</label>
-            <textarea className="input-field" rows={3} value={formData.initiative_activity || ''} onChange={e => setFormData({ ...formData, initiative_activity: e.target.value })} placeholder="ระบุกิจกรรมหรือโครงการริเริ่มโดยภาพรวม..." />
+          <div style={{ backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+            <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600 }}>ภาพรวมกิจกรรมริเริ่ม (Initiative Activity)</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {initiativeList.map((ini, index) => (
+                <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--primary)', width: '20px' }}>{index + 1}.</span>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    style={{ flex: 1, margin: 0 }} 
+                    value={ini} 
+                    onChange={e => {
+                      const newList = [...initiativeList];
+                      newList[index] = e.target.value;
+                      setInitiativeList(newList);
+                    }} 
+                    placeholder="ระบุกิจกรรมหรือโครงการริเริ่ม..." 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const newList = initiativeList.filter((_, i) => i !== index);
+                      setInitiativeList(newList.length ? newList : ['']);
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer', padding: '0.5rem' }}
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+              <button 
+                type="button" 
+                onClick={() => setInitiativeList([...initiativeList, ''])}
+                style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 0.75rem', marginTop: '0.5rem', backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                <Plus size={16} /> เพิ่มกิจกรรมใหม่
+              </button>
+            </div>
           </div>
 
           <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
