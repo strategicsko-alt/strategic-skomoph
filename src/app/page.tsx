@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { CollapsibleSection } from '@/components/CollapsibleSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,25 +119,23 @@ export default async function DashboardPage() {
           <div style={{ fontSize: '1.125rem', fontWeight: '500' }}>{renderList(goals)}</div>
         </div>
 
-        <div className="card" style={{ gridColumn: '1 / -1' }}>
-          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '1rem' }}>ภาพรวมการประเมิน (SWOT)</h2>
+        <CollapsibleSection title="ภาพรวมการประเมิน (SWOT)" defaultOpen={false}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
             {renderSwotBox('S', 'Strengths', 'var(--success)')}
             {renderSwotBox('W', 'Weaknesses', 'var(--destructive)')}
             {renderSwotBox('O', 'Opportunities', 'var(--primary)')}
             {renderSwotBox('T', 'Threats', 'var(--warning)')}
           </div>
-        </div>
+        </CollapsibleSection>
 
-        <div className="card" style={{ gridColumn: '1 / -1' }}>
-          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '1rem' }}>กลยุทธ์จากสภาพแวดล้อม (TOWS Matrix)</h2>
+        <CollapsibleSection title="กลยุทธ์จากสภาพแวดล้อม (TOWS Matrix)" defaultOpen={false}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
             {renderSwotBox('SO', 'SO: เชิงรุก', '#10b981')}
             {renderSwotBox('WO', 'WO: เชิงแก้ไข', '#3b82f6')}
             {renderSwotBox('ST', 'ST: เชิงป้องกัน', '#f59e0b')}
             {renderSwotBox('WT', 'WT: เชิงรับ', '#ef4444')}
           </div>
-        </div>
+        </CollapsibleSection>
       </section>
 
       {/* 5-Year Strategic Roadmap */}

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Activity, Target, LayoutTemplate, Briefcase, Download } from 'lucide-react';
+import { Activity, Target, Briefcase, Download, GitBranch } from 'lucide-react';
 
 export default function EditorDashboard() {
   const [stats, setStats] = useState({
+    issues: 0,
     strategies: 0,
     objectives: 0,
     keyResults: 0
@@ -42,14 +43,16 @@ export default function EditorDashboard() {
     const fetchStats = async () => {
       setLoading(true);
       
-      const [strCount, objCount, krCount] = await Promise.all([
+      const [issueCount, stCount, objCount, krCount] = await Promise.all([
         supabase.from('strategic_issues').select('id', { count: 'exact', head: true }),
+        supabase.from('strategies').select('id', { count: 'exact', head: true }),
         supabase.from('objectives').select('id', { count: 'exact', head: true }),
         supabase.from('key_results').select('id', { count: 'exact', head: true })
       ]);
 
       setStats({
-        strategies: strCount.count || 0,
+        issues: issueCount.count || 0,
+        strategies: stCount.count || 0,
         objectives: objCount.count || 0,
         keyResults: krCount.count || 0
       });
@@ -67,34 +70,44 @@ export default function EditorDashboard() {
         <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการและบันทึกข้อมูลยุทธศาสตร์สุขภาพ 5 ปี จังหวัดสระแก้ว</p>
       </div>
 
-      <div className="bento-grid" style={{ padding: 0, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-        
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <div style={{ padding: '1rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-lg)', color: 'var(--primary)' }}>
-            <Briefcase size={32} />
+      <div className="bento-grid" style={{ padding: 0, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ padding: '0.875rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-lg)', color: 'var(--primary)', flexShrink: 0 }}>
+            <Briefcase size={28} />
           </div>
           <div>
-            <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.875rem', fontWeight: 500 }}>ยุทธศาสตร์ทั้งหมด</p>
+            <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.8rem', fontWeight: 500 }}>ยุทธศาสตร์ทั้งหมด</p>
+            <h2 style={{ fontSize: '2rem', fontWeight: 700 }}>{loading ? '-' : stats.issues}</h2>
+          </div>
+        </div>
+
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ padding: '0.875rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-lg)', color: 'var(--primary)', flexShrink: 0 }}>
+            <GitBranch size={28} />
+          </div>
+          <div>
+            <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.8rem', fontWeight: 500 }}>กลยุทธ์ (Strategies)</p>
             <h2 style={{ fontSize: '2rem', fontWeight: 700 }}>{loading ? '-' : stats.strategies}</h2>
           </div>
         </div>
 
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <div style={{ padding: '1rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-lg)', color: 'var(--primary)' }}>
-            <Target size={32} />
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ padding: '0.875rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-lg)', color: 'var(--primary)', flexShrink: 0 }}>
+            <Target size={28} />
           </div>
           <div>
-            <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.875rem', fontWeight: 500 }}>กลยุทธ์ (Objectives)</p>
+            <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.8rem', fontWeight: 500 }}>เป้าประสงค์ (Objectives)</p>
             <h2 style={{ fontSize: '2rem', fontWeight: 700 }}>{loading ? '-' : stats.objectives}</h2>
           </div>
         </div>
 
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <div style={{ padding: '1rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-lg)', color: 'var(--primary)' }}>
-            <Activity size={32} />
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ padding: '0.875rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-lg)', color: 'var(--primary)', flexShrink: 0 }}>
+            <Activity size={28} />
           </div>
           <div>
-            <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.875rem', fontWeight: 500 }}>เป้าหมาย (Key Results)</p>
+            <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.8rem', fontWeight: 500 }}>เป้าหมาย (Key Results)</p>
             <h2 style={{ fontSize: '2rem', fontWeight: 700 }}>{loading ? '-' : stats.keyResults}</h2>
           </div>
         </div>
