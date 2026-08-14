@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Activity, Target, Briefcase, Download, GitBranch } from 'lucide-react';
+import { Activity, Target, Briefcase, GitBranch } from 'lucide-react';
+import { ExportButton } from '@/components/ExportButton';
 
 export default function EditorDashboard() {
   const [stats, setStats] = useState({
@@ -12,32 +13,6 @@ export default function EditorDashboard() {
     keyResults: 0
   });
   const [loading, setLoading] = useState(true);
-
-  const handleExport = async () => {
-    const { data } = await supabase.from('key_results').select('*, objectives(strategy_name)');
-    if (!data || data.length === 0) return alert('ไม่มีข้อมูลสำหรับส่งออก');
-    
-    const headers = ['รหัส KR', 'ชื่อเป้าหมาย', 'กลยุทธ์', 'สถานะ', 'เป้า 2570', 'เป้า 2574'];
-    const csvContent = [
-      headers.join(','),
-      ...data.map((row: any) => [
-        row.auto_id,
-        `"${row.name?.replace(/"/g, '""') || ''}"`,
-        `"${row.objectives?.strategy_name?.replace(/"/g, '""') || ''}"`,
-        row.measurement_status,
-        row.target_2570,
-        row.target_2574
-      ].join(','))
-    ].join('\\n');
-    
-    const blob = new Blob(['\\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'strategic_health_export.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -117,9 +92,7 @@ export default function EditorDashboard() {
       <div className="card" style={{ marginTop: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>เริ่มต้นใช้งาน</h3>
-          <button onClick={handleExport} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Download size={16} /> ส่งออกข้อมูล (CSV)
-          </button>
+          <ExportButton />
         </div>
         <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <li style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>

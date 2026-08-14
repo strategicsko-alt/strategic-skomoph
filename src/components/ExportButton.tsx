@@ -2,18 +2,56 @@
 
 import React from 'react';
 import { Download, Printer } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface ExportButtonProps {
-  data: any[];
+  data?: any[];
 }
 
 export function ExportButton({ data }: ExportButtonProps) {
   const exportToExcel = async () => {
     try {
+      let exportData = data;
+      
+      // If data is not provided, fetch it directly
+      if (!exportData) {
+        const { data: rawStrategies } = await supabase
+          .from('strategic_issues')
+          .select(`
+            id, auto_id, name, order_index, theme_color,
+            key_results (
+              id, auto_id, name, order_index, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status
+            ),
+            strategies (
+              id, auto_id, name, order_index,
+              objectives (
+                id, auto_id, name, order_index, initiative_activity, ia_ssjj, ia_rph, ia_ssor, ia_rphst, ia_phakee,
+                key_results (
+                  id, auto_id, name, order_index, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status, responsible_group
+                )
+              )
+            )
+          `)
+          .order('order_index', { ascending: true });
+
+        exportData = (rawStrategies || []).map((issue: any) => ({
+          ...issue,
+          // Extract outcome indicators (key_results attached to issue)
+          key_results: (issue.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index),
+          strategies: (issue.strategies || []).sort((a: any, b: any) => a.order_index - b.order_index).map((st: any) => ({
+            ...st,
+            objectives: (st.objectives || []).sort((a: any, b: any) => a.order_index - b.order_index).map((obj: any) => ({
+              ...obj,
+              key_results: (obj.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index),
+            }))
+          }))
+        }));
+      }
+
       const XLSX = await import('xlsx');
       const rows: any[] = [];
 
-      data.forEach((issue) => {
+      exportData.forEach((issue) => {
         // 1. Outcome Indicators (attached directly to Strategic Issue)
         if (issue.key_results && issue.key_results.length > 0) {
           issue.key_results.forEach((kr: any) => {
