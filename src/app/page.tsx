@@ -42,9 +42,9 @@ export default async function DashboardPage() {
   const renderList = (items: any[]) => {
     if (items.length === 0) return <p style={{ fontStyle: 'italic', opacity: 0.8 }}>ยังไม่มีข้อมูล</p>;
     return (
-      <ul style={{ listStylePosition: 'inside', paddingLeft: '0.5rem' }}>
+      <ul style={{ listStylePosition: 'inside', paddingLeft: '0.5rem', listStyleType: 'disc' }}>
         {items.map((item, idx) => (
-          <li key={item.id} style={{ marginBottom: '0.25rem' }}>{item.detail}</li>
+          <li key={item.id} style={{ marginBottom: '0.25rem', lineHeight: '1.5' }}>{item.detail}</li>
         ))}
       </ul>
     );
@@ -55,10 +55,13 @@ export default async function DashboardPage() {
     return (
       <div style={{ flex: 1, minWidth: '200px' }}>
         <h4 style={{ fontWeight: 600, color, marginBottom: '0.5rem', borderBottom: `2px solid ${color}`, paddingBottom: '0.25rem' }}>{title}</h4>
-        <ul style={{ listStylePosition: 'inside', paddingLeft: '0' }}>
+        <ul style={{ listStylePosition: 'inside', paddingLeft: '0', listStyleType: 'none' }}>
           {items.length === 0 ? <li style={{ color: 'var(--secondary-foreground)', fontStyle: 'italic', fontSize: '0.875rem' }}>ไม่มีข้อมูล</li> : null}
-          {items.map(item => (
-            <li key={item.id} style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>{item.detail}</li>
+          {items.map((item, idx) => (
+            <li key={item.id} style={{ fontSize: '0.875rem', marginBottom: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+              <span style={{ fontWeight: 600, color }}>{type}{idx + 1}.</span>
+              <span>{item.detail}</span>
+            </li>
           ))}
         </ul>
       </div>
@@ -80,19 +83,19 @@ export default async function DashboardPage() {
 
       {/* Bento Grid - Core Data */}
       <section className="bento-grid">
+        <div className="card" style={{ gridColumn: '1 / -1' }}>
+          <h2 style={{ fontSize: '1.25rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>วิสัยทัศน์ (Vision)</h2>
+          <p style={{ fontSize: '1.125rem', fontWeight: 500 }}>{vision}</p>
+        </div>
+
+        <div className="card" style={{ gridColumn: '1 / -1' }}>
+          <h2 style={{ fontSize: '1.25rem', color: 'var(--primary)', marginBottom: '0.75rem' }}>พันธกิจ (Mission)</h2>
+          <div style={{ fontSize: '1rem' }}>{renderList(missions)}</div>
+        </div>
+
         <div className="card" style={{ gridColumn: '1 / -1', background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)', color: 'white' }}>
-          <h2 style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '0.5rem' }}>เป้าประสงค์สูงสุด (Ultimate Goal)</h2>
-          <div style={{ fontSize: '1.25rem', fontWeight: '500' }}>{renderList(goals)}</div>
-        </div>
-
-        <div className="card" style={{ gridColumn: 'auto / span 1' }}>
-          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>วิสัยทัศน์ (Vision)</h2>
-          <p>{vision}</p>
-        </div>
-
-        <div className="card" style={{ gridColumn: 'auto / span 1' }}>
-          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>พันธกิจ (Mission)</h2>
-          <div>{renderList(missions)}</div>
+          <h2 style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '0.75rem' }}>เป้าประสงค์สูงสุด (Ultimate Goal)</h2>
+          <div style={{ fontSize: '1.125rem', fontWeight: '500' }}>{renderList(goals)}</div>
         </div>
 
         <div className="card" style={{ gridColumn: '1 / -1' }}>

@@ -170,9 +170,12 @@ export default function CoreDataPage() {
           </button>
         </div>
         <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {items.map(item => (
+          {items.map((item, idx) => (
             <li key={item.id} style={{ backgroundColor: 'var(--secondary)', padding: '0.75rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem' }}>{item.detail}</span>
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.875rem' }}>
+                <span style={{ fontWeight: 600, color }}>{type}{idx + 1}.</span>
+                <span>{item.detail}</span>
+              </div>
               <div style={{ display: 'flex', flexShrink: 0 }}>
                 <button onClick={() => handleOpenSwotModal(type, item)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '0.25rem' }}><Edit2 size={14} /></button>
                 <button onClick={() => deleteSwot(item.id)} style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer', padding: '0.25rem' }}><Trash2 size={14} /></button>
