@@ -13,12 +13,14 @@ export default function WorkshopPage() {
   // Modals state
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
+  const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
   const [isObjModalOpen, setIsObjModalOpen] = useState(false);
   const [isKrModalOpen, setIsKrModalOpen] = useState(false);
 
   // Form states
   const [editingIssue, setEditingIssue] = useState<any>(null);
   const [editingIndicator, setEditingIndicator] = useState<any>(null);
+  const [editingStrategy, setEditingStrategy] = useState<any>(null);
   const [editingObj, setEditingObj] = useState<any>(null);
   const [editingKr, setEditingKr] = useState<any>(null);
 
@@ -33,15 +35,19 @@ export default function WorkshopPage() {
       .select(`
         *,
         strategic_outcome_indicators (*),
-        objectives (
+        strategies (
           *,
-          key_results (*)
+          objectives (
+            *,
+            key_results (*)
+          )
         )
       `)
       .order('order_index', { ascending: true })
       .order('order_index', { foreignTable: 'strategic_outcome_indicators', ascending: true })
-      .order('order_index', { foreignTable: 'objectives', ascending: true })
-      .order('order_index', { foreignTable: 'objectives.key_results', ascending: true });
+      .order('order_index', { foreignTable: 'strategies', ascending: true })
+      .order('order_index', { foreignTable: 'strategies.objectives', ascending: true })
+      .order('order_index', { foreignTable: 'strategies.objectives.key_results', ascending: true });
       
     if (data) {
       setStrategicIssues(data);
@@ -57,8 +63,6 @@ export default function WorkshopPage() {
   }, []);
 
   // --- Helpers for Auto-ID Generation ---
-  // In a production app, this should ideally be done in a database function to prevent race conditions.
-  // We'll calculate it on the client for simplicity.
   const generateIssueId = () => {
     let maxId = 0;
     strategicIssues.forEach(issue => {
@@ -70,13 +74,13 @@ export default function WorkshopPage() {
     return `S${maxId + 1}`;
   };
 
-  const generateObjId = (issueAutoId: string) => {
+  const generateStrategyId = (issueAutoId: string) => {
     let maxId = 0;
     const issue = strategicIssues.find(i => i.auto_id === issueAutoId);
-    if (issue && issue.objectives) {
-      issue.objectives.forEach((obj: any) => {
-        if (obj.auto_id) {
-          const parts = obj.auto_id.split('.');
+    if (issue && issue.strategies) {
+      issue.strategies.forEach((st: any) => {
+        if (st.auto_id) {
+          const parts = st.auto_id.split('.');
           if (parts.length > 1) {
             const num = parseInt(parts[1]);
             if (!isNaN(num) && num > maxId) maxId = num;
@@ -85,17 +89,17 @@ export default function WorkshopPage() {
       });
     }
     const parentNum = issueAutoId ? issueAutoId.replace('S', '') : 'X';
-    return `O${parentNum}.${maxId + 1}`;
+    return `ST${parentNum}.${maxId + 1}`;
   };
 
-  const generateKrId = (objAutoId: string) => {
+  const generateObjId = (stAutoId: string) => {
     let maxId = 0;
     strategicIssues.forEach(issue => {
-      const obj = issue.objectives?.find((o: any) => o.auto_id === objAutoId);
-      if (obj && obj.key_results) {
-        obj.key_results.forEach((kr: any) => {
-          if (kr.auto_id) {
-            const parts = kr.auto_id.split('.');
+      const st = issue.strategies?.find((s: any) => s.auto_id === stAutoId);
+      if (st && st.objectives) {
+        st.objectives.forEach((obj: any) => {
+          if (obj.auto_id) {
+            const parts = obj.auto_id.split('.');
             if (parts.length > 2) {
               const num = parseInt(parts[2]);
               if (!isNaN(num) && num > maxId) maxId = num;
@@ -105,7 +109,30 @@ export default function WorkshopPage() {
       }
     });
     
-    const parentStr = objAutoId ? objAutoId.replace('O', 'KR') : 'KRX.X';
+    const parentStr = stAutoId ? stAutoId.replace('ST', 'O') : 'OX.X';
+    return `${parentStr}.${maxId + 1}`;
+  };
+
+  const generateKrId = (objAutoId: string) => {
+    let maxId = 0;
+    strategicIssues.forEach(issue => {
+      issue.strategies?.forEach((st: any) => {
+        const obj = st.objectives?.find((o: any) => o.auto_id === objAutoId);
+        if (obj && obj.key_results) {
+          obj.key_results.forEach((kr: any) => {
+            if (kr.auto_id) {
+              const parts = kr.auto_id.split('.');
+              if (parts.length > 3) {
+                const num = parseInt(parts[3]);
+                if (!isNaN(num) && num > maxId) maxId = num;
+              }
+            }
+          });
+        }
+      });
+    });
+    
+    const parentStr = objAutoId ? objAutoId.replace('O', 'KR') : 'KRX.X.X';
     return `${parentStr}.${maxId + 1}`;
   };
 
@@ -121,7 +148,6 @@ export default function WorkshopPage() {
     setIsSaving(true);
     
     if (editingIssue?.id) {
-      // Update
       const { error } = await supabase.from('strategic_issues').update({ 
         name: formData.name, 
         description: formData.description,
@@ -129,7 +155,6 @@ export default function WorkshopPage() {
       }).eq('id', editingIssue.id);
       if (error) alert('Error updating: ' + error.message);
     } else {
-      // Insert
       const auto_id = generateIssueId();
       const { data, error } = await supabase.from('strategic_issues').insert([{ 
         auto_id,
@@ -189,10 +214,47 @@ export default function WorkshopPage() {
     fetchData();
   };
 
+  // --- CRUD for Strategies ---
+  const handleOpenStrategyModal = (strategy: any = null) => {
+    setEditingStrategy(strategy);
+    setFormData(strategy || { name: '' });
+    setIsStrategyModalOpen(true);
+  };
+
+  const saveStrategy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    
+    if (editingStrategy?.id) {
+      await supabase.from('strategies').update({ 
+        name: formData.name
+      }).eq('id', editingStrategy.id);
+    } else {
+      const currentIssue = strategicIssues.find(i => i.id === activeIssue);
+      const auto_id = generateStrategyId(currentIssue?.auto_id);
+      await supabase.from('strategies').insert([{ 
+        strategic_issue_id: activeIssue,
+        auto_id,
+        name: formData.name,
+        order_index: currentIssue?.strategies?.length || 0
+      }]);
+    }
+    
+    await fetchData();
+    setIsStrategyModalOpen(false);
+    setIsSaving(false);
+  };
+
+  const deleteStrategy = async (id: string) => {
+    if (!confirm('ยืนยันการลบกลยุทธ์นี้? ข้อมูล Objective ภายใต้กลยุทธ์นี้จะถูกลบไปด้วย')) return;
+    await supabase.from('strategies').delete().eq('id', id);
+    fetchData();
+  };
+
   // --- CRUD for Objectives ---
-  const handleOpenObjModal = (obj: any = null) => {
-    setEditingObj(obj);
-    setFormData(obj || { strategy_name: '' });
+  const handleOpenObjModal = (stAutoId: string, stId: string, obj: any = null) => {
+    setEditingObj({ ...obj, _stAutoId: stAutoId, _stId: stId });
+    setFormData(obj || { name: '' });
     setIsObjModalOpen(true);
   };
 
@@ -202,16 +264,20 @@ export default function WorkshopPage() {
     
     if (editingObj?.id) {
       await supabase.from('objectives').update({ 
-        strategy_name: formData.strategy_name
+        name: formData.name
       }).eq('id', editingObj.id);
     } else {
-      const currentIssue = strategicIssues.find(i => i.id === activeIssue);
-      const auto_id = generateObjId(currentIssue?.auto_id);
+      const auto_id = generateObjId(editingObj._stAutoId);
+      let order_index = 0;
+      strategicIssues.forEach(issue => {
+        const st = issue.strategies?.find((s: any) => s.id === editingObj._stId);
+        if (st && st.objectives) order_index = st.objectives.length;
+      });
       await supabase.from('objectives').insert([{ 
-        strategic_issue_id: activeIssue,
+        strategy_id: editingObj._stId,
         auto_id,
-        strategy_name: formData.strategy_name,
-        order_index: currentIssue?.objectives?.length || 0
+        name: formData.name,
+        order_index
       }]);
     }
     
@@ -221,7 +287,7 @@ export default function WorkshopPage() {
   };
 
   const deleteObj = async (id: string) => {
-    if (!confirm('ยืนยันการลบกลยุทธ์นี้? Key Results ภายใต้กลยุทธ์นี้จะถูกลบไปด้วย')) return;
+    if (!confirm('ยืนยันการลบเป้าประสงค์นี้? Key Results ทั้งหมดจะถูกลบไปด้วย')) return;
     await supabase.from('objectives').delete().eq('id', id);
     fetchData();
   };
@@ -260,8 +326,10 @@ export default function WorkshopPage() {
       const auto_id = generateKrId(editingKr._objAutoId);
       let order_index = 0;
       strategicIssues.forEach(issue => {
-        const obj = issue.objectives?.find((o: any) => o.id === editingKr._objId);
-        if (obj && obj.key_results) order_index = obj.key_results.length;
+        issue.strategies?.forEach((st: any) => {
+          const obj = st.objectives?.find((o: any) => o.id === editingKr._objId);
+          if (obj && obj.key_results) order_index = obj.key_results.length;
+        });
       });
       await supabase.from('key_results').insert([{ 
         ...payload,
@@ -419,89 +487,126 @@ export default function WorkshopPage() {
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--border)', marginBottom: '2rem' }} />
 
-            {/* Objectives Section */}
+            {/* Strategies Section */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>กลยุทธ์ (Strategies & Objectives)</h3>
-              <button onClick={() => handleOpenObjModal()} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>กลยุทธ์ (Strategies)</h3>
+              <button onClick={() => handleOpenStrategyModal()} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
                 <Plus size={16} /> เพิ่มกลยุทธ์
               </button>
             </div>
 
-            {currentIssueData.objectives?.length === 0 ? (
+            {currentIssueData.strategies?.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-md)' }}>
                 <p style={{ color: 'var(--secondary-foreground)', marginBottom: '1rem' }}>ยุทธศาสตร์นี้ยังไม่มีกลยุทธ์ใดๆ</p>
-                <button onClick={() => handleOpenObjModal()} className="btn-primary">เพิ่มกลยุทธ์แรก</button>
+                <button onClick={() => handleOpenStrategyModal()} className="btn-primary">เพิ่มกลยุทธ์แรก</button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {currentIssueData.objectives?.map((obj: any, idx: number) => (
-                  <div key={obj.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                    {/* Objective Header */}
-                    <div style={{ backgroundColor: 'var(--secondary)', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <span style={{ backgroundColor: 'var(--primary)', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '99px', fontWeight: 600, fontSize: '0.875rem' }}>
-                          {obj.auto_id}
-                        </span>
-                        <div>
-                          <h4 style={{ fontWeight: 600, fontSize: '1.125rem' }}>{obj.strategy_name}</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {currentIssueData.strategies?.map((st: any, stIdx: number) => (
+                  <div key={st.id} style={{ border: `2px solid ${currentIssueData.theme_color || 'var(--primary)'}`, borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                    {/* Strategy Header */}
+                    <div style={{ backgroundColor: currentIssueData.theme_color ? `${currentIssueData.theme_color}15` : 'var(--secondary)', padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: `1px solid ${currentIssueData.theme_color || 'var(--primary)'}30` }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                          <span style={{ backgroundColor: currentIssueData.theme_color || 'var(--primary)', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '99px', fontWeight: 600, fontSize: '0.875rem' }}>
+                            {st.auto_id}
+                          </span>
+                          <span style={{ color: currentIssueData.theme_color || 'var(--primary)', fontWeight: 600, fontSize: '0.875rem', textTransform: 'uppercase' }}>Strategy</span>
                         </div>
+                        <h4 style={{ fontWeight: 700, fontSize: '1.25rem' }}>{st.name}</h4>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <button disabled={idx === 0 || isSaving} onClick={() => moveItem('objectives', obj, 'up', currentIssueData.objectives)} style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1, padding: '0.5rem' }}><ArrowUp size={16} /></button>
-                        <button disabled={idx === currentIssueData.objectives.length - 1 || isSaving} onClick={() => moveItem('objectives', obj, 'down', currentIssueData.objectives)} style={{ background: 'none', border: 'none', cursor: idx === currentIssueData.objectives.length - 1 ? 'default' : 'pointer', opacity: idx === currentIssueData.objectives.length - 1 ? 0.3 : 1, padding: '0.5rem' }}><ArrowDown size={16} /></button>
+                        <button disabled={stIdx === 0 || isSaving} onClick={() => moveItem('strategies', st, 'up', currentIssueData.strategies)} style={{ background: 'none', border: 'none', cursor: stIdx === 0 ? 'default' : 'pointer', opacity: stIdx === 0 ? 0.3 : 1, padding: '0.5rem' }}><ArrowUp size={16} /></button>
+                        <button disabled={stIdx === currentIssueData.strategies.length - 1 || isSaving} onClick={() => moveItem('strategies', st, 'down', currentIssueData.strategies)} style={{ background: 'none', border: 'none', cursor: stIdx === currentIssueData.strategies.length - 1 ? 'default' : 'pointer', opacity: stIdx === currentIssueData.strategies.length - 1 ? 0.3 : 1, padding: '0.5rem' }}><ArrowDown size={16} /></button>
                         <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border)', margin: '0 0.5rem' }}></div>
-                        <button onClick={() => handleOpenObjModal(obj)} className="btn-secondary" style={{ padding: '0.5rem' }}><Edit2 size={16} /></button>
-                        <button onClick={() => deleteObj(obj.id)} className="btn-secondary" style={{ padding: '0.5rem', color: 'var(--destructive)' }}><Trash2 size={16} /></button>
+                        <button onClick={() => handleOpenStrategyModal(st)} className="btn-secondary" style={{ padding: '0.5rem' }}><Edit2 size={16} /></button>
+                        <button onClick={() => deleteStrategy(st.id)} className="btn-secondary" style={{ padding: '0.5rem', color: 'var(--destructive)' }}><Trash2 size={16} /></button>
                       </div>
                     </div>
                     
-                    {/* Key Results Section */}
-                    <div style={{ padding: '1.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h5 style={{ fontWeight: 600 }}>Key Results (เป้าหมาย)</h5>
-                        <button onClick={() => handleOpenKrModal(obj.auto_id, obj.id)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>
-                          <Plus size={16} /> เพิ่ม KR
+                    {/* Objectives Section within Strategy */}
+                    <div style={{ padding: '1.5rem', backgroundColor: 'var(--card)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <h5 style={{ fontWeight: 600, fontSize: '1.125rem' }}>เป้าประสงค์ (Objectives)</h5>
+                        <button onClick={() => handleOpenObjModal(st.auto_id, st.id)} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                          <Plus size={16} /> เพิ่มเป้าประสงค์
                         </button>
                       </div>
 
-                      {obj.key_results?.length === 0 ? (
-                        <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>ยังไม่มี Key Result</p>
+                      {st.objectives?.length === 0 ? (
+                        <p style={{ color: 'var(--secondary-foreground)', fontStyle: 'italic', textAlign: 'center', padding: '1rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-md)' }}>ยังไม่มีเป้าประสงค์ภายใต้กลยุทธ์นี้</p>
                       ) : (
-                        <div style={{ overflowX: 'auto' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem', minWidth: '800px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
-                                <th style={{ padding: '0.5rem 0', width: '80px' }}>รหัส</th>
-                                <th style={{ padding: '0.5rem 0' }}>ชื่อเป้าหมาย</th>
-                                <th style={{ padding: '0.5rem 0', width: '100px' }}>สถานะ</th>
-                                <th style={{ padding: '0.5rem 0', width: '60px' }}>2570</th>
-                                <th style={{ padding: '0.5rem 0', width: '60px' }}>2574</th>
-                                <th style={{ padding: '0.5rem 0', width: '100px', textAlign: 'right' }}>จัดการ</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {obj.key_results?.map((kr: any, krIdx: number) => (
-                                <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                  <td style={{ padding: '0.75rem 0', fontWeight: 500, color: 'var(--primary)' }}>{kr.auto_id}</td>
-                                  <td style={{ padding: '0.75rem 0' }}>{kr.name}</td>
-                                  <td style={{ padding: '0.75rem 0' }}>
-                                    <span style={{ padding: '0.25rem 0.5rem', backgroundColor: kr.measurement_status === 'พร้อมวัด' ? 'var(--success)' : 'var(--warning)', color: 'white', borderRadius: '99px', fontSize: '0.75rem' }}>
-                                      {kr.measurement_status || '-'}
-                                    </span>
-                                  </td>
-                                  <td style={{ padding: '0.75rem 0' }}>{kr.target_2570 || '-'}</td>
-                                  <td style={{ padding: '0.75rem 0', fontWeight: 600 }}>{kr.target_2574 || '-'}</td>
-                                  <td style={{ padding: '0.75rem 0', textAlign: 'right', display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                    <button disabled={krIdx === 0 || isSaving} onClick={() => moveItem('key_results', kr, 'up', obj.key_results)} style={{ background: 'none', border: 'none', cursor: krIdx === 0 ? 'default' : 'pointer', opacity: krIdx === 0 ? 0.3 : 1 }}><ArrowUp size={14} /></button>
-                                    <button disabled={krIdx === obj.key_results.length - 1 || isSaving} onClick={() => moveItem('key_results', kr, 'down', obj.key_results)} style={{ background: 'none', border: 'none', cursor: krIdx === obj.key_results.length - 1 ? 'default' : 'pointer', opacity: krIdx === obj.key_results.length - 1 ? 0.3 : 1 }}><ArrowDown size={14} /></button>
-                                    <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border)', margin: '0 0.25rem' }}></div>
-                                    <button onClick={() => handleOpenKrModal(obj.auto_id, obj.id, kr)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}><Edit2 size={16} /></button>
-                                    <button onClick={() => deleteKr(kr.id)} style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer' }}><Trash2 size={16} /></button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                          {st.objectives?.map((obj: any, objIdx: number) => (
+                            <div key={obj.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                              
+                              {/* Objective Header */}
+                              <div style={{ backgroundColor: 'var(--secondary)', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                  <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{obj.auto_id}</span>
+                                  <h6 style={{ fontWeight: 600, fontSize: '1rem', margin: 0 }}>{obj.name}</h6>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                  <button disabled={objIdx === 0 || isSaving} onClick={() => moveItem('objectives', obj, 'up', st.objectives)} style={{ background: 'none', border: 'none', cursor: objIdx === 0 ? 'default' : 'pointer', opacity: objIdx === 0 ? 0.3 : 1, padding: '0.25rem' }}><ArrowUp size={16} /></button>
+                                  <button disabled={objIdx === st.objectives.length - 1 || isSaving} onClick={() => moveItem('objectives', obj, 'down', st.objectives)} style={{ background: 'none', border: 'none', cursor: objIdx === st.objectives.length - 1 ? 'default' : 'pointer', opacity: objIdx === st.objectives.length - 1 ? 0.3 : 1, padding: '0.25rem' }}><ArrowDown size={16} /></button>
+                                  <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border)', margin: '0 0.25rem' }}></div>
+                                  <button onClick={() => handleOpenObjModal(st.auto_id, st.id, obj)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '0.25rem' }}><Edit2 size={16} /></button>
+                                  <button onClick={() => deleteObj(obj.id)} style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer', padding: '0.25rem' }}><Trash2 size={16} /></button>
+                                </div>
+                              </div>
+
+                              {/* Key Results Section */}
+                              <div style={{ padding: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                  <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>เป้าหมาย (Key Results)</span>
+                                  <button onClick={() => handleOpenKrModal(obj.auto_id, obj.id)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600 }}>
+                                    <Plus size={14} /> เพิ่ม KR
+                                  </button>
+                                </div>
+
+                                {obj.key_results?.length === 0 ? (
+                                  <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.75rem', fontStyle: 'italic' }}>ยังไม่มี Key Result</p>
+                                ) : (
+                                  <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                                      <thead>
+                                        <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', color: 'var(--secondary-foreground)' }}>
+                                          <th style={{ padding: '0.5rem 0', width: '90px' }}>รหัส</th>
+                                          <th style={{ padding: '0.5rem 0' }}>ชื่อเป้าหมาย</th>
+                                          <th style={{ padding: '0.5rem 0', width: '100px' }}>สถานะ</th>
+                                          <th style={{ padding: '0.5rem 0', width: '60px' }}>2570</th>
+                                          <th style={{ padding: '0.5rem 0', width: '60px' }}>2574</th>
+                                          <th style={{ padding: '0.5rem 0', width: '100px', textAlign: 'right' }}>จัดการ</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {obj.key_results?.map((kr: any, krIdx: number) => (
+                                          <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                            <td style={{ padding: '0.5rem 0', fontWeight: 500, color: 'var(--primary)' }}>{kr.auto_id}</td>
+                                            <td style={{ padding: '0.5rem 0' }}>{kr.name}</td>
+                                            <td style={{ padding: '0.5rem 0' }}>
+                                              <span style={{ padding: '0.15rem 0.5rem', backgroundColor: kr.measurement_status === 'พร้อมวัด' ? 'var(--success)' : 'var(--warning)', color: 'white', borderRadius: '99px', fontSize: '0.7rem' }}>
+                                                {kr.measurement_status || '-'}
+                                              </span>
+                                            </td>
+                                            <td style={{ padding: '0.5rem 0' }}>{kr.target_2570 || '-'}</td>
+                                            <td style={{ padding: '0.5rem 0', fontWeight: 600 }}>{kr.target_2574 || '-'}</td>
+                                            <td style={{ padding: '0.5rem 0', textAlign: 'right', display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                              <button disabled={krIdx === 0 || isSaving} onClick={() => moveItem('key_results', kr, 'up', obj.key_results)} style={{ background: 'none', border: 'none', cursor: krIdx === 0 ? 'default' : 'pointer', opacity: krIdx === 0 ? 0.3 : 1 }}><ArrowUp size={14} /></button>
+                                              <button disabled={krIdx === obj.key_results.length - 1 || isSaving} onClick={() => moveItem('key_results', kr, 'down', obj.key_results)} style={{ background: 'none', border: 'none', cursor: krIdx === obj.key_results.length - 1 ? 'default' : 'pointer', opacity: krIdx === obj.key_results.length - 1 ? 0.3 : 1 }}><ArrowDown size={14} /></button>
+                                              <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border)', margin: '0 0.25rem' }}></div>
+                                              <button onClick={() => handleOpenKrModal(obj.auto_id, obj.id, kr)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}><Edit2 size={14} /></button>
+                                              <button onClick={() => deleteKr(kr.id)} style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -540,12 +645,26 @@ export default function WorkshopPage() {
         </form>
       </Modal>
 
-      {/* Objective Modal */}
-      <Modal isOpen={isObjModalOpen} onClose={() => setIsObjModalOpen(false)} title={editingObj?.id ? `แก้ไขกลยุทธ์ (${editingObj.auto_id})` : 'เพิ่มกลยุทธ์ใหม่ (Auto ID: O*)'}>
-        <form onSubmit={saveObj} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Strategy Modal */}
+      <Modal isOpen={isStrategyModalOpen} onClose={() => setIsStrategyModalOpen(false)} title={editingStrategy?.id ? `แก้ไขกลยุทธ์ (${editingStrategy.auto_id})` : 'เพิ่มกลยุทธ์ใหม่ (Auto ID: ST*)'}>
+        <form onSubmit={saveStrategy} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ชื่อกลยุทธ์ (Strategy) <span style={{color: 'red'}}>*</span></label>
-            <input type="text" className="input-field" required value={formData.strategy_name || ''} onChange={e => setFormData({...formData, strategy_name: e.target.value})} placeholder="เช่น พัฒนาระบบปฐมภูมิ..." />
+            <input type="text" className="input-field" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="เช่น พัฒนาระบบปฐมภูมิ..." />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+            <button type="button" onClick={() => setIsStrategyModalOpen(false)} className="btn-secondary">ยกเลิก</button>
+            <button type="submit" className="btn-primary" disabled={isSaving}>{isSaving ? 'กำลังบันทึก...' : 'บันทึก'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Objective Modal */}
+      <Modal isOpen={isObjModalOpen} onClose={() => setIsObjModalOpen(false)} title={editingObj?.id ? `แก้ไขเป้าประสงค์ (${editingObj.auto_id})` : `เพิ่มเป้าประสงค์ใหม่ (Auto ID: O${editingObj?._stAutoId?.replace('ST', '')}.*)`}>
+        <form onSubmit={saveObj} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ชื่อเป้าประสงค์ (Objective) <span style={{color: 'red'}}>*</span></label>
+            <input type="text" className="input-field" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="เช่น ลดอัตราป่วย..." />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
             <button type="button" onClick={() => setIsObjModalOpen(false)} className="btn-secondary">ยกเลิก</button>
