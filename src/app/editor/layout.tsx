@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, BookOpen, FileText, LogOut, Building } from 'lucide-react';
+import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink } from 'lucide-react';
 
 export default function EditorLayout({
   children,
@@ -68,6 +68,26 @@ export default function EditorLayout({
         </nav>
 
         <div style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
+          <Link 
+            href="/" 
+            target="_blank"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1rem',
+              width: '100%',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'transparent',
+              color: 'var(--primary)',
+              fontWeight: 500,
+              textDecoration: 'none',
+              marginBottom: '0.5rem'
+            }}
+          >
+            <ExternalLink size={20} />
+            ดูหน้าเว็บหลัก (Dashboard)
+          </Link>
           <button 
             onClick={handleLogout}
             style={{
