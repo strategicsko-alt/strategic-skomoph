@@ -7,10 +7,19 @@ export default async function DashboardPage() {
   // Fetch Core Organization Data
   const { data: coreData } = await supabase
     .from('core_organization')
-    .select('*')
-    .order('id', { ascending: true })
+    .select('vision')
     .limit(1)
     .single();
+
+  const { data: coreListItems } = await supabase
+    .from('core_list_items')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  const { data: swotItems } = await supabase
+    .from('swot_items')
+    .select('*')
+    .order('created_at', { ascending: true });
 
   // Fetch Strategic Issues and Objectives for the Roadmap
   const { data: strategies } = await supabase
@@ -26,9 +35,35 @@ export default async function DashboardPage() {
     `)
     .order('order_index', { ascending: true });
 
-  const vision = coreData?.vision || 'กำลังโหลดวิสัยทัศน์...';
-  const mission = coreData?.mission || 'กำลังโหลดพันธกิจ...';
-  const ultimateGoal = coreData?.ultimate_goal || 'กำลังโหลดเป้าประสงค์...';
+  const vision = coreData?.vision || 'ยังไม่มีข้อมูลวิสัยทัศน์';
+  const missions = coreListItems?.filter((i: any) => i.item_type === 'mission') || [];
+  const goals = coreListItems?.filter((i: any) => i.item_type === 'goal') || [];
+  
+  const renderList = (items: any[]) => {
+    if (items.length === 0) return <p style={{ fontStyle: 'italic', opacity: 0.8 }}>ยังไม่มีข้อมูล</p>;
+    return (
+      <ul style={{ listStylePosition: 'inside', paddingLeft: '0.5rem' }}>
+        {items.map((item, idx) => (
+          <li key={item.id} style={{ marginBottom: '0.25rem' }}>{item.detail}</li>
+        ))}
+      </ul>
+    );
+  };
+
+  const renderSwotBox = (type: string, title: string, color: string) => {
+    const items = swotItems?.filter((i: any) => i.swot_type === type) || [];
+    return (
+      <div style={{ flex: 1, minWidth: '200px' }}>
+        <h4 style={{ fontWeight: 600, color, marginBottom: '0.5rem', borderBottom: `2px solid ${color}`, paddingBottom: '0.25rem' }}>{title}</h4>
+        <ul style={{ listStylePosition: 'inside', paddingLeft: '0' }}>
+          {items.length === 0 ? <li style={{ color: 'var(--secondary-foreground)', fontStyle: 'italic', fontSize: '0.875rem' }}>ไม่มีข้อมูล</li> : null}
+          {items.map(item => (
+            <li key={item.id} style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>{item.detail}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
 
   return (
     <main style={{ minHeight: '100vh', paddingBottom: '4rem' }}>
@@ -47,7 +82,7 @@ export default async function DashboardPage() {
       <section className="bento-grid">
         <div className="card" style={{ gridColumn: '1 / -1', background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)', color: 'white' }}>
           <h2 style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '0.5rem' }}>เป้าประสงค์สูงสุด (Ultimate Goal)</h2>
-          <p style={{ fontSize: '1.5rem', fontWeight: '600' }}>{ultimateGoal}</p>
+          <div style={{ fontSize: '1.25rem', fontWeight: '500' }}>{renderList(goals)}</div>
         </div>
 
         <div className="card" style={{ gridColumn: 'auto / span 1' }}>
@@ -57,15 +92,27 @@ export default async function DashboardPage() {
 
         <div className="card" style={{ gridColumn: 'auto / span 1' }}>
           <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>พันธกิจ (Mission)</h2>
-          <p>{mission}</p>
+          <div>{renderList(missions)}</div>
         </div>
 
-        {/* Placeholder for SWOT if needed on dashboard */}
-        <div className="card" style={{ gridColumn: 'auto / span 1' }}>
-          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>ภาพรวมการประเมิน (SWOT)</h2>
-          <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.875rem' }}>
-            จุดแข็ง จุดอ่อน โอกาส และอุปสรรค เพื่อการพัฒนาอย่างยั่งยืน
-          </p>
+        <div className="card" style={{ gridColumn: '1 / -1' }}>
+          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '1rem' }}>ภาพรวมการประเมิน (SWOT)</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+            {renderSwotBox('S', 'Strengths', 'var(--success)')}
+            {renderSwotBox('W', 'Weaknesses', 'var(--destructive)')}
+            {renderSwotBox('O', 'Opportunities', 'var(--primary)')}
+            {renderSwotBox('T', 'Threats', 'var(--warning)')}
+          </div>
+        </div>
+
+        <div className="card" style={{ gridColumn: '1 / -1' }}>
+          <h2 style={{ fontSize: '1.125rem', color: 'var(--primary)', marginBottom: '1rem' }}>กลยุทธ์จากสภาพแวดล้อม (TOWS Matrix)</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+            {renderSwotBox('SO', 'SO: เชิงรุก', '#10b981')}
+            {renderSwotBox('WO', 'WO: เชิงแก้ไข', '#3b82f6')}
+            {renderSwotBox('ST', 'ST: เชิงป้องกัน', '#f59e0b')}
+            {renderSwotBox('WT', 'WT: เชิงรับ', '#ef4444')}
+          </div>
         </div>
       </section>
 
