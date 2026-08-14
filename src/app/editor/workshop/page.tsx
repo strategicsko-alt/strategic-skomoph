@@ -46,8 +46,8 @@ export default function WorkshopPage() {
       .order('order_index', { ascending: true })
       .order('order_index', { foreignTable: 'strategic_outcome_indicators', ascending: true })
       .order('order_index', { foreignTable: 'strategies', ascending: true })
-      .order('order_index', { foreignTable: 'strategies.objectives', ascending: true })
-      .order('order_index', { foreignTable: 'strategies.objectives.key_results', ascending: true });
+      .order('order_index', { foreignTable: 'objectives', ascending: true })
+      .order('order_index', { foreignTable: 'key_results', ascending: true });
       
     if (data) {
       setStrategicIssues(data);
