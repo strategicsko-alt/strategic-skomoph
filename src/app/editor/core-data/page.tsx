@@ -26,7 +26,7 @@ export default function CoreDataPage() {
     setLoading(true);
     
     // Fetch Core Data (Vision)
-    const { data: cData } = await supabase.from('core_organization').select('*').limit(1).single();
+    const { data: cData } = await supabase.from('core_organization').select('*').limit(1).maybeSingle();
     if (cData) {
       setCoreData(cData);
       setVisionForm(cData.vision || '');

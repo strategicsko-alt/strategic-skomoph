@@ -9,7 +9,7 @@ export default async function DashboardPage() {
     .from('core_organization')
     .select('vision')
     .limit(1)
-    .single();
+    .maybeSingle();
 
   const { data: coreListItems } = await supabase
     .from('core_list_items')
