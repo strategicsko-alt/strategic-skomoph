@@ -8,18 +8,28 @@ import { Modal } from '@/components/Modal';
 export default function KPIDictionaryPage() {
   const [keyResults, setKeyResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedGroup, setSelectedGroup] = useState<string>('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeKr, setActiveKr] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  const RESPONSIBLE_GROUPS = [
+    "กลุ่มงานบริหารทั่วไป", "กลุ่มงานบริหารทรัพยากรบุคคล", "กลุ่มกฎหมาย", 
+    "กลุ่มงานพัฒนายุทธศาสตร์สาธารณสุข", "กลุ่มงานสุขภาพดิจิทัล", "กลุ่มงานคุ้มครองผู้บริโภค", 
+    "กลุ่มงานพัฒนาคุณภาพและรูปแบบบริการ", "กลุ่มงานควบคุมโรคติดต่อ", "กลุ่มงานประกันสุขภาพ", 
+    "กลุ่มงานส่งเสริมสุขภาพ", "กลุ่มงานทันตสาธารณสุข", "กลุ่มงานอนามัยสิ่งแวดล้อมและอาชีวอนามัย", 
+    "กลุ่มงานควบคุมโรคไม่ติดต่อ", "กลุ่มงานปฐมภูมิและเครือข่ายสุขภาพ", 
+    "กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก", "กลุ่มงานพัฒนาทรัพยากรบุคคล"
+  ];
+
   const fetchData = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('key_results')
       .select(`
-        id, auto_id, name, target_2574,
+        id, auto_id, name, target_2574, responsible_group,
         kpi_dictionaries (*)
       `)
       .order('auto_id', { ascending: true });
@@ -85,9 +95,22 @@ export default function KPIDictionaryPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>KPI Dictionary</h1>
-        <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการพจนานุกรมตัวชี้วัด 14 ฟิลด์ (ผูกกับ Key Results)</p>
+      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>KPI Dictionary</h1>
+          <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการพจนานุกรมตัวชี้วัด 14 ฟิลด์ (ผูกกับ Key Results)</p>
+        </div>
+        <div>
+          <select 
+            className="input-field" 
+            value={selectedGroup} 
+            onChange={(e) => setSelectedGroup(e.target.value)}
+            style={{ minWidth: '250px' }}
+          >
+            <option value="">-- กรองทุกกลุ่มงาน --</option>
+            {RESPONSIBLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -97,20 +120,26 @@ export default function KPIDictionaryPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--secondary)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                <th style={{ padding: '1rem', width: '120px' }}>รหัส KR</th>
+                <th style={{ padding: '1rem', width: '100px' }}>รหัส KR</th>
                 <th style={{ padding: '1rem' }}>ชื่อเป้าหมาย (Key Result)</th>
-                <th style={{ padding: '1rem', width: '150px' }}>สถานะ KPI</th>
-                <th style={{ padding: '1rem', width: '150px', textAlign: 'right' }}>จัดการ</th>
+                <th style={{ padding: '1rem', width: '200px' }}>กลุ่มงานรับผิดชอบ</th>
+                <th style={{ padding: '1rem', width: '130px' }}>สถานะ KPI</th>
+                <th style={{ padding: '1rem', width: '130px', textAlign: 'right' }}>จัดการ</th>
               </tr>
             </thead>
             <tbody>
-              {keyResults.map((kr) => {
+              {(selectedGroup ? keyResults.filter(kr => kr.responsible_group === selectedGroup) : keyResults).map((kr) => {
                 const hasKpi = kr.kpi_dictionaries && kr.kpi_dictionaries.length > 0;
                 
                 return (
                   <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary)' }}>{kr.auto_id}</td>
                     <td style={{ padding: '1rem' }}>{kr.name}</td>
+                    <td style={{ padding: '1rem' }}>
+                      <span style={{ backgroundColor: 'var(--secondary)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}>
+                        {kr.responsible_group || '-'}
+                      </span>
+                    </td>
                     <td style={{ padding: '1rem' }}>
                       {hasKpi ? (
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--success)', fontWeight: 500 }}>
