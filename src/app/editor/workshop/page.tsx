@@ -5,6 +5,25 @@ import { supabase } from '@/lib/supabase';
 import { Plus, Trash2, Edit2, ArrowUp, ArrowDown, Folder, RefreshCw, Check } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
+export const RESPONSIBLE_GROUPS = [
+  "กลุ่มงานบริหารทั่วไป",
+  "กลุ่มงานบริหารทรัพยากรบุคคล",
+  "กลุ่มกฎหมาย",
+  "กลุ่มงานพัฒนายุทธศาสตร์สาธารณสุข",
+  "กลุ่มงานสุขภาพดิจิทัล",
+  "กลุ่มงานคุ้มครองผู้บริโภค",
+  "กลุ่มงานพัฒนาคุณภาพและรูปแบบบริการ",
+  "กลุ่มงานควบคุมโรคติดต่อ",
+  "กลุ่มงานประกันสุขภาพ",
+  "กลุ่มงานส่งเสริมสุขภาพ",
+  "กลุ่มงานทันตสาธารณสุข",
+  "กลุ่มงานอนามัยสิ่งแวดล้อมและอาชีวอนามัย",
+  "กลุ่มงานควบคุมโรคไม่ติดต่อ",
+  "กลุ่มงานปฐมภูมิและเครือข่ายสุขภาพ",
+  "กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก",
+  "กลุ่มงานพัฒนาทรัพยากรบุคคล"
+];
+
 export default function WorkshopPage() {
   const [strategicIssues, setStrategicIssues] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -29,7 +48,10 @@ export default function WorkshopPage() {
   const [editingKr, setEditingKr] = useState<any>(null);
   const [editingProject, setEditingProject] = useState<any>(null);
   const [selectedStrategyIds, setSelectedStrategyIds] = useState<string[]>([]);
-
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [movingKr, setMovingKr] = useState<any>(null);
+  const [moveDestinationType, setMoveDestinationType] = useState<'strategic_issue' | 'objective'>('objective');
+  const [moveDestinationId, setMoveDestinationId] = useState<string>('');
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -40,6 +62,22 @@ export default function WorkshopPage() {
     issuesList.forEach((issue, issueIdx) => {
       const issueNum = issueIdx + 1;
       const expectedIssueId = `S${issueNum}`;
+
+      (issue.outcome_indicators || []).forEach((ind: any, indIdx: number) => {
+        const indNum = indIdx + 1;
+        const expectedIndId = `IND${issueNum}.${indNum}`;
+
+        if (ind.auto_id !== expectedIndId || ind.order_index !== indIdx) {
+          updates.push(
+            supabase.from('key_results').update({
+              auto_id: expectedIndId,
+              order_index: indIdx
+            }).eq('id', ind.id)
+          );
+          ind.auto_id = expectedIndId;
+          ind.order_index = indIdx;
+        }
+      });
 
       if (issue.auto_id !== expectedIssueId || issue.order_index !== issueIdx) {
         updates.push(
@@ -114,7 +152,7 @@ export default function WorkshopPage() {
       .from('strategic_issues')
       .select(`
         *,
-        strategic_outcome_indicators (*),
+        outcome_indicators:key_results!strategic_issue_id (*),
         strategies (
           *,
           objectives (
@@ -130,7 +168,7 @@ export default function WorkshopPage() {
     if (issueData) {
       const sorted = issueData.map((issue: any) => ({
         ...issue,
-        strategic_outcome_indicators: (issue.strategic_outcome_indicators || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+        outcome_indicators: (issue.outcome_indicators || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)),
         strategies: (issue.strategies || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)).map((st: any) => ({
           ...st,
           objectives: (st.objectives || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)).map((obj: any) => ({
@@ -170,6 +208,23 @@ export default function WorkshopPage() {
     setIsSyncing(false);
     setSyncSuccess(true);
     setTimeout(() => setSyncSuccess(false), 3000);
+  };
+
+  // Move Item Logic
+  const saveMoveKr = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    let payload: any = {};
+    if (moveDestinationType === 'strategic_issue') {
+      payload = { objective_id: null, strategic_issue_id: activeIssue };
+    } else {
+      payload = { strategic_issue_id: null, objective_id: moveDestinationId };
+    }
+    const { error } = await supabase.from('key_results').update(payload).eq('id', movingKr.id);
+    if (error) alert('Error: ' + error.message);
+    await fetchData();
+    setIsMoveModalOpen(false);
+    setIsSaving(false);
   };
 
   // --- CRUD for Strategic Issues ---
@@ -213,38 +268,6 @@ export default function WorkshopPage() {
     await fetchData();
   };
 
-  // --- CRUD for Outcome Indicators ---
-  const handleOpenIndicatorModal = (indicator: any = null) => {
-    setEditingIndicator(indicator);
-    setFormData(indicator || { name: '' });
-    setIsIndicatorModalOpen(true);
-  };
-
-  const saveIndicator = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    if (editingIndicator?.id) {
-      const { error } = await supabase.from('strategic_outcome_indicators').update({ name: formData.name }).eq('id', editingIndicator.id);
-      if (error) alert('Error updating: ' + error.message);
-    } else {
-      const currentIssue = strategicIssues.find(i => i.id === activeIssue);
-      const { error } = await supabase.from('strategic_outcome_indicators').insert([{
-        strategic_issue_id: activeIssue,
-        name: formData.name,
-        order_index: currentIssue?.strategic_outcome_indicators?.length || 0
-      }]);
-      if (error) alert('Error inserting: ' + error.message);
-    }
-    await fetchData();
-    setIsIndicatorModalOpen(false);
-    setIsSaving(false);
-  };
-
-  const deleteIndicator = async (id: string) => {
-    if (!confirm('ยืนยันการลบตัวชี้วัดนี้?')) return;
-    await supabase.from('strategic_outcome_indicators').delete().eq('id', id);
-    await fetchData();
-  };
 
   // --- CRUD for Strategies ---
   const handleOpenStrategyModal = (strategy: any = null) => {
@@ -346,8 +369,8 @@ export default function WorkshopPage() {
   };
 
   // --- CRUD for Key Results ---
-  const handleOpenKrModal = (objAutoId: string, objId: string, kr: any = null) => {
-    setEditingKr({ ...kr, _objAutoId: objAutoId, _objId: objId });
+  const handleOpenKrModal = (parentType: 'strategic_issue' | 'objective', parentAutoId: string, parentId: string, kr: any = null) => {
+    setEditingKr({ ...kr, _parentType: parentType, _parentAutoId: parentAutoId, _parentId: parentId });
     setFormData(kr || {
       name: '', measurement_status: 'ต้องสร้างระบบวัดใหม่',
       target_2570: '', target_2571: '', target_2572: '', target_2573: '', target_2574: '',
@@ -373,36 +396,50 @@ export default function WorkshopPage() {
       const { error } = await supabase.from('key_results').update(payload).eq('id', editingKr.id);
       if (error) alert('Error: ' + error.message);
     } else {
-      let order_index = 0;
-      let issueNum = 1;
-      let stNum = 1;
-      let objNum = 1;
-
-      strategicIssues.forEach((issue, iIdx) => {
-        issue.strategies?.forEach((st: any, sIdx: number) => {
-          const obj = st.objectives?.find((o: any, oIdx: number) => {
-            if (o.id === editingKr._objId) {
-              objNum = oIdx + 1;
-              return true;
-            }
-            return false;
-          });
-          if (obj) {
+      let auto_id = '';
+      let insertData: any = { ...payload, order_index: 0 };
+      
+      if (editingKr._parentType === 'strategic_issue') {
+        let issueNum = 1;
+        let order_index = 0;
+        strategicIssues.forEach((issue, iIdx) => {
+          if (issue.id === editingKr._parentId) {
             issueNum = iIdx + 1;
-            stNum = sIdx + 1;
-            if (obj.key_results) order_index = obj.key_results.length;
+            if (issue.outcome_indicators) order_index = issue.outcome_indicators.length;
           }
         });
-      });
+        auto_id = `IND${issueNum}.${order_index + 1}`;
+        insertData.strategic_issue_id = editingKr._parentId;
+        insertData.auto_id = auto_id;
+        insertData.order_index = order_index;
+      } else {
+        let order_index = 0;
+        let issueNum = 1;
+        let stNum = 1;
+        let objNum = 1;
+        strategicIssues.forEach((issue, iIdx) => {
+          issue.strategies?.forEach((st: any, sIdx: number) => {
+            const obj = st.objectives?.find((o: any, oIdx: number) => {
+              if (o.id === editingKr._parentId) {
+                objNum = oIdx + 1;
+                return true;
+              }
+              return false;
+            });
+            if (obj) {
+              issueNum = iIdx + 1;
+              stNum = sIdx + 1;
+              if (obj.key_results) order_index = obj.key_results.length;
+            }
+          });
+        });
+        auto_id = `KR${issueNum}.${stNum}.${objNum}.${order_index + 1}`;
+        insertData.objective_id = editingKr._parentId;
+        insertData.auto_id = auto_id;
+        insertData.order_index = order_index;
+      }
 
-      const auto_id = `KR${issueNum}.${stNum}.${objNum}.${order_index + 1}`;
-
-      const { error } = await supabase.from('key_results').insert([{
-        ...payload,
-        objective_id: editingKr._objId,
-        auto_id,
-        order_index
-      }]);
+      const { error } = await supabase.from('key_results').insert([insertData]);
       if (error) alert('Error: ' + error.message);
     }
     await fetchData();
@@ -601,32 +638,60 @@ export default function WorkshopPage() {
             {/* Outcome Indicators */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>ตัวชี้วัดยุทธศาสตร์ (Outcome Indicators)</h3>
-              <button onClick={() => handleOpenIndicatorModal()} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+              <button onClick={() => handleOpenKrModal('strategic_issue', currentIssueData.auto_id, currentIssueData.id)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
                 <Plus size={16} /> เพิ่มตัวชี้วัด
               </button>
             </div>
-            {currentIssueData.strategic_outcome_indicators?.length === 0 ? (
+            {currentIssueData.outcome_indicators?.length === 0 ? (
               <div style={{ padding: '1.5rem', textAlign: 'center', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-md)', marginBottom: '2rem' }}>
                 <p style={{ color: 'var(--secondary-foreground)' }}>ยังไม่มีตัวชี้วัดยุทธศาสตร์</p>
               </div>
             ) : (
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
-                {currentIssueData.strategic_outcome_indicators?.map((ind: any, idx: number) => (
-                  <li key={ind.id} style={{ backgroundColor: 'var(--secondary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                      <span style={{ fontWeight: 600, color: themeColor }}>{idx + 1}.</span>
-                      <span>{ind.name}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                      <button disabled={idx === 0 || isSaving} onClick={() => moveItem('strategic_outcome_indicators', ind, 'up', currentIssueData.strategic_outcome_indicators)} style={{ ...iconBtn, opacity: idx === 0 ? 0.3 : 1 }}><ArrowUp size={16} /></button>
-                      <button disabled={idx === currentIssueData.strategic_outcome_indicators.length - 1 || isSaving} onClick={() => moveItem('strategic_outcome_indicators', ind, 'down', currentIssueData.strategic_outcome_indicators)} style={{ ...iconBtn, opacity: idx === currentIssueData.strategic_outcome_indicators.length - 1 ? 0.3 : 1 }}><ArrowDown size={16} /></button>
-                      <div style={{ width: '1px', backgroundColor: 'var(--border)', margin: '0 0.25rem' }}></div>
-                      <button onClick={() => handleOpenIndicatorModal(ind)} style={{ ...iconBtn, color: 'var(--primary)' }}><Edit2 size={16} /></button>
-                      <button onClick={() => deleteIndicator(ind.id)} style={{ ...iconBtn, color: 'var(--destructive)' }}><Trash2 size={16} /></button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <div style={{ overflowX: 'auto', marginBottom: '2rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead style={{ backgroundColor: 'var(--secondary)' }}>
+                    <tr>
+                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', borderRadius: 'var(--radius-md) 0 0 var(--radius-md)' }}>รหัส</th>
+                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left' }}>ตัวชี้วัดยุทธศาสตร์</th>
+                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>สถานะ</th>
+                      <th style={{ padding: '0.75rem 0.25rem', width: '52px', textAlign: 'center' }}>2570</th>
+                      <th style={{ padding: '0.75rem 0.25rem', width: '52px', textAlign: 'center' }}>2571</th>
+                      <th style={{ padding: '0.75rem 0.25rem', width: '52px', textAlign: 'center' }}>2572</th>
+                      <th style={{ padding: '0.75rem 0.25rem', width: '52px', textAlign: 'center' }}>2573</th>
+                      <th style={{ padding: '0.75rem 0.25rem', width: '52px', textAlign: 'center', fontWeight: 700 }}>2574</th>
+                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right', borderRadius: '0 var(--radius-md) var(--radius-md) 0' }}>จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentIssueData.outcome_indicators?.map((kr: any, krIdx: number) => (
+                      <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600, color: themeColor, fontSize: '0.8rem' }}>{kr.auto_id}</td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>{kr.name}</td>
+                        <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
+                          <span style={{ padding: '0.2rem 0.5rem', backgroundColor: kr.measurement_status === 'พร้อมวัด' ? 'var(--success)' : 'var(--warning)', color: 'white', borderRadius: '99px', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                            {kr.measurement_status || '-'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 0.25rem', textAlign: 'center' }}>{kr.target_2570 || '-'}</td>
+                        <td style={{ padding: '0.75rem 0.25rem', textAlign: 'center' }}>{kr.target_2571 || '-'}</td>
+                        <td style={{ padding: '0.75rem 0.25rem', textAlign: 'center' }}>{kr.target_2572 || '-'}</td>
+                        <td style={{ padding: '0.75rem 0.25rem', textAlign: 'center' }}>{kr.target_2573 || '-'}</td>
+                        <td style={{ padding: '0.75rem 0.25rem', textAlign: 'center', fontWeight: 700 }}>{kr.target_2574 || '-'}</td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>
+                          <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            <button disabled={krIdx === 0 || isSaving} onClick={() => moveItem('outcome_indicators', kr, 'up', currentIssueData.outcome_indicators)} style={{ ...iconBtn, opacity: krIdx === 0 ? 0.3 : 1 }}><ArrowUp size={14} /></button>
+                            <button disabled={krIdx === currentIssueData.outcome_indicators.length - 1 || isSaving} onClick={() => moveItem('outcome_indicators', kr, 'down', currentIssueData.outcome_indicators)} style={{ ...iconBtn, opacity: krIdx === currentIssueData.outcome_indicators.length - 1 ? 0.3 : 1 }}><ArrowDown size={14} /></button>
+                            <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border)', margin: '0 0.25rem' }}></div>
+                            <button onClick={() => { setMovingKr(kr); setMoveDestinationType('objective'); setIsMoveModalOpen(true); }} style={{ ...iconBtn, color: 'var(--primary)' }} title="ย้ายไปเป็น Key Result"><RefreshCw size={14} /></button>
+                            <button onClick={() => handleOpenKrModal('strategic_issue', currentIssueData.auto_id, currentIssueData.id, kr)} style={{ ...iconBtn, color: 'var(--primary)' }}><Edit2 size={14} /></button>
+                            <button onClick={() => deleteKr(kr.id)} style={{ ...iconBtn, color: 'var(--destructive)' }}><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--border)', marginBottom: '2rem' }} />
@@ -718,7 +783,7 @@ export default function WorkshopPage() {
 
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                                   <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>เป้าหมาย (Key Results)</span>
-                                  <button onClick={() => handleOpenKrModal(obj.auto_id, obj.id)} style={{ ...iconBtn, color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600 }}>
+                                  <button onClick={() => handleOpenKrModal('objective', obj.auto_id, obj.id)} style={{ ...iconBtn, color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600 }}>
                                     <Plus size={14} /> เพิ่ม KR
                                   </button>
                                 </div>
@@ -761,7 +826,8 @@ export default function WorkshopPage() {
                                                 <button disabled={krIdx === 0 || isSaving} onClick={() => moveItem('key_results', kr, 'up', obj.key_results)} style={{ ...iconBtn, opacity: krIdx === 0 ? 0.3 : 1 }}><ArrowUp size={13} /></button>
                                                 <button disabled={krIdx === obj.key_results.length - 1 || isSaving} onClick={() => moveItem('key_results', kr, 'down', obj.key_results)} style={{ ...iconBtn, opacity: krIdx === obj.key_results.length - 1 ? 0.3 : 1 }}><ArrowDown size={13} /></button>
                                                 <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border)', margin: '0 0.15rem' }}></div>
-                                                <button onClick={() => handleOpenKrModal(obj.auto_id, obj.id, kr)} style={{ ...iconBtn, color: 'var(--primary)' }}><Edit2 size={13} /></button>
+                                                <button onClick={() => { setMovingKr(kr); setMoveDestinationType('strategic_issue'); setIsMoveModalOpen(true); }} style={{ ...iconBtn, color: 'var(--primary)' }} title="ย้ายไปเป็นตัวชี้วัดยุทธศาสตร์"><RefreshCw size={13} /></button>
+                                                <button onClick={() => handleOpenKrModal('objective', obj.auto_id, obj.id, kr)} style={{ ...iconBtn, color: 'var(--primary)' }}><Edit2 size={13} /></button>
                                                 <button onClick={() => deleteKr(kr.id)} style={{ ...iconBtn, color: 'var(--destructive)' }}><Trash2 size={13} /></button>
                                               </div>
                                             </td>
@@ -842,6 +908,41 @@ export default function WorkshopPage() {
       </div>
 
       {/* ============ MODALS ============ */}
+
+      <Modal isOpen={isMoveModalOpen} onClose={() => setIsMoveModalOpen(false)} title="ย้ายระดับ (Move Level)" maxWidth="500px">
+        <form onSubmit={saveMoveKr} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <p style={{ fontSize: '0.875rem' }}>คุณกำลังย้าย: <strong>{movingKr?.name}</strong></p>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ย้ายไปยังระดับ</label>
+            <select className="input-field" value={moveDestinationType} onChange={e => {
+              setMoveDestinationType(e.target.value as any);
+              setMoveDestinationId('');
+            }}>
+              <option value="strategic_issue">ตัวชี้วัดยุทธศาสตร์ (ระดับที่ 1)</option>
+              <option value="objective">Key Result (ระดับที่ 3 เป้าประสงค์)</option>
+            </select>
+          </div>
+          {moveDestinationType === 'objective' && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>เลือกเป้าประสงค์ปลายทาง <span style={{ color: 'red' }}>*</span></label>
+              <select className="input-field" required value={moveDestinationId} onChange={e => setMoveDestinationId(e.target.value)}>
+                <option value="">-- เลือกเป้าประสงค์ --</option>
+                {strategicIssues.find(s => s.id === activeIssue)?.strategies?.map((st: any) => (
+                  <optgroup key={st.id} label={st.auto_id + ' ' + st.name}>
+                    {st.objectives?.map((obj: any) => (
+                      <option key={obj.id} value={obj.id}>{obj.auto_id} {obj.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+            <button type="button" onClick={() => setIsMoveModalOpen(false)} className="btn-secondary">ยกเลิก</button>
+            <button type="submit" disabled={isSaving || (moveDestinationType === 'objective' && !moveDestinationId)} className="btn-primary">{isSaving ? 'กำลังย้าย...' : 'ยืนยันการย้าย'}</button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal isOpen={isIssueModalOpen} onClose={() => setIsIssueModalOpen(false)} title={editingIssue?.id ? 'แก้ไขยุทธศาสตร์' : 'เพิ่มยุทธศาสตร์ใหม่'}>
         <form onSubmit={saveIssue} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -942,7 +1043,10 @@ export default function WorkshopPage() {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>กลุ่มงานรับผิดชอบ</label>
-              <input type="text" className="input-field" value={formData.responsible_group || ''} onChange={e => setFormData({ ...formData, responsible_group: e.target.value })} placeholder="เช่น กลุ่มงานควบคุมโรค..." />
+              <select className="input-field" value={formData.responsible_group || ''} onChange={e => setFormData({ ...formData, responsible_group: e.target.value })}>
+                <option value="">-- เลือกกลุ่มงาน --</option>
+                {RESPONSIBLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
             </div>
           </div>
           <div>
@@ -978,7 +1082,10 @@ export default function WorkshopPage() {
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>กลุ่มงานรับผิดชอบ</label>
-            <input type="text" className="input-field" value={formData.responsible_group || ''} onChange={e => setFormData({ ...formData, responsible_group: e.target.value })} placeholder="เช่น กลุ่มงานพัฒนาระบบ..." />
+            <select className="input-field" value={formData.responsible_group || ''} onChange={e => setFormData({ ...formData, responsible_group: e.target.value })}>
+              <option value="">-- เลือกกลุ่มงาน --</option>
+              {RESPONSIBLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 500 }}>
@@ -1009,18 +1116,7 @@ export default function WorkshopPage() {
         </form>
       </Modal>
 
-      <Modal isOpen={isIndicatorModalOpen} onClose={() => setIsIndicatorModalOpen(false)} title={editingIndicator?.id ? 'แก้ไขตัวชี้วัดยุทธศาสตร์' : 'เพิ่มตัวชี้วัดยุทธศาสตร์ใหม่'}>
-        <form onSubmit={saveIndicator} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ตัวชี้วัดยุทธศาสตร์ <span style={{ color: 'red' }}>*</span></label>
-            <textarea className="input-field" required rows={3} value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="เช่น อัตราผู้สูงอายุที่มีคุณภาพชีวิตที่ดี..." />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-            <button type="button" onClick={() => setIsIndicatorModalOpen(false)} className="btn-secondary">ยกเลิก</button>
-            <button type="submit" className="btn-primary" disabled={isSaving}>{isSaving ? 'กำลังบันทึก...' : 'บันทึก'}</button>
-          </div>
-        </form>
-      </Modal>
+
 
     </div>
   );
