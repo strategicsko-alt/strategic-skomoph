@@ -12,11 +12,13 @@ export default function WorkshopPage() {
 
   // Modals state
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+  const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
   const [isObjModalOpen, setIsObjModalOpen] = useState(false);
   const [isKrModalOpen, setIsKrModalOpen] = useState(false);
 
   // Form states
   const [editingIssue, setEditingIssue] = useState<any>(null);
+  const [editingIndicator, setEditingIndicator] = useState<any>(null);
   const [editingObj, setEditingObj] = useState<any>(null);
   const [editingKr, setEditingKr] = useState<any>(null);
 
@@ -30,6 +32,7 @@ export default function WorkshopPage() {
       .from('strategic_issues')
       .select(`
         *,
+        strategic_outcome_indicators (*),
         objectives (
           *,
           key_results (*)
@@ -131,10 +134,45 @@ export default function WorkshopPage() {
     fetchData();
   };
 
+  // --- CRUD for Outcome Indicators ---
+  const handleOpenIndicatorModal = (indicator: any = null) => {
+    setEditingIndicator(indicator);
+    setFormData(indicator || { name: '' });
+    setIsIndicatorModalOpen(true);
+  };
+
+  const saveIndicator = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    
+    if (editingIndicator?.id) {
+      const { error } = await supabase.from('strategic_outcome_indicators').update({ 
+        name: formData.name
+      }).eq('id', editingIndicator.id);
+      if (error) alert('Error updating: ' + error.message);
+    } else {
+      const { error } = await supabase.from('strategic_outcome_indicators').insert([{ 
+        strategic_issue_id: activeIssue,
+        name: formData.name
+      }]);
+      if (error) alert('Error inserting: ' + error.message);
+    }
+    
+    await fetchData();
+    setIsIndicatorModalOpen(false);
+    setIsSaving(false);
+  };
+
+  const deleteIndicator = async (id: string) => {
+    if (!confirm('ยืนยันการลบตัวชี้วัดนี้?')) return;
+    await supabase.from('strategic_outcome_indicators').delete().eq('id', id);
+    fetchData();
+  };
+
   // --- CRUD for Objectives ---
   const handleOpenObjModal = (obj: any = null) => {
     setEditingObj(obj);
-    setFormData(obj || { strategy_name: '', outcome_indicator: '' });
+    setFormData(obj || { strategy_name: '' });
     setIsObjModalOpen(true);
   };
 
@@ -144,16 +182,14 @@ export default function WorkshopPage() {
     
     if (editingObj?.id) {
       await supabase.from('objectives').update({ 
-        strategy_name: formData.strategy_name, 
-        outcome_indicator: formData.outcome_indicator 
+        strategy_name: formData.strategy_name
       }).eq('id', editingObj.id);
     } else {
       const auto_id = generateObjId();
       await supabase.from('objectives').insert([{ 
         strategic_issue_id: activeIssue,
         auto_id,
-        strategy_name: formData.strategy_name, 
-        outcome_indicator: formData.outcome_indicator 
+        strategy_name: formData.strategy_name
       }]);
     }
     
@@ -289,6 +325,37 @@ export default function WorkshopPage() {
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--border)', marginBottom: '2rem' }} />
 
+            {/* Strategic Outcome Indicators Section */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>ตัวชี้วัดยุทธศาสตร์ (Outcome Indicators)</h3>
+              <button onClick={() => handleOpenIndicatorModal()} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                <Plus size={16} /> เพิ่มตัวชี้วัด
+              </button>
+            </div>
+
+            {currentIssueData.strategic_outcome_indicators?.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-md)', marginBottom: '2rem' }}>
+                <p style={{ color: 'var(--secondary-foreground)' }}>ยังไม่มีตัวชี้วัดยุทธศาสตร์</p>
+              </div>
+            ) : (
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem' }}>
+                {currentIssueData.strategic_outcome_indicators?.map((ind: any, idx: number) => (
+                  <li key={ind.id} style={{ backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                      <span style={{ fontWeight: 600, color: currentIssueData.theme_color || 'var(--primary)' }}>{idx + 1}.</span>
+                      <span style={{ fontWeight: 500 }}>{ind.name}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      <button onClick={() => handleOpenIndicatorModal(ind)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}><Edit2 size={16} /></button>
+                      <button onClick={() => deleteIndicator(ind.id)} style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border)', marginBottom: '2rem' }} />
+
             {/* Objectives Section */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>กลยุทธ์ (Strategies & Objectives)</h3>
@@ -314,7 +381,6 @@ export default function WorkshopPage() {
                         </span>
                         <div>
                           <h4 style={{ fontWeight: 600, fontSize: '1.125rem' }}>{obj.strategy_name}</h4>
-                          {obj.outcome_indicator && <p style={{ fontSize: '0.875rem', color: 'var(--secondary-foreground)' }}>ตัวชี้วัด: {obj.outcome_indicator}</p>}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -412,10 +478,6 @@ export default function WorkshopPage() {
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ชื่อกลยุทธ์ (Strategy) <span style={{color: 'red'}}>*</span></label>
             <input type="text" className="input-field" required value={formData.strategy_name || ''} onChange={e => setFormData({...formData, strategy_name: e.target.value})} placeholder="เช่น พัฒนาระบบปฐมภูมิ..." />
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ตัวชี้วัดยุทธศาสตร์ (Outcome Indicator)</label>
-            <textarea className="input-field" rows={2} value={formData.outcome_indicator || ''} onChange={e => setFormData({...formData, outcome_indicator: e.target.value})} placeholder="ตัวชี้วัดที่ต้องการบรรลุระดับกลยุทธ์..." />
-          </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
             <button type="button" onClick={() => setIsObjModalOpen(false)} className="btn-secondary">ยกเลิก</button>
             <button type="submit" className="btn-primary" disabled={isSaving}>{isSaving ? 'กำลังบันทึก...' : 'บันทึก'}</button>
@@ -474,6 +536,20 @@ export default function WorkshopPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
             <button type="button" onClick={() => setIsKrModalOpen(false)} className="btn-secondary">ยกเลิก</button>
             <button type="submit" className="btn-primary" disabled={isSaving}>{isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Indicator Modal */}
+      <Modal isOpen={isIndicatorModalOpen} onClose={() => setIsIndicatorModalOpen(false)} title={editingIndicator?.id ? 'แก้ไขตัวชี้วัดยุทธศาสตร์' : 'เพิ่มตัวชี้วัดยุทธศาสตร์ใหม่'}>
+        <form onSubmit={saveIndicator} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ตัวชี้วัดยุทธศาสตร์ (Outcome Indicator) <span style={{color: 'red'}}>*</span></label>
+            <textarea className="input-field" required rows={3} value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="เช่น อัตราผู้สูงอายุที่มีคุณภาพชีวิตที่ดี..." />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+            <button type="button" onClick={() => setIsIndicatorModalOpen(false)} className="btn-secondary">ยกเลิก</button>
+            <button type="submit" className="btn-primary" disabled={isSaving}>{isSaving ? 'กำลังบันทึก...' : 'บันทึก'}</button>
           </div>
         </form>
       </Modal>

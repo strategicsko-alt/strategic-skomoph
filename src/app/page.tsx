@@ -25,7 +25,10 @@ export default async function DashboardPage() {
   const { data: strategies } = await supabase
     .from('strategic_issues')
     .select(`
-      id, name, order_index,
+      id, name, order_index, theme_color,
+      strategic_outcome_indicators (
+        id, name
+      ),
       objectives (
         id, auto_id, strategy_name,
         key_results (
@@ -131,6 +134,17 @@ export default async function DashboardPage() {
               {strategies.map((strategy: any) => (
                 <div key={strategy.id} style={{ borderLeft: `4px solid ${strategy.theme_color || 'var(--primary)'}`, paddingLeft: '1.5rem' }}>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', color: strategy.theme_color || 'var(--foreground)' }}>{strategy.name}</h3>
+                  
+                  {strategy.strategic_outcome_indicators?.length > 0 && (
+                    <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                      <h4 style={{ fontWeight: 600, fontSize: '1rem', color: strategy.theme_color || 'var(--primary)', marginBottom: '0.5rem' }}>ตัวชี้วัดยุทธศาสตร์ (Outcome Indicators):</h4>
+                      <ul style={{ listStylePosition: 'inside', paddingLeft: '0.5rem', listStyleType: 'disc' }}>
+                        {strategy.strategic_outcome_indicators.map((ind: any) => (
+                          <li key={ind.id} style={{ fontSize: '0.95rem', marginBottom: '0.25rem' }}>{ind.name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   
                   {strategy.objectives?.map((obj: any) => (
                     <div key={obj.id} style={{ marginBottom: '1.5rem', backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
