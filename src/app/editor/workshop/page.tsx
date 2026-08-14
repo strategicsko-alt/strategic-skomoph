@@ -35,7 +35,7 @@ export default function WorkshopPage() {
 
   // --- Cascade Auto-Renumbering for All Hierarchy Levels ---
   const renumberAllHierarchy = async (issuesList: any[]) => {
-    const updates: Promise<any>[] = [];
+    const updates: any[] = [];
 
     issuesList.forEach((issue, issueIdx) => {
       const issueNum = issueIdx + 1;
