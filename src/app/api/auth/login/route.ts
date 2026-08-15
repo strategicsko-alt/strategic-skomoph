@@ -4,17 +4,14 @@ export async function POST(request: Request) {
   try {
     const { password } = await request.json();
     const correctPassword = process.env.EDITOR_PASSWORD || 'strategicsko00017';
-    const superadminPassword = process.env.SUPERADMIN_PASSWORD || 'admin_strategicsko00017';
 
-    if (password === correctPassword || password === superadminPassword) {
+    if (password === correctPassword) {
       // Create response and set cookie
       const response = NextResponse.json({ success: true }, { status: 200 });
       
-      const authValue = password === superadminPassword ? 'superadmin' : 'authenticated';
-      
       response.cookies.set({
         name: 'editor_auth',
-        value: authValue,
+        value: 'authenticated',
         httpOnly: false,
         path: '/',
         secure: process.env.NODE_ENV === 'production',

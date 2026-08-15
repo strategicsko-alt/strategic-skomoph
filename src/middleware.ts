@@ -10,16 +10,10 @@ export function middleware(request: NextRequest) {
     const authCookie = request.cookies.get('editor_auth');
     
     // If no cookie or cookie is invalid
-    if (!authCookie || !['authenticated', 'superadmin'].includes(authCookie.value)) {
+    if (!authCookie || authCookie.value !== 'authenticated') {
       // Redirect to login page
       const loginUrl = new URL('/editor/login', request.url);
       return NextResponse.redirect(loginUrl);
-    }
-
-    // Additional protection for admin route
-    if (pathname.startsWith('/editor/admin') && authCookie.value !== 'superadmin') {
-      const dashboardUrl = new URL('/editor/dashboard', request.url);
-      return NextResponse.redirect(dashboardUrl);
     }
   }
 

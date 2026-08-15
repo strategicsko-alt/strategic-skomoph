@@ -140,8 +140,8 @@ export default function AdminPage() {
   return (
     <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>ผู้ดูแลระบบ (Super Admin)</h1>
-        <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการข้อมูลขั้นสูง การสำรองและกู้คืนข้อมูล</p>
+        <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>สำรองและกู้คืนข้อมูล (Backup & Restore)</h1>
+        <p style={{ color: 'var(--secondary-foreground)' }}>จัดการดาวน์โหลดไฟล์สำรองข้อมูล และอัปโหลดไฟล์เพื่อกู้คืนระบบ</p>
       </div>
 
       {message.text && (

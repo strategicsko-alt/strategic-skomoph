@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 
 export default function EditorLayout({
@@ -13,17 +13,6 @@ export default function EditorLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
-  useEffect(() => {
-    // Check if the auth cookie is superadmin
-    if (typeof document !== 'undefined') {
-      const match = document.cookie.match(new RegExp('(^| )editor_auth=([^;]+)'));
-      if (match && match[2] === 'superadmin') {
-        setIsSuperAdmin(true);
-      }
-    }
-  }, []);
 
   // Don't show sidebar on login page
   if (pathname === '/editor/login') {
@@ -40,11 +29,8 @@ export default function EditorLayout({
     { name: 'ข้อมูลองค์กร (Core Data)', href: '/editor/core-data', icon: Building },
     { name: 'Workshop (แผนยุทธศาสตร์)', href: '/editor/workshop', icon: BookOpen },
     { name: 'KPI Dictionary', href: '/editor/kpi-dictionary', icon: FileText },
+    { name: 'สำรอง/กู้คืนข้อมูล (Backup)', href: '/editor/admin', icon: Settings },
   ];
-
-  if (isSuperAdmin) {
-    navItems.push({ name: 'ผู้ดูแลระบบ (Admin)', href: '/editor/admin', icon: Settings });
-  }
 
   const sidebarWidth = sidebarOpen ? '240px' : '64px';
 
