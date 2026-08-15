@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       response.cookies.set({
         name: 'editor_auth',
         value: authValue,
-        httpOnly: true,
+        httpOnly: false,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
