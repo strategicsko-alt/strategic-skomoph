@@ -34,7 +34,7 @@ export default async function KpiViewPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const kpiData = kr.kpi_dictionaries?.[0];
+  const kpiData = Array.isArray(kr.kpi_dictionaries) ? kr.kpi_dictionaries[0] : kr.kpi_dictionaries;
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
