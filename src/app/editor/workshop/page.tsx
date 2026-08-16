@@ -813,14 +813,30 @@ export default function WorkshopPage() {
                                         })()}
                                       </div>
                                     )}
-                                    {[{key: 'ia_ssjj', label: 'สสจ.'}, {key: 'ia_rph', label: 'รพ.'}, {key: 'ia_ssor', label: 'สสอ.'}, {key: 'ia_rphst', label: 'รพ.สต.'}, {key: 'ia_phakee', label: 'ภาคี'}].map(({key, label}) =>
-                                      obj[key] ? (
+                                    {[{key: 'ia_ssjj', label: 'สสจ.'}, {key: 'ia_rph', label: 'รพ.'}, {key: 'ia_ssor', label: 'สสอ.'}, {key: 'ia_rphst', label: 'รพ.สต.'}, {key: 'ia_phakee', label: 'ภาคี'}].map(({key, label}) => {
+                                      if (!obj[key]) return null;
+                                      let parsedContent: React.ReactNode;
+                                      try {
+                                        const parsed = JSON.parse(obj[key]);
+                                        if (Array.isArray(parsed)) {
+                                          parsedContent = (
+                                            <ul style={{ margin: '0', paddingLeft: '1.25rem', fontSize: '0.875rem' }}>
+                                              {parsed.map((item, i) => <li key={i}>{item}</li>)}
+                                            </ul>
+                                          );
+                                        } else {
+                                          parsedContent = <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6 }}>{obj[key]}</p>;
+                                        }
+                                      } catch (e) {
+                                        parsedContent = <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6 }}>{obj[key]}</p>;
+                                      }
+                                      return (
                                         <div key={key} style={{ padding: '0.65rem 0.875rem', borderBottom: `1px solid ${themeColor}20`, display: 'flex', gap: '0.75rem' }}>
                                           <span style={{ fontWeight: 700, color: themeColor, fontSize: '0.8rem', minWidth: '48px', flexShrink: 0 }}>{label}</span>
-                                          <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6 }}>{obj[key]}</p>
+                                          <div style={{ flex: 1 }}>{parsedContent}</div>
                                         </div>
-                                      ) : null
-                                    )}
+                                      );
+                                    })}
                                   </div>
                                 )}
 
