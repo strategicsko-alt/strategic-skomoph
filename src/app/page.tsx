@@ -11,7 +11,8 @@ import {
   Layers, 
   Home, 
   Lock,
-  Compass
+  Compass,
+  Folder
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -39,13 +40,17 @@ export default async function DashboardPage() {
     .from('strategic_issues')
     .select(`
       id, auto_id, name, order_index, theme_color,
-      strategic_outcome_indicators (
-        id, name
+      outcome_indicators:key_results!strategic_issue_id (
+        id, auto_id, name, measurement_status, target_2570, target_2571, target_2572, target_2573, target_2574, order_index
+      ),
+      projects (
+        id, name, description, responsible_group, order_index,
+        project_strategies ( strategy_id )
       ),
       strategies (
         id, auto_id, name, order_index,
         objectives (
-          id, auto_id, name, order_index,
+          id, auto_id, name, order_index, initiative_activity, ia_ssjj, ia_rph, ia_ssor, ia_rphst, ia_phakee,
           key_results (
             id, auto_id, name, order_index, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status
           )
@@ -54,10 +59,11 @@ export default async function DashboardPage() {
     `)
     .order('order_index', { ascending: true });
 
-  // Sort nested relations in JS (PostgREST doesn't support nested foreignTable ordering)
+  // Sort nested relations in JS
   const strategies = (rawStrategies || []).map((issue: any) => ({
     ...issue,
-    strategic_outcome_indicators: (issue.strategic_outcome_indicators || []),
+    outcome_indicators: (issue.outcome_indicators || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+    projects: (issue.projects || []).sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)),
     strategies: (issue.strategies || []).sort((a: any, b: any) => a.order_index - b.order_index).map((st: any) => ({
       ...st,
       objectives: (st.objectives || []).sort((a: any, b: any) => a.order_index - b.order_index).map((obj: any) => ({
@@ -72,8 +78,12 @@ export default async function DashboardPage() {
   let totalStrategies = 0;
   let totalObjectives = 0;
   let totalKeyResults = 0;
+  let totalProjects = 0;
 
   strategies.forEach((issue: any) => {
+    if (issue.projects) {
+      totalProjects += issue.projects.length;
+    }
     if (issue.strategies) {
       totalStrategies += issue.strategies.length;
       issue.strategies.forEach((st: any) => {
@@ -203,6 +213,17 @@ export default async function DashboardPage() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: '1rem'
           }}>
+            {/* โครงการ */}
+            <div style={{ padding: '1.25rem', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ padding: '0.85rem', backgroundColor: '#e11d48', color: 'white', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Folder size={26} />
+              </div>
+              <div>
+                <p style={{ color: '#9f1239', fontSize: '0.85rem', fontWeight: 600 }}>โครงการ (Projects)</p>
+                <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#4c0519', lineHeight: 1.1 }}>{totalProjects}</h3>
+              </div>
+            </div>
+
             {/* ยุทธศาสตร์ */}
             <div style={{ padding: '1.25rem', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div style={{ padding: '0.85rem', backgroundColor: '#0284c7', color: 'white', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -438,44 +459,88 @@ export default async function DashboardPage() {
           
           {strategies && strategies.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: '800px' }}>
-              {strategies.map((strategy: any) => (
-                <div key={strategy.id} style={{ borderLeft: `4px solid ${strategy.theme_color || 'var(--primary)'}`, paddingLeft: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', color: strategy.theme_color || 'var(--foreground)' }}>
-                    <span style={{ color: 'var(--secondary-foreground)', marginRight: '0.5rem', fontWeight: 700 }}>[{strategy.auto_id}]</span>
-                    {strategy.name}
-                  </h3>
-                  
-                  {strategy.strategic_outcome_indicators?.length > 0 && (
-                    <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-                      <h4 style={{ fontWeight: 600, fontSize: '1rem', color: strategy.theme_color || 'var(--primary)', marginBottom: '0.5rem' }}>ตัวชี้วัดยุทธศาสตร์ (Outcome Indicators):</h4>
-                      <ul style={{ listStylePosition: 'inside', paddingLeft: '0.5rem', listStyleType: 'disc' }}>
-                        {strategy.strategic_outcome_indicators.map((ind: any) => (
-                          <li key={ind.id} style={{ fontSize: '0.95rem', marginBottom: '0.25rem' }}>{ind.name}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  {strategy.strategies?.map((strat: any) => (
-                    <div key={strat.id} style={{ marginBottom: '1.5rem', backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-                      <h4 style={{ fontWeight: '600', marginBottom: '1rem' }}>
-                        <span style={{ color: strategy.theme_color || 'var(--primary)' }}>[{strat.auto_id}]</span> {strat.name}
-                      </h4>
+              {strategies.map((strategy: any, issueIdx: number) => {
+                const issueNum = issueIdx + 1;
+                return (
+                  <CollapsibleSection key={strategy.id} title={`ยุทธศาสตร์: [${strategy.auto_id}] ${strategy.name}`} defaultOpen={true}>
+                    <div style={{ padding: '0.5rem 0' }}>
                       
-                      {strat.objectives?.map((obj: any) => (
-                        <div key={obj.id} style={{ marginBottom: '1rem', paddingLeft: '1rem', borderLeft: `3px solid ${strategy.theme_color || 'var(--border)'}` }}>
-                          <h5 style={{ fontWeight: '600', marginBottom: '0.5rem', fontSize: '1.1rem' }}>
-                            <span style={{ color: strategy.theme_color || 'var(--primary)' }}>[{obj.auto_id}]</span> {obj.name}
-                          </h5>
+                      {strategy.outcome_indicators?.length > 0 && (
+                        <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                          <h4 style={{ fontWeight: 600, fontSize: '1rem', color: strategy.theme_color || 'var(--primary)', marginBottom: '0.5rem' }}>ตัวชี้วัดยุทธศาสตร์ (Outcome Indicators):</h4>
+                          <ul style={{ listStylePosition: 'inside', paddingLeft: '0.5rem', listStyleType: 'disc' }}>
+                            {strategy.outcome_indicators.map((ind: any) => (
+                              <li key={ind.id} style={{ fontSize: '0.95rem', marginBottom: '0.25rem' }}>
+                                <span style={{ fontWeight: 600, color: strategy.theme_color || 'var(--primary)' }}>[{ind.auto_id}]</span> {ind.name}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {strategy.strategies?.map((strat: any) => (
+                        <div key={strat.id} style={{ marginBottom: '1.5rem', backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+                          <h4 style={{ fontWeight: '600', marginBottom: '1rem' }}>
+                            <span style={{ color: strategy.theme_color || 'var(--primary)' }}>[{strat.auto_id}]</span> {strat.name}
+                          </h4>
+                          
+                          {strat.objectives?.map((obj: any) => (
+                            <div key={obj.id} style={{ marginBottom: '1.5rem', paddingLeft: '1rem', borderLeft: `3px solid ${strategy.theme_color || 'var(--border)'}` }}>
+                              <h5 style={{ fontWeight: '600', marginBottom: '0.5rem', fontSize: '1.1rem' }}>
+                                <span style={{ color: strategy.theme_color || 'var(--primary)' }}>[{obj.auto_id}]</span> {obj.name}
+                              </h5>
 
-                          {/* KR Timeline Table */}
-                          <KrTableClient objective={obj} themeColor={strategy.theme_color || 'var(--primary)'} />
+                              {/* KR Timeline Table & How-To Info */}
+                              <KrTableClient objective={obj} themeColor={strategy.theme_color || 'var(--primary)'} />
+                            </div>
+                          ))}
                         </div>
                       ))}
+
+                      {/* Projects Section */}
+                      {strategy.projects && strategy.projects.length > 0 && (
+                        <div style={{ marginTop: '2rem', padding: '1.5rem', backgroundColor: 'var(--card)', border: `1px solid ${strategy.theme_color || 'var(--primary)'}`, borderRadius: 'var(--radius-md)' }}>
+                          <h4 style={{ fontSize: '1.125rem', fontWeight: 700, color: strategy.theme_color || 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Folder size={20} />
+                            โครงการภายใต้ยุทธศาสตร์ (Projects)
+                          </h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+                            {strategy.projects.map((proj: any, projIdx: number) => {
+                              const projCode = `P${issueNum}.${projIdx + 1}`;
+                              // Resolve linked strategies across all issues
+                              const linkedIds = (proj.project_strategies || []).map((ps: any) => ps.strategy_id);
+                              const linkedStNames: string[] = [];
+                              strategies.forEach((iss: any) => {
+                                iss.strategies?.forEach((st: any) => {
+                                  if (linkedIds.includes(st.id)) {
+                                    linkedStNames.push(`[${st.auto_id}] ${st.name}`);
+                                  }
+                                });
+                              });
+                              
+                              return (
+                                <div key={proj.id} style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--background)' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <span style={{ backgroundColor: strategy.theme_color || 'var(--primary)', color: 'white', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>{projCode}</span>
+                                    <h5 style={{ fontWeight: 700, margin: 0, fontSize: '0.95rem' }}>{proj.name}</h5>
+                                  </div>
+                                  {proj.description && <p style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)', marginBottom: '0.5rem' }}>{proj.description}</p>}
+                                  {proj.responsible_group && <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}><strong>กลุ่มงาน:</strong> {proj.responsible_group}</p>}
+                                  {linkedStNames.length > 0 && (
+                                    <div style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
+                                      <strong>เชื่อมโยง:</strong> <span style={{ color: strategy.theme_color || 'var(--primary)' }}>{linkedStNames.join(', ')}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              ))}
+                  </CollapsibleSection>
+                );
+              })}
             </div>
           ) : (
             <p style={{ textAlign: 'center', padding: '3rem', color: 'var(--secondary-foreground)' }}>

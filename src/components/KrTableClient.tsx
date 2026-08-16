@@ -55,6 +55,62 @@ export function KrTableClient({ objective, themeColor }: KrTableClientProps) {
           )}
         </tbody>
       </table>
+
+      {/* Initiative Activity & How To Section */}
+      {(objective.initiative_activity || objective.ia_ssjj || objective.ia_rph || objective.ia_ssor || objective.ia_rphst || objective.ia_phakee) && (
+        <div style={{ marginTop: '1rem', border: `1px solid ${themeColor}40`, borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+          
+          {/* Initiative Activity */}
+          {objective.initiative_activity && (
+            <div style={{ backgroundColor: `${themeColor}10`, padding: '1rem', borderBottom: `1px solid ${themeColor}20` }}>
+              <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: themeColor, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ display: 'inline-block', width: '6px', height: '1rem', backgroundColor: themeColor, borderRadius: '4px' }}></span>
+                กิจกรรมริเริ่ม (Initiative Activity)
+              </h5>
+              <div style={{ paddingLeft: '1rem', color: 'var(--foreground)', fontSize: '0.875rem' }}>
+                {(() => {
+                  try {
+                    const parsed = JSON.parse(objective.initiative_activity);
+                    if (Array.isArray(parsed)) {
+                      return (
+                        <ul style={{ listStyleType: 'disc', paddingLeft: '1rem', margin: 0 }}>
+                          {parsed.map((item, idx) => (
+                            <li key={idx} style={{ marginBottom: '0.25rem' }}>{item}</li>
+                          ))}
+                        </ul>
+                      );
+                    }
+                  } catch (e) {}
+                  return <p style={{ margin: 0 }}>{objective.initiative_activity}</p>;
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* How To (by level) */}
+          <div style={{ padding: '0.5rem 0' }}>
+            {[
+              { key: 'ia_ssjj', label: 'สสจ.' }, 
+              { key: 'ia_rph', label: 'รพ.' }, 
+              { key: 'ia_ssor', label: 'สสอ.' }, 
+              { key: 'ia_rphst', label: 'รพ.สต.' }, 
+              { key: 'ia_phakee', label: 'ภาคีเครือข่าย' }
+            ].map(({ key, label }) => {
+              const content = objective[key];
+              if (!content) return null;
+              return (
+                <div key={key} style={{ padding: '0.5rem 1rem', display: 'flex', gap: '1rem', borderBottom: `1px solid ${themeColor}15`, alignItems: 'flex-start' }}>
+                  <span style={{ fontWeight: 700, color: themeColor, fontSize: '0.8rem', minWidth: '80px', flexShrink: 0, padding: '0.2rem 0.5rem', backgroundColor: `${themeColor}10`, borderRadius: '4px', textAlign: 'center' }}>
+                    {label}
+                  </span>
+                  <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--secondary-foreground)' }}>{content}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </>
   );
 }
+export default KrTableClient;

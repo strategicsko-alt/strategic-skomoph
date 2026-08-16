@@ -902,13 +902,23 @@ export default function WorkshopPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {currentIssueProjects.map((proj: any, projIdx: number) => {
+                  const issueNum = strategicIssues.findIndex(i => i.id === activeIssue) + 1;
+                  const projCode = `P${issueNum}.${projIdx + 1}`;
                   const linkedStrategyIds = (proj.project_strategies || []).map((ps: any) => ps.strategy_id);
-                  const linkedStrategies = currentIssueData.strategies?.filter((st: any) => linkedStrategyIds.includes(st.id)) || [];
+                  const linkedStrategies: any[] = [];
+                  strategicIssues.forEach(iss => {
+                    iss.strategies?.forEach((st: any) => {
+                      if (linkedStrategyIds.includes(st.id)) {
+                        linkedStrategies.push({ ...st, _theme_color: iss.theme_color });
+                      }
+                    });
+                  });
                   return (
                     <div key={proj.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                            <span style={{ backgroundColor: themeColor, color: 'white', padding: '0.15rem 0.6rem', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 700 }}>{projCode}</span>
                             <Folder size={16} style={{ color: themeColor }} />
                             <h5 style={{ fontWeight: 700, fontSize: '1rem', margin: 0 }}>{proj.name}</h5>
                           </div>
@@ -917,7 +927,7 @@ export default function WorkshopPage() {
                           {linkedStrategies.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
                               {linkedStrategies.map((st: any) => (
-                                <span key={st.id} style={{ padding: '0.2rem 0.6rem', backgroundColor: `${themeColor}20`, color: themeColor, borderRadius: '99px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                <span key={st.id} style={{ padding: '0.2rem 0.6rem', backgroundColor: `${st._theme_color || themeColor}20`, color: st._theme_color || themeColor, borderRadius: '99px', fontSize: '0.75rem', fontWeight: 600 }}>
                                   {st.auto_id} {st.name}
                                 </span>
                               ))}
@@ -1158,22 +1168,35 @@ export default function WorkshopPage() {
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 500 }}>
-              กลยุทธ์ที่สัมพันธ์ <span style={{ fontSize: '0.8rem', color: 'var(--secondary-foreground)', fontWeight: 400 }}>(เลือกได้หลายกลยุทธ์)</span>
+              กลยุทธ์ที่สัมพันธ์ <span style={{ fontSize: '0.8rem', color: 'var(--secondary-foreground)', fontWeight: 400 }}>(สามารถเลือกข้ามยุทธศาสตร์ได้)</span>
             </label>
-            {!currentIssueData?.strategies?.length ? (
-              <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>ยังไม่มีกลยุทธ์</p>
+            {!strategicIssues.length ? (
+              <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>ยังไม่มีกลยุทธ์ในระบบ</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
-                {currentIssueData.strategies.map((st: any) => (
-                  <label key={st.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer', padding: '0.5rem', borderRadius: 'var(--radius-sm)', backgroundColor: selectedStrategyIds.includes(st.id) ? `${themeColor}10` : 'transparent' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedStrategyIds.includes(st.id)}
-                      onChange={() => toggleStrategySelection(st.id)}
-                      style={{ marginTop: '0.15rem', width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }}
-                    />
-                    <span><strong style={{ color: themeColor }}>{st.auto_id}</strong> {st.name}</span>
-                  </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '250px', overflowY: 'auto', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                {strategicIssues.map(issue => (
+                  <div key={issue.id} style={{ marginBottom: '0.25rem' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: issue.theme_color || 'var(--primary)', marginBottom: '0.5rem', borderBottom: `1px solid ${issue.theme_color || 'var(--primary)'}40`, paddingBottom: '0.25rem' }}>
+                      [{issue.auto_id}] {issue.name}
+                    </div>
+                    {issue.strategies?.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '0.5rem' }}>
+                        {issue.strategies.map((st: any) => (
+                          <label key={st.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-sm)', backgroundColor: selectedStrategyIds.includes(st.id) ? `${issue.theme_color || 'var(--primary)'}15` : 'transparent' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedStrategyIds.includes(st.id)}
+                              onChange={() => toggleStrategySelection(st.id)}
+                              style={{ marginTop: '0.15rem', width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }}
+                            />
+                            <span style={{ fontSize: '0.875rem' }}><strong style={{ color: issue.theme_color || 'var(--primary)' }}>{st.auto_id}</strong> {st.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ paddingLeft: '0.5rem', fontSize: '0.8rem', color: 'var(--secondary-foreground)', fontStyle: 'italic' }}>ไม่มีกลยุทธ์</div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
