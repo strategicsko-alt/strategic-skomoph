@@ -50,7 +50,7 @@ export default function KPIDictionaryPage() {
       definition: '', numerator: '', denominator: '', 
       inclusion_criteria: '', exclusion_criteria: '',
       data_source: '', data_collection_method: '', cutoff_date: '',
-      frequency: '', responsible_person: '',
+      frequency: '', responsible_person: kr.responsible_group || '',
       proposed_target: kr.target_2574 || '', 
       rationale: '', risk_warning: '', prerequisite: ''
     });
@@ -253,8 +253,11 @@ export default function KPIDictionaryPage() {
                 <input type="text" className="input-field" value={formData.cutoff_date || ''} onChange={e => setFormData({...formData, cutoff_date: e.target.value})} placeholder="เช่น วันที่ 5 ของเดือน" />
               </div>
               <div>
-                <label className="form-label">ผู้รับผิดชอบ</label>
-                <input type="text" className="input-field" value={formData.responsible_person || ''} onChange={e => setFormData({...formData, responsible_person: e.target.value})} />
+                <label className="form-label">กลุ่มงานผู้รับผิดชอบ</label>
+                <select className="input-field" value={formData.responsible_person || ''} onChange={e => setFormData({...formData, responsible_person: e.target.value})}>
+                  <option value="">-- เลือกกลุ่มงาน --</option>
+                  {RESPONSIBLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
               </div>
             </div>
           </div>
