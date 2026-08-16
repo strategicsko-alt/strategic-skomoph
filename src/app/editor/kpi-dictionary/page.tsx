@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Edit2, Plus, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Edit2, Plus, ChevronDown, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
 export default function KPIDictionaryPage() {
@@ -14,6 +14,7 @@ export default function KPIDictionaryPage() {
   const [activeKr, setActiveKr] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const RESPONSIBLE_GROUPS = [
     "กลุ่มงานบริหารทั่วไป", "กลุ่มงานบริหารทรัพยากรบุคคล", "กลุ่มกฎหมาย", 
@@ -95,6 +96,36 @@ export default function KPIDictionaryPage() {
     await fetchData();
     setIsModalOpen(false);
     setIsSaving(false);
+  };
+
+  const handleGenerateKpi = async () => {
+    if (!activeKr?.name) return;
+    setIsGenerating(true);
+    try {
+      const res = await fetch('/api/generate-kpi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kpiName: activeKr.name })
+      });
+      
+      if (!res.ok) throw new Error('Failed to generate');
+      
+      const data = await res.json();
+      
+      // Update form data, but keep existing responsible_person and proposed_target
+      setFormData((prev: any) => ({
+        ...prev,
+        ...data,
+        responsible_person: prev.responsible_person,
+        proposed_target: prev.proposed_target
+      }));
+      
+    } catch (error) {
+      console.error(error);
+      alert('เกิดข้อผิดพลาดในการสร้างข้อมูลด้วย AI กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -199,7 +230,18 @@ export default function KPIDictionaryPage() {
           
           <div style={{ backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
             <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{activeKr?.name}</p>
-            <p style={{ fontSize: '0.875rem', color: 'var(--secondary-foreground)' }}>เป้าหมายปี 2574 (ตั้งต้น): <strong>{activeKr?.target_2574 || '-'}</strong></p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--secondary-foreground)', marginBottom: '1rem' }}>เป้าหมายปี 2574 (ตั้งต้น): <strong>{activeKr?.target_2574 || '-'}</strong></p>
+            
+            <button 
+              type="button" 
+              onClick={handleGenerateKpi} 
+              disabled={isGenerating}
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content', padding: '0.5rem 1rem', fontSize: '0.875rem', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', opacity: isGenerating ? 0.7 : 1 }}
+            >
+              {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              {isGenerating ? 'AI กำลังร่างข้อมูล...' : '✨ ให้ AI ช่วยร่างข้อมูล'}
+            </button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
