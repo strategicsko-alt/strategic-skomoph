@@ -98,12 +98,33 @@ export function KrTableClient({ objective, themeColor }: KrTableClientProps) {
             ].map(({ key, label }) => {
               const content = objective[key];
               if (!content) return null;
+
+              let parsedContent: React.ReactNode;
+              try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                  parsedContent = (
+                    <ul style={{ margin: 0, paddingLeft: '1.25rem', listStyleType: 'decimal' }}>
+                      {parsed.map((item, idx) => (
+                        <li key={idx} style={{ marginBottom: '0.25rem' }}>{item}</li>
+                      ))}
+                    </ul>
+                  );
+                } else {
+                  parsedContent = <p style={{ margin: 0 }}>{content}</p>;
+                }
+              } catch (e) {
+                parsedContent = <p style={{ margin: 0 }}>{content}</p>;
+              }
+
               return (
                 <div key={key} style={{ padding: '0.5rem 1rem', display: 'flex', gap: '1rem', borderBottom: `1px solid ${themeColor}15`, alignItems: 'flex-start' }}>
                   <span style={{ fontWeight: 700, color: themeColor, fontSize: '0.8rem', minWidth: '80px', flexShrink: 0, padding: '0.2rem 0.5rem', backgroundColor: `${themeColor}10`, borderRadius: '4px', textAlign: 'center' }}>
                     {label}
                   </span>
-                  <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--secondary-foreground)' }}>{content}</p>
+                  <div style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--secondary-foreground)' }}>
+                    {parsedContent}
+                  </div>
                 </div>
               );
             })}

@@ -48,6 +48,9 @@ export default function WorkshopPage() {
   const [editingKr, setEditingKr] = useState<any>(null);
   const [editingProject, setEditingProject] = useState<any>(null);
   const [initiativeList, setInitiativeList] = useState<string[]>(['']);
+  const [howToLists, setHowToLists] = useState<Record<string, string[]>>({
+    ia_ssjj: [''], ia_rph: [''], ia_ssor: [''], ia_rphst: [''], ia_phakee: ['']
+  });
   const [selectedStrategyIds, setSelectedStrategyIds] = useState<string[]>([]);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [movingKr, setMovingKr] = useState<any>(null);
@@ -312,22 +315,24 @@ export default function WorkshopPage() {
     setEditingObj({ ...obj, _stAutoId: stAutoId, _stId: stId });
     setFormData(obj || { name: '', initiative_activity: '', ia_ssjj: '', ia_rph: '', ia_ssor: '', ia_rphst: '', ia_phakee: '' });
     
-    // Parse initiative_activity into array
-    let ia_parsed = [''];
-    const ia_raw = obj?.initiative_activity;
-    if (ia_raw) {
+    // Helper to parse JSON string into string array
+    const parseList = (raw: any) => {
+      if (!raw) return [''];
       try {
-        const parsed = JSON.parse(ia_raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          ia_parsed = parsed;
-        } else {
-          ia_parsed = [ia_raw];
-        }
-      } catch (e) {
-        ia_parsed = [ia_raw];
-      }
-    }
-    setInitiativeList(ia_parsed);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+      return [raw];
+    };
+
+    setInitiativeList(parseList(obj?.initiative_activity));
+    setHowToLists({
+      ia_ssjj: parseList(obj?.ia_ssjj),
+      ia_rph: parseList(obj?.ia_rph),
+      ia_ssor: parseList(obj?.ia_ssor),
+      ia_rphst: parseList(obj?.ia_rphst),
+      ia_phakee: parseList(obj?.ia_phakee),
+    });
     
     setIsObjModalOpen(true);
   };
@@ -337,15 +342,19 @@ export default function WorkshopPage() {
     setIsSaving(true);
     
     const cleanList = initiativeList.filter(i => i.trim() !== '');
+    const cleanHowTo = (key: string) => {
+      const list = (howToLists[key] || []).filter(i => i.trim() !== '');
+      return list.length > 0 ? JSON.stringify(list) : null;
+    };
     
     const iaPayload = {
       name: formData.name,
       initiative_activity: cleanList.length > 0 ? JSON.stringify(cleanList) : null,
-      ia_ssjj: formData.ia_ssjj,
-      ia_rph: formData.ia_rph,
-      ia_ssor: formData.ia_ssor,
-      ia_rphst: formData.ia_rphst,
-      ia_phakee: formData.ia_phakee,
+      ia_ssjj: cleanHowTo('ia_ssjj'),
+      ia_rph: cleanHowTo('ia_rph'),
+      ia_ssor: cleanHowTo('ia_ssor'),
+      ia_rphst: cleanHowTo('ia_rphst'),
+      ia_phakee: cleanHowTo('ia_phakee'),
     };
     if (editingObj?.id) {
       const { error } = await supabase.from('objectives').update(iaPayload).eq('id', editingObj.id);
@@ -1082,18 +1091,54 @@ export default function WorkshopPage() {
                 { key: 'ia_rph', label: 'รพ.', placeholder: 'กิจกรรมที่โรงพยาบาลรับผิดชอบ...' },
                 { key: 'ia_ssor', label: 'สสอ.', placeholder: 'กิจกรรมที่สำนักงานสาธารณสุขอำเภอรับผิดชอบ...' },
                 { key: 'ia_rphst', label: 'รพ.สต.', placeholder: 'กิจกรรมที่โรงพยาบาลส่งเสริมสุขภาพตำบลรับผิดชอบ...' },
-                { key: 'ia_phakee', label: 'ภาคี', placeholder: 'กิจกรรมที่ภาคีเครือข่ายรับผิดชอบ...' },
+                { key: 'ia_phakee', label: 'ภาคีเครือข่าย', placeholder: 'กิจกรรมที่ภาคีเครือข่ายรับผิดชอบ...' },
               ].map(({ key, label, placeholder }) => (
                 <div key={key}>
                   <label style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--primary)' }}>{label}</label>
-                  <textarea
-                    className="input-field"
-                    rows={4}
-                    value={formData[key] || ''}
-                    onChange={e => setFormData({ ...formData, [key]: e.target.value })}
-                    placeholder={placeholder}
-                    style={{ fontSize: '0.875rem', lineHeight: '1.6', resize: 'vertical', minHeight: '90px' }}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {(howToLists[key] || ['']).map((item, index) => (
+                      <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--primary)', width: '20px', fontSize: '0.875rem' }}>{index + 1}.</span>
+                        <input 
+                          type="text" 
+                          className="input-field" 
+                          style={{ flex: 1, margin: 0, fontSize: '0.875rem' }} 
+                          value={item} 
+                          onChange={e => {
+                            const newLists = { ...howToLists };
+                            if (!newLists[key]) newLists[key] = [''];
+                            newLists[key][index] = e.target.value;
+                            setHowToLists(newLists);
+                          }} 
+                          placeholder={placeholder} 
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            const newLists = { ...howToLists };
+                            newLists[key] = newLists[key].filter((_, i) => i !== index);
+                            if (newLists[key].length === 0) newLists[key] = [''];
+                            setHowToLists(newLists);
+                          }}
+                          style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer', padding: '0.25rem' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const newLists = { ...howToLists };
+                        if (!newLists[key]) newLists[key] = [];
+                        newLists[key].push('');
+                        setHowToLists(newLists);
+                      }}
+                      style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.35rem 0.6rem', marginTop: '0.25rem', backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500 }}
+                    >
+                      <Plus size={14} /> เพิ่มข้อใหม่
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
