@@ -36,12 +36,14 @@ export function CollapsibleSection({ title, children, defaultOpen = true, color 
       </div>
 
       <div style={{
-        overflow: 'hidden',
-        maxHeight: open ? '2000px' : '0px',
-        transition: 'max-height 0.35s ease',
+        display: 'grid',
+        gridTemplateRows: open ? '1fr' : '0fr',
+        transition: 'grid-template-rows 0.35s ease, margin-top 0.35s ease',
         marginTop: open ? '1rem' : '0'
       }}>
-        {children}
+        <div style={{ overflow: 'hidden' }}>
+          {children}
+        </div>
       </div>
     </div>
   );
