@@ -44,7 +44,7 @@ export default function KPIDictionaryPage() {
 
   const handleOpenModal = (kr: any) => {
     setActiveKr(kr);
-    const existingKpi = kr.kpi_dictionaries?.[0];
+    const existingKpi = Array.isArray(kr.kpi_dictionaries) ? kr.kpi_dictionaries[0] : kr.kpi_dictionaries;
     
     setFormData(existingKpi || {
       definition: '', numerator: '', denominator: '', 
@@ -80,12 +80,16 @@ export default function KPIDictionaryPage() {
       prerequisite: formData.prerequisite
     };
 
-    if (activeKr.kpi_dictionaries?.[0]?.id) {
+    const existingKpi = Array.isArray(activeKr.kpi_dictionaries) ? activeKr.kpi_dictionaries[0] : activeKr.kpi_dictionaries;
+    
+    if (existingKpi?.id) {
       // Update
-      await supabase.from('kpi_dictionaries').update(payload).eq('id', activeKr.kpi_dictionaries[0].id);
+      const { error } = await supabase.from('kpi_dictionaries').update(payload).eq('id', existingKpi.id);
+      if (error) alert('Error updating: ' + error.message);
     } else {
       // Insert
-      await supabase.from('kpi_dictionaries').insert([payload]);
+      const { error } = await supabase.from('kpi_dictionaries').insert([payload]);
+      if (error) alert('Error inserting: ' + error.message);
     }
     
     await fetchData();
@@ -129,7 +133,7 @@ export default function KPIDictionaryPage() {
             </thead>
             <tbody>
               {(selectedGroup ? keyResults.filter(kr => kr.responsible_group === selectedGroup) : keyResults).map((kr) => {
-                const kpi = kr.kpi_dictionaries?.[0];
+                const kpi = Array.isArray(kr.kpi_dictionaries) ? kr.kpi_dictionaries[0] : kr.kpi_dictionaries;
                 const hasKpi = !!kpi;
                 
                 let isComplete = false;
