@@ -52,7 +52,7 @@ export default function KPIDictionaryPage() {
       inclusion_criteria: '', exclusion_criteria: '',
       data_source: '', data_collection_method: '', cutoff_date: '',
       frequency: '', responsible_person: kr.responsible_group || '',
-      proposed_target: kr.target_2574 || '', 
+      proposed_target: kr.target_2574 || '', baseline: '',
       rationale: '', risk_warning: '', prerequisite: ''
     });
     
@@ -76,6 +76,7 @@ export default function KPIDictionaryPage() {
       frequency: formData.frequency,
       responsible_person: formData.responsible_person,
       proposed_target: formData.proposed_target,
+      baseline: formData.baseline,
       rationale: formData.rationale,
       risk_warning: formData.risk_warning,
       prerequisite: formData.prerequisite
@@ -112,12 +113,13 @@ export default function KPIDictionaryPage() {
       
       const data = await res.json();
       
-      // Update form data, but keep existing responsible_person and proposed_target
+      // Update form data, but keep existing fields that shouldn't be overridden
       setFormData((prev: any) => ({
         ...prev,
         ...data,
         responsible_person: prev.responsible_person,
-        proposed_target: prev.proposed_target
+        proposed_target: prev.proposed_target,
+        baseline: prev.baseline
       }));
       
     } catch (error) {
@@ -173,7 +175,7 @@ export default function KPIDictionaryPage() {
                     kpi.definition, kpi.numerator, kpi.denominator, kpi.inclusion_criteria,
                     kpi.exclusion_criteria, kpi.data_source, kpi.data_collection_method,
                     kpi.cutoff_date, kpi.frequency, kpi.responsible_person,
-                    kpi.proposed_target, kpi.rationale, kpi.risk_warning, kpi.prerequisite
+                    kpi.proposed_target, kpi.baseline, kpi.rationale, kpi.risk_warning, kpi.prerequisite
                   ];
                   // Consider complete only if all fields have some text
                   isComplete = fields.every(field => field && String(field).trim() !== '');
@@ -311,10 +313,16 @@ export default function KPIDictionaryPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginTop: '1rem' }}>
             <h4 style={{ fontWeight: 600, color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>3. เป้าหมายและความเสี่ยง</h4>
             
-            <div>
-              <label className="form-label">ค่าเป้าหมายที่เสนอ (Proposed Target)</label>
-              <input type="text" className="input-field" value={formData.proposed_target || ''} onChange={e => setFormData({...formData, proposed_target: e.target.value})} />
-              <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>* ระบบดึงค่าเบื้องต้นมาจากเป้าหมายปี 2574</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label className="form-label">ข้อมูลฐาน (Baseline)</label>
+                <input type="text" className="input-field" value={formData.baseline || ''} onChange={e => setFormData({...formData, baseline: e.target.value})} placeholder="เช่น ปี 2566: 80%" />
+              </div>
+              <div>
+                <label className="form-label">ค่าเป้าหมายที่เสนอ (Proposed Target)</label>
+                <input type="text" className="input-field" value={formData.proposed_target || ''} onChange={e => setFormData({...formData, proposed_target: e.target.value})} />
+                <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>* ระบบดึงค่าเบื้องต้นมาจากเป้าหมายปี 2574</p>
+              </div>
             </div>
             
             <div>

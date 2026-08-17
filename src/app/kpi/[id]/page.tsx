@@ -111,11 +111,18 @@ export default async function KpiViewPage({ params }: { params: Promise<{ id: st
           
           <hr style={{ borderTop: '1px solid var(--border)', margin: '0.5rem 0' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+            <div>
+              <h5 style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>ข้อมูลฐาน (Baseline)</h5>
+              <p style={{ fontSize: '0.95rem' }}>{kpiData.baseline || '-'}</p>
+            </div>
             <div>
               <h5 style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>เป้าหมายที่เสนอ (Proposed Target)</h5>
               <p style={{ fontSize: '0.95rem' }}>{kpiData.proposed_target || '-'}</p>
             </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
             <div>
               <h5 style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>เหตุผล (Rationale)</h5>
               <p style={{ fontSize: '0.95rem' }}>{kpiData.rationale || '-'}</p>
