@@ -58,6 +58,9 @@ export default function WorkshopPage() {
   const [moveDestinationId, setMoveDestinationId] = useState<string>('');
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isMoveObjModalOpen, setIsMoveObjModalOpen] = useState(false);
+  const [movingObj, setMovingObj] = useState<any>(null);
+  const [moveObjDestStId, setMoveObjDestStId] = useState<string>('');
 
   // --- Cascade Auto-Renumbering for All Hierarchy Levels ---
   const renumberAllHierarchy = async (issuesList: any[]) => {
@@ -220,7 +223,7 @@ export default function WorkshopPage() {
     setIsSaving(true);
     let payload: any = {};
     if (moveDestinationType === 'strategic_issue') {
-      payload = { objective_id: null, strategic_issue_id: activeIssue };
+      payload = { objective_id: null, strategic_issue_id: moveDestinationId };
     } else {
       payload = { strategic_issue_id: null, objective_id: moveDestinationId };
     }
@@ -228,6 +231,16 @@ export default function WorkshopPage() {
     if (error) alert('Error: ' + error.message);
     await fetchData();
     setIsMoveModalOpen(false);
+    setIsSaving(false);
+  };
+
+  const saveMoveObj = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const { error } = await supabase.from('objectives').update({ strategy_id: moveObjDestStId }).eq('id', movingObj.id);
+    if (error) alert('Error: ' + error.message);
+    await fetchData();
+    setIsMoveObjModalOpen(false);
     setIsSaving(false);
   };
 
@@ -784,6 +797,7 @@ export default function WorkshopPage() {
                                   <button disabled={objIdx === 0 || isSaving} onClick={() => moveItem('objectives', obj, 'up', st.objectives)} style={{ ...iconBtn, opacity: objIdx === 0 ? 0.3 : 1 }}><ArrowUp size={16} /></button>
                                   <button disabled={objIdx === st.objectives.length - 1 || isSaving} onClick={() => moveItem('objectives', obj, 'down', st.objectives)} style={{ ...iconBtn, opacity: objIdx === st.objectives.length - 1 ? 0.3 : 1 }}><ArrowDown size={16} /></button>
                                   <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border)', margin: '0 0.25rem' }}></div>
+                                  <button onClick={() => { setMovingObj(obj); setMoveObjDestStId(''); setIsMoveObjModalOpen(true); }} style={{ ...iconBtn, color: 'var(--primary)' }} title="ย้ายเป้าประสงค์"><RefreshCw size={16} /></button>
                                   <button onClick={() => handleOpenObjModal(st.auto_id, st.id, obj)} style={{ ...iconBtn, color: 'var(--primary)' }}><Edit2 size={16} /></button>
                                   <button onClick={() => deleteObj(obj.id)} style={{ ...iconBtn, color: 'var(--destructive)' }}><Trash2 size={16} /></button>
                                 </div>
@@ -996,19 +1010,55 @@ export default function WorkshopPage() {
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>เลือกเป้าประสงค์ปลายทาง <span style={{ color: 'red' }}>*</span></label>
               <select className="input-field" required value={moveDestinationId} onChange={e => setMoveDestinationId(e.target.value)}>
                 <option value="">-- เลือกเป้าประสงค์ --</option>
-                {strategicIssues.find(s => s.id === activeIssue)?.strategies?.map((st: any) => (
-                  <optgroup key={st.id} label={st.auto_id + ' ' + st.name}>
-                    {st.objectives?.map((obj: any) => (
-                      <option key={obj.id} value={obj.id}>{obj.auto_id} {obj.name}</option>
+                {strategicIssues.map(issue => (
+                  <optgroup key={issue.id} label={`[${issue.auto_id}] ${issue.name}`}>
+                    {issue.strategies?.map((st: any) => (
+                      st.objectives?.map((obj: any) => (
+                        <option key={obj.id} value={obj.id}>{obj.auto_id} {obj.name}</option>
+                      ))
                     ))}
                   </optgroup>
                 ))}
               </select>
             </div>
           )}
+          {moveDestinationType === 'strategic_issue' && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>เลือกยุทธศาสตร์ปลายทาง <span style={{ color: 'red' }}>*</span></label>
+              <select className="input-field" required value={moveDestinationId} onChange={e => setMoveDestinationId(e.target.value)}>
+                <option value="">-- เลือกยุทธศาสตร์ --</option>
+                {strategicIssues.map(issue => (
+                  <option key={issue.id} value={issue.id}>[{issue.auto_id}] {issue.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
             <button type="button" onClick={() => setIsMoveModalOpen(false)} className="btn-secondary">ยกเลิก</button>
-            <button type="submit" disabled={isSaving || (moveDestinationType === 'objective' && !moveDestinationId)} className="btn-primary">{isSaving ? 'กำลังย้าย...' : 'ยืนยันการย้าย'}</button>
+            <button type="submit" disabled={isSaving || !moveDestinationId} className="btn-primary">{isSaving ? 'กำลังย้าย...' : 'ยืนยันการย้าย'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isMoveObjModalOpen} onClose={() => setIsMoveObjModalOpen(false)} title="ย้ายเป้าประสงค์ (Move Objective)" maxWidth="500px">
+        <form onSubmit={saveMoveObj} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <p style={{ fontSize: '0.875rem' }}>คุณกำลังย้ายเป้าประสงค์: <br/><strong>{movingObj?.auto_id} {movingObj?.name}</strong></p>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>เลือกกลยุทธ์ปลายทาง <span style={{ color: 'red' }}>*</span></label>
+            <select className="input-field" required value={moveObjDestStId} onChange={e => setMoveObjDestStId(e.target.value)}>
+              <option value="">-- เลือกกลยุทธ์ --</option>
+              {strategicIssues.map(issue => (
+                <optgroup key={issue.id} label={`[${issue.auto_id}] ${issue.name}`}>
+                  {issue.strategies?.map((st: any) => (
+                    <option key={st.id} value={st.id}>{st.auto_id} {st.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+            <button type="button" onClick={() => setIsMoveObjModalOpen(false)} className="btn-secondary">ยกเลิก</button>
+            <button type="submit" disabled={isSaving || !moveObjDestStId} className="btn-primary">{isSaving ? 'กำลังย้าย...' : 'ยืนยันการย้าย'}</button>
           </div>
         </form>
       </Modal>
