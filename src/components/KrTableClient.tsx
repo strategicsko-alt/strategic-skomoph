@@ -120,7 +120,7 @@ export function KrTableClient({ objective, themeColor }: KrTableClientProps) {
               }
 
               return (
-                <div key={key} style={{ padding: '0.5rem 1rem', display: 'flex', gap: '1rem', borderBottom: `1px solid ${themeColor}15`, alignItems: 'flex-start' }}>
+                <div key={key} className="how-to-row" style={{ padding: '0.5rem 0', display: 'flex', gap: '0.75rem', borderBottom: `1px solid ${themeColor}15`, alignItems: 'flex-start' }}>
                   <span style={{ fontWeight: 700, color: themeColor, fontSize: '0.8rem', minWidth: '80px', flexShrink: 0, padding: '0.2rem 0.5rem', backgroundColor: `${themeColor}10`, borderRadius: '4px', textAlign: 'center' }}>
                     {label}
                   </span>

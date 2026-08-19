@@ -451,7 +451,7 @@ export default async function DashboardPage() {
       </section>
 
       {/* 5-Year Strategic Roadmap */}
-      <section style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 1.5rem' }}>
+      <section className="roadmap-section">
         <div className="card">
           <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--secondary)', paddingBottom: '0.75rem' }}>
             Roadmap ยุทธศาสตร์ 5 ปี
@@ -479,13 +479,13 @@ export default async function DashboardPage() {
                       )}
                       
                       {strategy.strategies?.map((strat: any) => (
-                        <div key={strat.id} style={{ marginBottom: '1.5rem', backgroundColor: 'var(--secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+                        <div key={strat.id} className="strategy-card" style={{ marginBottom: '1.5rem', backgroundColor: 'var(--secondary)', borderRadius: 'var(--radius-md)' }}>
                           <h4 style={{ fontWeight: '600', marginBottom: '1rem' }}>
                             <span style={{ color: strategy.theme_color || 'var(--primary)' }}>[{strat.auto_id}]</span> {strat.name}
                           </h4>
                           
                           {strat.objectives?.map((obj: any) => (
-                            <div key={obj.id} style={{ marginBottom: '1.5rem', paddingLeft: '1rem', borderLeft: `3px solid ${strategy.theme_color || 'var(--border)'}` }}>
+                            <div key={obj.id} className="objective-block" style={{ marginBottom: '1.5rem', borderLeft: `3px solid ${strategy.theme_color || 'var(--border)'}` }}>
                               <h5 style={{ fontWeight: '600', marginBottom: '0.5rem', fontSize: '1.1rem' }}>
                                 <span style={{ color: strategy.theme_color || 'var(--primary)' }}>[{obj.auto_id}]</span> {obj.name}
                               </h5>

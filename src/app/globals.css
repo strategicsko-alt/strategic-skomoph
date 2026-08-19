@@ -219,3 +219,30 @@ button {
     grid-template-columns: 1fr !important;
   }
 }
+
+.strategy-card { padding: 1rem; }
+.objective-block { padding-left: 1rem; }
+.roadmap-section {
+  max-width: 1400px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .how-to-row {
+    flex-direction: column !important;
+    gap: 0.25rem !important;
+  }
+  .how-to-row span {
+    align-self: flex-start;
+  }
+  .card {
+    padding: 0.5rem !important;
+  }
+  .strategy-card { padding: 0.5rem; }
+  .objective-block { padding-left: 0.5rem; }
+  .roadmap-section {
+    padding: 0 0.5rem;
+    margin: 1rem auto;
+  }
+}
