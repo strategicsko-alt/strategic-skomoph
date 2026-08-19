@@ -57,7 +57,7 @@ export default async function KpiViewPage({ params }: { params: Promise<{ id: st
       ) : (
         <div style={{ display: 'grid', gap: '1.5rem', backgroundColor: 'var(--card)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+          <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
             <div>
               <h5 style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>นิยามเชิงปฏิบัติการ</h5>
               <p style={{ fontSize: '1rem', lineHeight: 1.6 }}>{kpiData.definition || '-'}</p>
@@ -70,7 +70,7 @@ export default async function KpiViewPage({ params }: { params: Promise<{ id: st
 
           <hr style={{ borderTop: '1px solid var(--border)', margin: '0.5rem 0' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+          <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
             <div style={{ backgroundColor: '#f0fdf4', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
               <h5 style={{ fontWeight: 700, fontSize: '0.875rem', color: '#166534', marginBottom: '0.5rem' }}>ตัวตั้ง (Numerator)</h5>
               <p style={{ fontSize: '1rem', color: '#14532d' }}>{kpiData.numerator || '-'}</p>
@@ -81,7 +81,7 @@ export default async function KpiViewPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '0.5rem' }}>
+          <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '0.5rem' }}>
             <div>
               <h5 style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>เกณฑ์นับเข้า (Inclusion)</h5>
               <p style={{ fontSize: '0.95rem', lineHeight: 1.5 }}>{kpiData.inclusion_criteria || '-'}</p>
@@ -94,7 +94,7 @@ export default async function KpiViewPage({ params }: { params: Promise<{ id: st
 
           <hr style={{ borderTop: '1px solid var(--border)', margin: '0.5rem 0' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+          <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
             <div>
               <h5 style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--secondary-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>แหล่งข้อมูล</h5>
               <p style={{ fontSize: '0.95rem' }}>{kpiData.data_source || '-'}</p>
@@ -111,7 +111,7 @@ export default async function KpiViewPage({ params }: { params: Promise<{ id: st
           
           <hr style={{ borderTop: '1px solid var(--border)', margin: '0.5rem 0' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
             <div>
               <h5 style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>ข้อมูลฐาน (Baseline)</h5>
               <p style={{ fontSize: '0.95rem' }}>{kpiData.baseline || '-'}</p>

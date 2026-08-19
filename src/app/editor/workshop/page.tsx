@@ -591,9 +591,9 @@ export default function WorkshopPage() {
   };
 
   return (
-    <div style={{ display: 'flex', gap: '2rem', height: 'calc(100vh - 4rem)' }}>
+    <div className="responsive-layout">
       {/* Sidebar */}
-      <div style={{ width: '300px', backgroundColor: 'var(--card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="responsive-sidebar">
         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h3 style={{ fontWeight: 600 }}>ยุทธศาสตร์</h3>
@@ -647,7 +647,7 @@ export default function WorkshopPage() {
       </div>
 
       {/* Main Content */}
-      <div style={{ flex: 1, backgroundColor: 'var(--card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflowY: 'auto', padding: '2rem' }}>
+      <div className="responsive-main" style={{ backgroundColor: 'var(--card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflowY: 'auto', padding: '2rem' }}>
         {!currentIssueData ? (
           <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--secondary-foreground)' }}>
             <p>กรุณาเลือกหรือเพิ่มยุทธศาสตร์เพื่อดูข้อมูล</p>
@@ -691,7 +691,7 @@ export default function WorkshopPage() {
                 <p style={{ color: 'var(--secondary-foreground)' }}>ยังไม่มีตัวชี้วัดยุทธศาสตร์</p>
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', marginBottom: '2rem' }}>
+              <div className="table-responsive">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                   <thead style={{ backgroundColor: 'var(--secondary)' }}>
                     <tr>
@@ -864,7 +864,7 @@ export default function WorkshopPage() {
                                 {obj.key_results?.length === 0 ? (
                                   <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.75rem', fontStyle: 'italic' }}>ยังไม่มี Key Result</p>
                                 ) : (
-                                  <div style={{ overflowX: 'auto' }}>
+                                  <div className="table-responsive" style={{ marginTop: '0.5rem' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                                       <thead>
                                         <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', color: 'var(--secondary-foreground)' }}>
@@ -1223,7 +1223,7 @@ export default function WorkshopPage() {
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ชื่อเป้าหมาย (Key Result) <span style={{ color: 'red' }}>*</span></label>
             <input type="text" className="input-field" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="เช่น อัตราผู้ป่วยเบาหวานที่ควบคุมได้..." />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>สถานะความพร้อมวัด</label>
               <select className="input-field" value={formData.measurement_status || 'สร้างใหม่'} onChange={e => setFormData({ ...formData, measurement_status: e.target.value })}>
@@ -1242,7 +1242,7 @@ export default function WorkshopPage() {
           <div>
             <h4 style={{ fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>ค่าเป้าหมายรายปี (2570–2574)</h4>
             <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)', marginBottom: '0.75rem' }}>กรอกได้ทั้งตัวเลขและตัวอักษร เช่น "80%", "ร้อยละ 75", "500 ราย"</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
               {[2570, 2571, 2572, 2573, 2574].map(year => (
                 <div key={year}>
                   <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.75rem', color: 'var(--secondary-foreground)', fontWeight: year === 2574 ? 700 : 400 }}>

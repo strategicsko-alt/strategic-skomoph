@@ -254,7 +254,7 @@ export default function KPIDictionaryPage() {
               <textarea className="input-field" rows={3} value={formData.definition || ''} onChange={e => setFormData({...formData, definition: e.target.value})} />
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label className="form-label">ตัวตั้ง (Numerator)</label>
                 <textarea className="input-field" rows={2} value={formData.numerator || ''} onChange={e => setFormData({...formData, numerator: e.target.value})} />
@@ -265,7 +265,7 @@ export default function KPIDictionaryPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label className="form-label">เกณฑ์นับเข้า (Inclusion Criteria)</label>
                 <textarea className="input-field" rows={2} value={formData.inclusion_criteria || ''} onChange={e => setFormData({...formData, inclusion_criteria: e.target.value})} />
@@ -280,7 +280,7 @@ export default function KPIDictionaryPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginTop: '1rem' }}>
             <h4 style={{ fontWeight: 600, color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>2. การจัดการข้อมูล</h4>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label className="form-label">แหล่งข้อมูล (Data Source)</label>
                 <input type="text" className="input-field" value={formData.data_source || ''} onChange={e => setFormData({...formData, data_source: e.target.value})} />
@@ -291,7 +291,7 @@ export default function KPIDictionaryPage() {
               </div>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
               <div>
                 <label className="form-label">ความถี่การวัด</label>
                 <input type="text" className="input-field" value={formData.frequency || ''} onChange={e => setFormData({...formData, frequency: e.target.value})} placeholder="เช่น รายเดือน, รายไตรมาส" />
@@ -313,7 +313,7 @@ export default function KPIDictionaryPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginTop: '1rem' }}>
             <h4 style={{ fontWeight: 600, color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>3. เป้าหมายและความเสี่ยง</h4>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label className="form-label">ข้อมูลฐาน (Baseline)</label>
                 <input type="text" className="input-field" value={formData.baseline || ''} onChange={e => setFormData({...formData, baseline: e.target.value})} placeholder="เช่น ปี 2566: 80%" />
