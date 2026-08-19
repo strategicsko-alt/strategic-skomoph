@@ -452,13 +452,13 @@ export default async function DashboardPage() {
 
       {/* 5-Year Strategic Roadmap */}
       <section style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 1.5rem' }}>
-        <div className="card" style={{ overflowX: 'auto' }}>
+        <div className="card">
           <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--secondary)', paddingBottom: '0.75rem' }}>
             Roadmap ยุทธศาสตร์ 5 ปี
           </h2>
           
           {strategies && strategies.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: '800px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
               {strategies.map((strategy: any, issueIdx: number) => {
                 const issueNum = issueIdx + 1;
                 return (

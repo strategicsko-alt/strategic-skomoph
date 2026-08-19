@@ -176,3 +176,46 @@ button {
     overflow: visible !important;
   }
 }
+
+/* Responsive Utility Classes */
+.responsive-layout {
+  display: flex;
+  gap: 2rem;
+  height: calc(100vh - 4rem);
+}
+.responsive-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+.responsive-main {
+  flex: 1;
+  min-width: 0;
+}
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 900px) {
+  .responsive-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+  .responsive-sidebar {
+    width: 100%;
+    max-height: 400px;
+  }
+  /* Force grid layouts to single column on mobile */
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
