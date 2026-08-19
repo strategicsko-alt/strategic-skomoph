@@ -41,6 +41,21 @@ export default function KPIDictionaryPage() {
 
   useEffect(() => {
     fetchData();
+
+    const channel = supabase
+      .channel('kpi-dictionary-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleOpenModal = (kr: any) => {

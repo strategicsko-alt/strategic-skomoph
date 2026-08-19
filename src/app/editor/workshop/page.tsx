@@ -207,6 +207,25 @@ export default function WorkshopPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Set up real-time subscription for workshop data
+    const channel = supabase
+      .channel('workshop-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          // Prevent refetch loop if the change was made by this very client's cascade update
+          // Ideally we would filter by a client ID, but a simple refetch is fine for now
+          // if it's not a high-frequency system. We just call fetchData().
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleManualSync = async () => {

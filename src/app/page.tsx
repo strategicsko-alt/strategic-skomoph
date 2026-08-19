@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { KrTableClient } from '@/components/KrTableClient';
 import { ExportButton } from '@/components/ExportButton';
+import { RealtimeRefresher } from '@/components/RealtimeRefresher';
 import { 
   Briefcase, 
   GitBranch, 
@@ -134,6 +135,7 @@ export default async function DashboardPage() {
 
   return (
     <main style={{ minHeight: '100vh', paddingBottom: '4rem' }}>
+      <RealtimeRefresher />
       {/* Header Section with Top-Right Login Button */}
       <header style={{ 
         backgroundColor: 'var(--primary)', 
