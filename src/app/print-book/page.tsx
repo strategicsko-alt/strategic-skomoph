@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { KrTableClient } from '@/components/KrTableClient';
-import { Printer, ChevronLeft } from 'lucide-react';
+import { Printer, ChevronLeft, Layers, Folder, Briefcase, GitBranch, Target, Activity, Home } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PrintBookPage() {
@@ -12,6 +12,7 @@ export default function PrintBookPage() {
   const [swotItems, setSwotItems] = useState<any[]>([]);
   const [strategicIssues, setStrategicIssues] = useState<any[]>([]);
   const [kpis, setKpis] = useState<any[]>([]);
+  const [totalProjects, setTotalProjects] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,6 +72,9 @@ export default function PrintBookPage() {
         
         if (kpiData) setKpis(kpiData);
 
+        const { data: pData } = await supabase.from('projects').select('id');
+        setTotalProjects(pData?.length || 0);
+
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
@@ -110,6 +114,27 @@ export default function PrintBookPage() {
       </div>
     );
   };
+
+  // Compute totals
+  const totalIssues = strategicIssues.length;
+  let totalStrategies = 0;
+  let totalObjectives = 0;
+  let totalKeyResults = 0;
+
+  strategicIssues.forEach(issue => {
+    totalKeyResults += issue.outcome_indicators?.length || 0;
+    if (issue.strategies) {
+      totalStrategies += issue.strategies.length;
+      issue.strategies.forEach((st: any) => {
+        if (st.objectives) {
+          totalObjectives += st.objectives.length;
+          st.objectives.forEach((obj: any) => {
+            totalKeyResults += obj.key_results?.length || 0;
+          });
+        }
+      });
+    }
+  });
 
   return (
     <div style={{ backgroundColor: '#f9f9f9', minHeight: '100vh' }}>
@@ -229,6 +254,111 @@ export default function PrintBookPage() {
           <h2 style={{ fontSize: '2rem', fontWeight: 800, textAlign: 'center', marginBottom: '3rem', paddingBottom: '1rem', borderBottom: '3px solid var(--primary)' }}>
             ส่วนที่ 2: แผนที่ยุทธศาสตร์ (Strategic Roadmap)
           </h2>
+
+          {/* สรุปภาพรวมโครงสร้างยุทธศาสตร์ */}
+          <div className="card page-break-avoid" style={{ padding: '1.5rem', backgroundColor: 'var(--card)', marginBottom: '3rem' }}>
+            <h3 style={{ fontSize: '1.25rem', color: 'var(--primary)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <Layers size={22} />
+              สรุปภาพรวมโครงสร้างยุทธศาสตร์
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '1rem'
+            }}>
+              <div style={{ padding: '1.25rem', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ padding: '0.85rem', backgroundColor: '#e11d48', color: 'white', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Folder size={26} />
+                </div>
+                <div>
+                  <p style={{ color: '#9f1239', fontSize: '0.85rem', fontWeight: 600 }}>โครงการ</p>
+                  <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#4c0519', lineHeight: 1.1 }}>{totalProjects}</h3>
+                </div>
+              </div>
+              <div style={{ padding: '1.25rem', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ padding: '0.85rem', backgroundColor: '#0284c7', color: 'white', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Briefcase size={26} />
+                </div>
+                <div>
+                  <p style={{ color: '#0369a1', fontSize: '0.85rem', fontWeight: 600 }}>ยุทธศาสตร์</p>
+                  <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#0c4a6e', lineHeight: 1.1 }}>{totalIssues}</h3>
+                </div>
+              </div>
+              <div style={{ padding: '1.25rem', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ padding: '0.85rem', backgroundColor: '#7c3aed', color: 'white', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <GitBranch size={26} />
+                </div>
+                <div>
+                  <p style={{ color: '#6d28d9', fontSize: '0.85rem', fontWeight: 600 }}>กลยุทธ์</p>
+                  <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#4c1d95', lineHeight: 1.1 }}>{totalStrategies}</h3>
+                </div>
+              </div>
+              <div style={{ padding: '1.25rem', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ padding: '0.85rem', backgroundColor: '#059669', color: 'white', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Target size={26} />
+                </div>
+                <div>
+                  <p style={{ color: '#047857', fontSize: '0.85rem', fontWeight: 600 }}>เป้าประสงค์</p>
+                  <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#064e3b', lineHeight: 1.1 }}>{totalObjectives}</h3>
+                </div>
+              </div>
+              <div style={{ padding: '1.25rem', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ padding: '0.85rem', backgroundColor: '#d97706', color: 'white', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Activity size={26} />
+                </div>
+                <div>
+                  <p style={{ color: '#b45309', fontSize: '0.85rem', fontWeight: 600 }}>เป้าหมาย</p>
+                  <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#78350f', lineHeight: 1.1 }}>{totalKeyResults}</h3>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* House Model */}
+          <div className="card page-break-avoid" style={{ padding: '1.75rem', backgroundColor: 'var(--card)', marginBottom: '3rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--secondary)', padding: '0.35rem 1rem', borderRadius: '99px', color: 'var(--primary)', fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                <Home size={18} />
+                โมเดลบ้านยุทธศาสตร์ (Strategic House Model)
+              </div>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--foreground)' }}>
+                กรอบทิศทางยุทธศาสตร์สุขภาพ 5 ปี จังหวัดสระแก้ว
+              </h3>
+            </div>
+            
+            <div style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', color: 'white', borderRadius: 'var(--radius-md)', padding: '1.25rem 1.5rem', textAlign: 'center', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.9, display: 'block', marginBottom: '0.25rem' }}>วิสัยทัศน์ (Vision)</span>
+              <p style={{ fontSize: '1.15rem', fontWeight: 600, lineHeight: 1.4 }}>&ldquo;{coreData?.vision || 'ไม่มีข้อมูล'}&rdquo;</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', alignItems: 'stretch' }}>
+              {strategicIssues.map((issue: any, idx: number) => {
+                const issueColor = issue.theme_color || '#0284c7';
+                return (
+                  <div key={issue.id} style={{ backgroundColor: 'white', border: `2px solid ${issueColor}`, borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ backgroundColor: issueColor, color: 'white', padding: '1rem', textAlign: 'center', borderBottom: `1px solid ${issueColor}` }}>
+                      <div style={{ display: 'inline-block', backgroundColor: 'rgba(255, 255, 255, 0.25)', padding: '0.15rem 0.6rem', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                        ยุทธศาสตร์ที่ {idx + 1} [{issue.auto_id}]
+                      </div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, lineHeight: 1.4 }}>{issue.name}</h4>
+                    </div>
+                    <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '0.35rem', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--secondary-foreground)', textTransform: 'uppercase' }}>กลยุทธ์</span>
+                        <span style={{ fontSize: '0.7rem', backgroundColor: `${issueColor}20`, color: issueColor, padding: '0.1rem 0.45rem', borderRadius: '99px', fontWeight: 700 }}>{issue.strategies?.length || 0}</span>
+                      </div>
+                      {issue.strategies?.map((strat: any) => (
+                        <div key={strat.id} style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.75rem', borderLeft: `4px solid ${issueColor}` }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: issueColor, marginBottom: '0.15rem' }}>[{strat.auto_id}]</div>
+                          <div style={{ fontSize: '0.85rem', lineHeight: 1.4, color: 'var(--foreground)' }}>{strat.name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {strategicIssues.map((issue) => (
             <div key={issue.id} style={{ marginBottom: '3rem' }}>
