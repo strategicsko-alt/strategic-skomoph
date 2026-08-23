@@ -189,7 +189,7 @@ export function ExportButton({ data }: ExportButtonProps) {
   };
 
   const printDocument = () => {
-    window.print();
+    window.open('/print-book', '_blank');
   };
 
   return (
