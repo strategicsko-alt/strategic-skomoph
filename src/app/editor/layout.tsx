@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings, CalendarDays } from 'lucide-react';
 
 export default function EditorLayout({
   children,
@@ -27,7 +27,8 @@ export default function EditorLayout({
   const navItems = [
     { name: 'Dashboard', href: '/editor/dashboard', icon: LayoutDashboard },
     { name: 'ข้อมูลองค์กร (Core Data)', href: '/editor/core-data', icon: Building },
-    { name: 'Workshop (แผนยุทธศาสตร์)', href: '/editor/workshop', icon: BookOpen },
+    { name: 'Workshop (แผนยุทธศาสตร์ 5 ปี)', href: '/editor/workshop', icon: BookOpen },
+    { name: 'แผนปฏิบัติการ 1 ปี', href: '/editor/action-plan', icon: CalendarDays },
     { name: 'KPI Dictionary', href: '/editor/kpi-dictionary', icon: FileText },
     { name: 'สำรอง/กู้คืนข้อมูล (Backup)', href: '/editor/admin', icon: Settings },
   ];
