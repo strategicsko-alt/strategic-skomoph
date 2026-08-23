@@ -1,7 +1,8 @@
 "use client";
 
 import { X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   isOpen: boolean;
@@ -12,6 +13,12 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, maxWidth = '600px' }: ModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -27,9 +34,9 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '600px' }: 
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
@@ -70,6 +77,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '600px' }: 
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}} />
-    </div>
+    </div>,
+    document.body
   );
 }
