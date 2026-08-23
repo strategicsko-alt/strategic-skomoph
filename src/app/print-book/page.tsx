@@ -22,10 +22,10 @@ export default function PrintBookPage() {
         const { data: cData } = await supabase.from('core_organization').select('*').limit(1).single();
         setCoreData(cData);
 
-        const { data: clData } = await supabase.from('core_list_items').select('*').order('order_index');
+        const { data: clData } = await supabase.from('core_list_items').select('*').order('created_at');
         setCoreListItems(clData || []);
 
-        const { data: sData } = await supabase.from('swot_analysis').select('*').order('order_index');
+        const { data: sData } = await supabase.from('swot_items').select('*').order('created_at');
         setSwotItems(sData || []);
 
         // Fetch Strategies
@@ -166,28 +166,58 @@ export default function PrintBookPage() {
           <div style={{ marginTop: '3rem' }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#8b5cf6', borderBottom: '2px solid #8b5cf6', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>การวิเคราะห์ SWOT</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              <div className="card page-break-avoid" style={{ borderTop: '4px solid #3b82f6' }}>
-                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#3b82f6', marginBottom: '1rem' }}>จุดแข็ง (Strengths)</h4>
+              <div className="card page-break-avoid" style={{ borderTop: '4px solid var(--success)', padding: '1rem' }}>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--success)', marginBottom: '1rem' }}>จุดแข็ง (Strengths)</h4>
                 <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.6' }}>
-                  {swotItems.filter(i => i.swot_type === 'strength').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
+                  {swotItems.filter(i => i.swot_type === 'S').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
                 </ul>
               </div>
-              <div className="card page-break-avoid" style={{ borderTop: '4px solid #ef4444' }}>
-                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#ef4444', marginBottom: '1rem' }}>จุดอ่อน (Weaknesses)</h4>
+              <div className="card page-break-avoid" style={{ borderTop: '4px solid var(--destructive)', padding: '1rem' }}>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--destructive)', marginBottom: '1rem' }}>จุดอ่อน (Weaknesses)</h4>
                 <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.6' }}>
-                  {swotItems.filter(i => i.swot_type === 'weakness').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
+                  {swotItems.filter(i => i.swot_type === 'W').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
                 </ul>
               </div>
-              <div className="card page-break-avoid" style={{ borderTop: '4px solid #10b981' }}>
-                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#10b981', marginBottom: '1rem' }}>โอกาส (Opportunities)</h4>
+              <div className="card page-break-avoid" style={{ borderTop: '4px solid var(--primary)', padding: '1rem' }}>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '1rem' }}>โอกาส (Opportunities)</h4>
                 <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.6' }}>
-                  {swotItems.filter(i => i.swot_type === 'opportunity').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
+                  {swotItems.filter(i => i.swot_type === 'O').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
                 </ul>
               </div>
-              <div className="card page-break-avoid" style={{ borderTop: '4px solid #f59e0b' }}>
-                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '1rem' }}>อุปสรรค (Threats)</h4>
+              <div className="card page-break-avoid" style={{ borderTop: '4px solid var(--warning)', padding: '1rem' }}>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--warning)', marginBottom: '1rem' }}>อุปสรรค (Threats)</h4>
                 <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.6' }}>
-                  {swotItems.filter(i => i.swot_type === 'threat').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
+                  {swotItems.filter(i => i.swot_type === 'T').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '3rem' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981', borderBottom: '2px solid #10b981', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>กลยุทธ์จากสภาพแวดล้อม (TOWS Matrix)</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div className="card page-break-avoid" style={{ borderTop: '4px solid #10b981', padding: '1rem' }}>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#10b981', marginBottom: '1rem' }}>SO: เชิงรุก</h4>
+                <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.6' }}>
+                  {swotItems.filter(i => i.swot_type === 'SO').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
+                </ul>
+              </div>
+              <div className="card page-break-avoid" style={{ borderTop: '4px solid #3b82f6', padding: '1rem' }}>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#3b82f6', marginBottom: '1rem' }}>WO: เชิงแก้ไข</h4>
+                <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.6' }}>
+                  {swotItems.filter(i => i.swot_type === 'WO').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
+                </ul>
+              </div>
+              <div className="card page-break-avoid" style={{ borderTop: '4px solid #f59e0b', padding: '1rem' }}>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '1rem' }}>ST: เชิงป้องกัน</h4>
+                <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.6' }}>
+                  {swotItems.filter(i => i.swot_type === 'ST').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
+                </ul>
+              </div>
+              <div className="card page-break-avoid" style={{ borderTop: '4px solid #ef4444', padding: '1rem' }}>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#ef4444', marginBottom: '1rem' }}>WT: เชิงรับ</h4>
+                <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.6' }}>
+                  {swotItems.filter(i => i.swot_type === 'WT').map(i => <li key={i.id} style={{ marginBottom: '0.5rem' }}>{i.detail}</li>)}
                 </ul>
               </div>
             </div>
