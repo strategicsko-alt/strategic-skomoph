@@ -19,11 +19,13 @@ import {
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+import { headers } from 'next/headers';
 
 export default async function DashboardPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const searchParams = await props.searchParams;
+  await headers(); // Opt-in to dynamic rendering
 
   // Fetch Districts
   const { data: districtsData } = await supabase.from('districts').select('*').order('name');
@@ -183,7 +185,7 @@ export default async function DashboardPage(props: {
           </div>
           <div>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <DistrictSelector districts={districts} currentDistrictId={currentDistrictId} />
+              <DistrictSelector districts={districts} />
               <a 
                 href="https://notebook.google.com/notebook/70fc7ef6-c30a-4b2f-a779-3df6bb2bd460" 
                 target="_blank" 

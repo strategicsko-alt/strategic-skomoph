@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MapPin } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 type District = {
   id: string;
@@ -9,18 +10,33 @@ type District = {
   type: string;
 };
 
-export function DistrictSelector({ districts, currentDistrictId }: { districts: District[], currentDistrictId: string }) {
+export function DistrictSelector({ districts }: { districts: District[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const provinceDistrict = districts.find(d => d.type === 'province');
+  const [selectedId, setSelectedId] = useState<string>(
+    searchParams.get('district_id') || provinceDistrict?.id || ''
+  );
+
+  useEffect(() => {
+    const id = searchParams.get('district_id');
+    if (id) {
+      setSelectedId(id);
+    } else if (provinceDistrict) {
+      setSelectedId(provinceDistrict.id);
+    }
+  }, [searchParams, provinceDistrict]);
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '0.25rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.2)' }}>
       <MapPin size={16} style={{ color: 'white' }} />
       <select 
-        value={currentDistrictId || ''}
+        value={selectedId}
         onChange={(e) => {
-          const url = new URL(window.location.href);
-          url.searchParams.set('district_id', e.target.value);
-          window.location.href = (url.pathname + url.search);
+          const newId = e.target.value;
+          setSelectedId(newId);
+          router.push(`/?district_id=${newId}`);
         }}
         style={{
           backgroundColor: 'transparent',
