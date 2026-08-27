@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { supabaseAdmin } from '@/utils/supabase/admin';
+import { getSupabaseAdmin } from '@/utils/supabase/admin';
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
+    const supabaseAdmin = getSupabaseAdmin();
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
