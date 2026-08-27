@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings, CalendarDays, Users, User } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';
 
 export default function EditorLayout({
   children,
@@ -15,6 +15,7 @@ export default function EditorLayout({
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profile, setProfile] = useState<any>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     if (pathname !== '/editor/login' && pathname !== '/editor/register') {

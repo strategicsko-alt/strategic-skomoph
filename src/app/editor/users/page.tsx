@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';
 import { CheckCircle, XCircle, Loader2, ShieldCheck, User } from 'lucide-react';
 
 type UserProfile = {
@@ -18,6 +18,7 @@ export default function UsersManagementPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [myProfile, setMyProfile] = useState<any>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     fetchUsers();
