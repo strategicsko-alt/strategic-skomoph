@@ -20,14 +20,16 @@ export function ExportButton({ data }: ExportButtonProps) {
           .select(`
             id, auto_id, name, order_index, theme_color,
             key_results (
-              id, auto_id, name, order_index, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status
+              id, auto_id, name, order_index, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status,
+              action_plan_measurements (*)
             ),
             strategies (
               id, auto_id, name, order_index,
               objectives (
                 id, auto_id, name, order_index, initiative_activity, ia_ssjj, ia_rph, ia_ssor, ia_rphst, ia_phakee,
                 key_results (
-                  id, auto_id, name, order_index, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status, responsible_group
+                  id, auto_id, name, order_index, target_2570, target_2571, target_2572, target_2573, target_2574, measurement_status, responsible_group,
+                  action_plan_measurements (*)
                 )
               )
             )
@@ -37,12 +39,18 @@ export function ExportButton({ data }: ExportButtonProps) {
         exportData = (rawStrategies || []).map((issue: any) => ({
           ...issue,
           // Extract outcome indicators (key_results attached to issue)
-          key_results: (issue.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index),
+          key_results: (issue.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index).map((kr: any) => ({
+            ...kr,
+            action_plan_measurements: (kr.action_plan_measurements || []).sort((a: any, b: any) => a.quarter - b.quarter || a.order_index - b.order_index)
+          })),
           strategies: (issue.strategies || []).sort((a: any, b: any) => a.order_index - b.order_index).map((st: any) => ({
             ...st,
             objectives: (st.objectives || []).sort((a: any, b: any) => a.order_index - b.order_index).map((obj: any) => ({
               ...obj,
-              key_results: (obj.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index),
+              key_results: (obj.key_results || []).sort((a: any, b: any) => a.order_index - b.order_index).map((kr: any) => ({
+                ...kr,
+                action_plan_measurements: (kr.action_plan_measurements || []).sort((a: any, b: any) => a.quarter - b.quarter || a.order_index - b.order_index)
+              })),
             }))
           }))
         }));
@@ -52,6 +60,12 @@ export function ExportButton({ data }: ExportButtonProps) {
       const rows: any[] = [];
 
       exportData.forEach((issue) => {
+        const getQuarterPlan = (kr: any, q: number) => {
+          const plans = (kr.action_plan_measurements || []).filter((p: any) => p.quarter === q);
+          if (plans.length === 0) return '';
+          return plans.map((p: any) => `${p.auto_id}: ${p.kpi_name} (เป้า: ${p.target_value})`).join('\r\n');
+        };
+
         // 1. Outcome Indicators (attached directly to Strategic Issue)
         if (issue.key_results && issue.key_results.length > 0) {
           issue.key_results.forEach((kr: any) => {
@@ -76,6 +90,10 @@ export function ExportButton({ data }: ExportButtonProps) {
               'เป้าปี 2572': kr.target_2572 || '',
               'เป้าปี 2573': kr.target_2573 || '',
               'เป้าปี 2574': kr.target_2574 || '',
+              'แผนปฏิบัติการ ไตรมาส 1': getQuarterPlan(kr, 1),
+              'แผนปฏิบัติการ ไตรมาส 2': getQuarterPlan(kr, 2),
+              'แผนปฏิบัติการ ไตรมาส 3': getQuarterPlan(kr, 3),
+              'แผนปฏิบัติการ ไตรมาส 4': getQuarterPlan(kr, 4),
             });
           });
         }
@@ -123,6 +141,10 @@ export function ExportButton({ data }: ExportButtonProps) {
                       'เป้าปี 2572': kr.target_2572 || '',
                       'เป้าปี 2573': kr.target_2573 || '',
                       'เป้าปี 2574': kr.target_2574 || '',
+                      'แผนปฏิบัติการ ไตรมาส 1': getQuarterPlan(kr, 1),
+                      'แผนปฏิบัติการ ไตรมาส 2': getQuarterPlan(kr, 2),
+                      'แผนปฏิบัติการ ไตรมาส 3': getQuarterPlan(kr, 3),
+                      'แผนปฏิบัติการ ไตรมาส 4': getQuarterPlan(kr, 4),
                     });
                   });
                 } else {
@@ -148,6 +170,10 @@ export function ExportButton({ data }: ExportButtonProps) {
                     'เป้าปี 2572': '',
                     'เป้าปี 2573': '',
                     'เป้าปี 2574': '',
+                    'แผนปฏิบัติการ ไตรมาส 1': '',
+                    'แผนปฏิบัติการ ไตรมาส 2': '',
+                    'แผนปฏิบัติการ ไตรมาส 3': '',
+                    'แผนปฏิบัติการ ไตรมาส 4': '',
                   });
                 }
               });
