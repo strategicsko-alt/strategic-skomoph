@@ -5,6 +5,7 @@ import { KrTableClient } from '@/components/KrTableClient';
 import { ExportButton } from '@/components/ExportButton';
 import { RealtimeRefresher } from '@/components/RealtimeRefresher';
 import { 
+  FileText,
   Briefcase, 
   GitBranch, 
   Target, 

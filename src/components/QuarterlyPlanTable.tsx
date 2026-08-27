@@ -13,7 +13,7 @@ interface QuarterlyPlanTableProps {
   onUpdate: () => void;
 }
 
-export function QuarterlyPlanTable({ keyResult, themeColor, measurements, onUpdate }: QuarterlyPlanTableProps) {
+export function QuarterlyPlanTable({ keyResult, themeColor, measurements, onUpdate, districtId }: QuarterlyPlanTableProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
