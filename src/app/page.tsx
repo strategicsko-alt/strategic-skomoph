@@ -4,6 +4,7 @@ import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { KrTableClient } from '@/components/KrTableClient';
 import { ExportButton } from '@/components/ExportButton';
 import { RealtimeRefresher } from '@/components/RealtimeRefresher';
+import { DistrictSelector } from '@/components/DistrictSelector';
 import { 
   FileText,
   Briefcase, 
@@ -19,22 +20,35 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: { district_id?: string };
+}) {
+  // Fetch Districts
+  const { data: districtsData } = await supabase.from('districts').select('*').order('name');
+  const districts = districtsData || [];
+  const provinceDistrict = districts.find(d => d.type === 'province');
+  const currentDistrictId = searchParams.district_id || provinceDistrict?.id;
+
   // Fetch Core Organization Data
   const { data: coreData } = await supabase
     .from('core_organization')
     .select('vision')
+    .eq('district_id', currentDistrictId)
     .limit(1)
     .maybeSingle();
 
   const { data: coreListItems } = await supabase
     .from('core_list_items')
     .select('*')
+    .eq('district_id', currentDistrictId)
     .order('created_at', { ascending: true });
 
   const { data: swotItems } = await supabase
     .from('swot_items')
     .select('*')
+    .eq('district_id', currentDistrictId)
     .order('created_at', { ascending: true });
 
   // Fetch Strategic Issues and Objectives for the Roadmap
@@ -59,6 +73,7 @@ export default async function DashboardPage() {
         )
       )
     `)
+    .eq('district_id', currentDistrictId)
     .order('order_index', { ascending: true });
 
   // Sort nested relations in JS
@@ -162,7 +177,8 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div>
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <DistrictSelector districts={districts} currentDistrictId={currentDistrictId} />
               <a 
                 href="https://notebook.google.com/notebook/70fc7ef6-c30a-4b2f-a779-3df6bb2bd460" 
                 target="_blank" 
