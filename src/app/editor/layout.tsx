@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings, CalendarDays } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings, CalendarDays, Users, User } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function EditorLayout({
   children,
@@ -13,15 +14,32 @@ export default function EditorLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
 
-  // Don't show sidebar on login page
-  if (pathname === '/editor/login') {
+  useEffect(() => {
+    if (pathname !== '/editor/login' && pathname !== '/editor/register') {
+      fetchProfile();
+    }
+  }, [pathname]);
+
+  const fetchProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (data) setProfile(data);
+    }
+  };
+
+  // Don't show sidebar on login/register/pending pages
+  if (pathname === '/editor/login' || pathname === '/editor/register' || pathname === '/editor/pending-approval') {
     return <>{children}</>;
   }
 
   const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // Also clear old cookie just in case
     document.cookie = 'editor_auth=; Max-Age=0; path=/';
-    router.push('/');
+    router.push('/editor/login');
   };
 
   const navItems = [
@@ -33,7 +51,18 @@ export default function EditorLayout({
     { name: 'สำรอง/กู้คืนข้อมูล (Backup)', href: '/editor/admin', icon: Settings },
   ];
 
+  if (profile && (profile.role === 'province_super_admin' || profile.role === 'district_super_admin')) {
+    navItems.push({ name: 'จัดการสิทธิ์ (Users)', href: '/editor/users', icon: Users });
+  }
+
   const sidebarWidth = sidebarOpen ? '240px' : '64px';
+
+  const getRoleDisplay = (role: string) => {
+    if (role === 'province_super_admin') return 'Super Admin จ.';
+    if (role === 'district_super_admin') return 'Super Admin อ.';
+    if (role === 'province_user') return 'User จ.';
+    return 'User อ.';
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--background)' }}>
@@ -70,6 +99,31 @@ export default function EditorLayout({
             {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </button>
         </div>
+
+        {/* User Info */}
+        {profile && (
+          <div style={{ padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem 0', display: 'flex', justifyContent: 'center', borderBottom: '1px solid var(--border)' }}>
+            {sidebarOpen ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', width: '100%' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
+                  <User size={18} />
+                </div>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    {profile.first_name} {profile.last_name}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+                    {getRoleDisplay(profile.role)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div title={`${profile.first_name}\n${getRoleDisplay(profile.role)}`} style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                <User size={18} />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Nav */}
         <nav style={{ padding: sidebarOpen ? '0.75rem' : '0.75rem 0.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
