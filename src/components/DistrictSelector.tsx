@@ -20,7 +20,7 @@ export function DistrictSelector({ districts, currentDistrictId }: { districts: 
         onChange={(e) => {
           const url = new URL(window.location.href);
           url.searchParams.set('district_id', e.target.value);
-          router.push(url.pathname + url.search);
+          window.location.href = (url.pathname + url.search);
         }}
         style={{
           backgroundColor: 'transparent',

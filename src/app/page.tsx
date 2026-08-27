@@ -20,16 +20,21 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: { district_id?: string };
+export default async function DashboardPage(props: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const searchParams = await props.searchParams;
+
   // Fetch Districts
   const { data: districtsData } = await supabase.from('districts').select('*').order('name');
   const districts = districtsData || [];
   const provinceDistrict = districts.find(d => d.type === 'province');
-  const currentDistrictId = searchParams.district_id || provinceDistrict?.id;
+  
+  let paramDistrictId = searchParams?.district_id;
+  if (Array.isArray(paramDistrictId)) {
+    paramDistrictId = paramDistrictId[0];
+  }
+  const currentDistrictId = paramDistrictId || provinceDistrict?.id;
 
   // Fetch Core Organization Data
   const { data: coreData } = await supabase
