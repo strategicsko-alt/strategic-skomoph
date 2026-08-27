@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Plus, Trash2, Edit2, ArrowUp, ArrowDown, Folder, RefreshCw, Check } from 'lucide-react';
 import { Modal } from '@/components/Modal';
+import { useEditor } from '@/components/EditorContext';
 
 export const RESPONSIBLE_GROUPS = [
   "กลุ่มงานบริหารทั่วไป",
@@ -25,6 +26,7 @@ export const RESPONSIBLE_GROUPS = [
 ];
 
 export default function WorkshopPage() {
+  const { districtId, loading: ctxLoading } = useEditor();
   const [strategicIssues, setStrategicIssues] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,6 +155,7 @@ export default function WorkshopPage() {
 
   // Fetch data
   const fetchData = async () => {
+    if (!districtId) return;
     setLoading(true);
 
     const { data: issueData, error: issueError } = await supabase
@@ -168,6 +171,7 @@ export default function WorkshopPage() {
           )
         )
       `)
+      .eq('district_id', districtId)
       .order('order_index', { ascending: true });
 
     if (issueError) console.error('fetchData error:', issueError.message);
@@ -206,7 +210,7 @@ export default function WorkshopPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    if (!ctxLoading) fetchData();
 
     // Set up real-time subscription for workshop data
     const channel = supabase
@@ -218,7 +222,7 @@ export default function WorkshopPage() {
           // Prevent refetch loop if the change was made by this very client's cascade update
           // Ideally we would filter by a client ID, but a simple refetch is fine for now
           // if it's not a high-frequency system. We just call fetchData().
-          fetchData();
+          if (!ctxLoading) fetchData();
         }
       )
       .subscribe();
@@ -226,7 +230,7 @@ export default function WorkshopPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [ctxLoading, districtId]);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -282,7 +286,7 @@ export default function WorkshopPage() {
       if (error) alert('Error updating: ' + error.message);
     } else {
       const auto_id = `S${strategicIssues.length + 1}`;
-      const { data, error } = await supabase.from('strategic_issues').insert([{
+      const { data, error } = await supabase.from('strategic_issues').insert([{ district_id: districtId,
         auto_id,
         name: formData.name,
         description: formData.description,
@@ -324,7 +328,7 @@ export default function WorkshopPage() {
       const nextStNum = (currentIssue?.strategies?.length || 0) + 1;
       const auto_id = `ST${issueNum}.${nextStNum}`;
 
-      await supabase.from('strategies').insert([{
+      await supabase.from('strategies').insert([{ district_id: districtId,
         strategic_issue_id: activeIssue,
         auto_id,
         name: formData.name,
@@ -412,7 +416,7 @@ export default function WorkshopPage() {
 
       const auto_id = `O${issueNum}.${stNum}.${order_index + 1}`;
 
-      const { error } = await supabase.from('objectives').insert([{
+      const { error } = await supabase.from('objectives').insert([{ district_id: districtId,
         strategy_id: editingObj._stId,
         auto_id,
         ...iaPayload,
@@ -460,7 +464,7 @@ export default function WorkshopPage() {
       if (error) alert('Error: ' + error.message);
     } else {
       let auto_id = '';
-      let insertData: any = { ...payload, order_index: 0 };
+      let insertData: any = { ...payload, order_index: 0, district_id: districtId };
       
       if (editingKr._parentType === 'strategic_issue') {
         let issueNum = 1;
@@ -543,7 +547,7 @@ export default function WorkshopPage() {
       await supabase.from('project_strategies').delete().eq('project_id', projectId);
     } else {
       const issueProjects = projects.filter((p: any) => p.strategic_issue_id === activeIssue);
-      const { data, error } = await supabase.from('projects').insert([{
+      const { data, error } = await supabase.from('projects').insert([{ district_id: districtId,
         strategic_issue_id: activeIssue,
         name: formData.name,
         description: formData.description,

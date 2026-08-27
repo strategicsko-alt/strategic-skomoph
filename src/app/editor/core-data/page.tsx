@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
+import { useEditor } from '@/components/EditorContext';
 
 export default function CoreDataPage() {
+  const { districtId, loading: ctxLoading } = useEditor();
   const [coreData, setCoreData] = useState<any>(null);
   const [listItems, setListItems] = useState<any[]>([]);
   const [swotItems, setSwotItems] = useState<any[]>([]);
@@ -23,29 +25,30 @@ export default function CoreDataPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchData = async () => {
+    if (!districtId) return;
     setLoading(true);
     
     // Fetch Core Data (Vision)
-    const { data: cData } = await supabase.from('core_organization').select('*').limit(1).maybeSingle();
+    const { data: cData } = await supabase.from('core_organization').select('*').eq('district_id', districtId).limit(1).maybeSingle();
     if (cData) {
       setCoreData(cData);
       setVisionForm(cData.vision || '');
     }
 
     // Fetch List Items (Mission, Goal)
-    const { data: lData } = await supabase.from('core_list_items').select('*').order('created_at', { ascending: true });
+    const { data: lData } = await supabase.from('core_list_items').select('*').eq('district_id', districtId).order('created_at', { ascending: true });
     if (lData) setListItems(lData);
 
     // Fetch SWOT/TOWS Items
-    const { data: sData } = await supabase.from('swot_items').select('*').order('created_at', { ascending: true });
+    const { data: sData } = await supabase.from('swot_items').select('*').eq('district_id', districtId).order('created_at', { ascending: true });
     if (sData) setSwotItems(sData);
 
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (!ctxLoading) fetchData();
+  }, [ctxLoading, districtId]);
 
   // --- Handlers for Vision ---
   const handleSaveVision = async (e: React.FormEvent) => {
@@ -56,7 +59,7 @@ export default function CoreDataPage() {
       await supabase.from('core_organization').update({ vision: visionForm }).eq('id', coreData.id);
     } else {
       // Create first row if not exist
-      await supabase.from('core_organization').insert([{ vision: visionForm, mission: '', ultimate_goal: '' }]);
+      await supabase.from('core_organization').insert([{ vision: visionForm, mission: '', ultimate_goal: '', district_id: districtId }]);
     }
     
     await fetchData();
@@ -81,7 +84,7 @@ export default function CoreDataPage() {
     if (listForm.id) {
       await supabase.from('core_list_items').update({ detail: listForm.detail }).eq('id', listForm.id);
     } else {
-      await supabase.from('core_list_items').insert([{ item_type: listForm.item_type, detail: listForm.detail }]);
+      await supabase.from('core_list_items').insert([{ item_type: listForm.item_type, detail: listForm.detail, district_id: districtId }]);
     }
     
     await fetchData();
@@ -117,7 +120,8 @@ export default function CoreDataPage() {
     } else {
       await supabase.from('swot_items').insert([{ 
         swot_type: swotFormData.swot_type, 
-        detail: swotFormData.detail 
+        detail: swotFormData.detail,
+        district_id: districtId
       }]);
     }
     

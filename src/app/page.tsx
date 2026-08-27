@@ -161,28 +161,52 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div>
-            <Link 
-              href="/editor/login" 
-              className="btn-secondary" 
-              style={{ 
-                backgroundColor: 'rgba(255,255,255,0.18)', 
-                borderColor: 'rgba(255,255,255,0.4)', 
-                color: 'white', 
-                fontSize: '0.875rem', 
-                fontWeight: 600,
-                padding: '0.6rem 1.25rem',
-                borderRadius: 'var(--radius-md)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                backdropFilter: 'blur(8px)',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-                transition: 'all 0.2s'
-              }}
-            >
-              <Lock size={16} />
-              เข้าสู่ระบบจัดการข้อมูล
-            </Link>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <a 
+                href="https://notebook.google.com/notebook/70fc7ef6-c30a-4b2f-a779-3df6bb2bd460" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="btn-secondary" 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.9)', 
+                  borderColor: 'rgba(255,255,255,1)', 
+                  color: 'var(--primary)', 
+                  fontSize: '0.875rem', 
+                  fontWeight: 600,
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <FileText size={16} /> ประกาศค่าใช้สสจ.สระแก้วปี 2570
+              </a>
+              <Link 
+                href="/editor/login" 
+                className="btn-secondary" 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.18)', 
+                  borderColor: 'rgba(255,255,255,0.4)', 
+                  color: 'white', 
+                  fontSize: '0.875rem', 
+                  fontWeight: 600,
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  backdropFilter: 'blur(8px)',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Lock size={16} />
+                เข้าสู่ระบบจัดการข้อมูล
+              </Link>
+            </div>
           </div>
         </div>
       </header>

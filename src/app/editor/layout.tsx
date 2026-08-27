@@ -5,31 +5,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings, CalendarDays, Users, User } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { EditorProvider, useEditor } from '@/components/EditorContext';
 
-export default function EditorLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// We create an InnerLayout to use the hook, while the default export wraps it in the Provider.
+function EditorLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
+  const { profile, loading } = useEditor();
   const supabase = createClient();
-
-  useEffect(() => {
-    if (pathname !== '/editor/login' && pathname !== '/editor/register') {
-      fetchProfile();
-    }
-  }, [pathname]);
-
-  const fetchProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      if (data) setProfile(data);
-    }
-  };
 
   // Don't show sidebar on login/register/pending pages
   if (pathname === '/editor/login' || pathname === '/editor/register' || pathname === '/editor/pending-approval') {
@@ -38,7 +22,6 @@ export default function EditorLayout({
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // Also clear old cookie just in case
     document.cookie = 'editor_auth=; Max-Age=0; path=/';
     router.push('/editor/login');
   };
@@ -102,7 +85,7 @@ export default function EditorLayout({
         </div>
 
         {/* User Info */}
-        {profile && (
+        {!loading && profile && (
           <div style={{ padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem 0', display: 'flex', justifyContent: 'center', borderBottom: '1px solid var(--border)' }}>
             {sidebarOpen ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', width: '100%' }}>
@@ -199,5 +182,13 @@ export default function EditorLayout({
         {children}
       </main>
     </div>
+  );
+}
+
+export default function EditorLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <EditorProvider>
+      <EditorLayoutInner>{children}</EditorLayoutInner>
+    </EditorProvider>
   );
 }

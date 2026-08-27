@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Edit2, Plus, ChevronDown, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
+import { useEditor } from '@/components/EditorContext';
 
 export default function KPIDictionaryPage() {
+  const { districtId, loading: ctxLoading } = useEditor();
   const [keyResults, setKeyResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<string>('');
@@ -26,6 +28,7 @@ export default function KPIDictionaryPage() {
   ];
 
   const fetchData = async () => {
+    if (!districtId) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('key_results')
@@ -33,6 +36,7 @@ export default function KPIDictionaryPage() {
         id, auto_id, name, target_2574, responsible_group,
         kpi_dictionaries (*)
       `)
+      .eq('district_id', districtId)
       .order('auto_id', { ascending: true });
       
     if (data) setKeyResults(data);
@@ -40,7 +44,7 @@ export default function KPIDictionaryPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    if (!ctxLoading) fetchData();
 
     const channel = supabase
       .channel('kpi-dictionary-changes')
@@ -48,7 +52,7 @@ export default function KPIDictionaryPage() {
         'postgres_changes',
         { event: '*', schema: 'public' },
         (payload) => {
-          fetchData();
+          if (!ctxLoading) fetchData();
         }
       )
       .subscribe();
@@ -56,7 +60,7 @@ export default function KPIDictionaryPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [ctxLoading, districtId]);
 
   const handleOpenModal = (kr: any) => {
     setActiveKr(kr);

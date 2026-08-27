@@ -4,13 +4,16 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { QuarterlyPlanTable } from '@/components/QuarterlyPlanTable';
+import { useEditor } from '@/components/EditorContext';
 
 export default function ActionPlanPage() {
+  const { districtId, loading: ctxLoading } = useEditor();
   const [strategicIssues, setStrategicIssues] = useState<any[]>([]);
   const [measurements, setMeasurements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
+    if (!districtId) return;
     setLoading(true);
 
     try {
@@ -27,6 +30,7 @@ export default function ActionPlanPage() {
             )
           )
         `)
+        .eq('district_id', districtId)
         .order('order_index', { ascending: true });
 
       if (issueError) throw issueError;
@@ -50,7 +54,8 @@ export default function ActionPlanPage() {
       // 2. Fetch measurements
       const { data: mData, error: mError } = await supabase
         .from('action_plan_measurements')
-        .select('*');
+        .select('*')
+        .eq('district_id', districtId);
         
       if (mError) {
         // Table might not exist yet, suppress error if it's 'relation does not exist'
@@ -69,20 +74,22 @@ export default function ActionPlanPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    if (!ctxLoading) {
+      fetchData();
+    }
 
     // Set up real-time subscription
     const channel = supabase
       .channel('action-plan-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'action_plan_measurements' }, () => {
-        fetchData();
+        if (!ctxLoading) fetchData();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [ctxLoading, districtId]);
 
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
@@ -132,7 +139,7 @@ export default function ActionPlanPage() {
                             </div>
                             
                             {/* Quarterly Plan Table for this KR */}
-                            <QuarterlyPlanTable 
+                            <QuarterlyPlanTable districtId={districtId!} 
                               keyResult={kr} 
                               themeColor={issue.theme_color || 'var(--primary)'}
                               measurements={measurements.filter(m => m.key_result_id === kr.id)}

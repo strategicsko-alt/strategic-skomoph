@@ -6,6 +6,7 @@ import { Plus, Trash2, Edit2, Check } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
 interface QuarterlyPlanTableProps {
+  districtId: string;
   keyResult: any;
   themeColor: string;
   measurements: any[];
@@ -48,6 +49,7 @@ export function QuarterlyPlanTable({ keyResult, themeColor, measurements, onUpda
     
     try {
       const payload = {
+        district_id: districtId,
         key_result_id: formData.key_result_id,
         quarter: formData.quarter,
         auto_id: formData.auto_id,
