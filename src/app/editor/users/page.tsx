@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { CheckCircle, XCircle, Loader2, ShieldCheck, User, Edit } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
@@ -26,7 +26,7 @@ export default function UsersManagementPage() {
   const [editStatus, setEditStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const supabase = createClient();
+  
 
   useEffect(() => {
     fetchUsers();

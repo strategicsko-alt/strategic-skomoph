@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 type EditorContextType = {
   profile: any;
@@ -15,7 +15,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<any>(null);
   const [districtId, setDistrictId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -30,6 +29,18 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     };
     fetchProfile();
+
+    // Listen to auth state changes (e.g. when a new tab logs in)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        fetchProfile();
+      } else if (event === 'SIGNED_OUT') {
+        setProfile(null);
+        setDistrictId(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return (

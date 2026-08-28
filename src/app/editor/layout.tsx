@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings, CalendarDays, Users, User } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { EditorProvider, useEditor } from '@/components/EditorContext';
 
 // We create an InnerLayout to use the hook, while the default export wraps it in the Provider.
@@ -13,7 +13,7 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { profile, loading } = useEditor();
-  const supabase = createClient();
+  
 
   // Don't show sidebar on login/register/pending pages
   if (pathname === '/editor/login' || pathname === '/editor/register' || pathname === '/editor/pending-approval') {
