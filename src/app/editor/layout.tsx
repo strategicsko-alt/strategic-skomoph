@@ -125,35 +125,48 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* Nav */}
         <nav style={{ padding: sidebarOpen ? '0.75rem' : '0.75rem 0.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                title={!sidebarOpen ? item.name : undefined}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: sidebarOpen ? '0.75rem' : '0',
-                  justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                  padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: isActive ? 'var(--primary)' : 'transparent',
-                  color: isActive ? 'white' : 'var(--foreground)',
-                  fontWeight: isActive ? 600 : 500,
-                  transition: 'all 0.15s',
-                  textDecoration: 'none',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <Icon size={20} style={{ flexShrink: 0 }} />
-                {sidebarOpen && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>}
-              </Link>
-            );
-          })}
+          {loading ? (
+            // Skeleton loading placeholders
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{
+                height: '42px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--secondary)',
+                opacity: 0.5,
+                animation: 'pulse 1.5s ease-in-out infinite',
+              }} />
+            ))
+          ) : (
+            navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  title={!sidebarOpen ? item.name : undefined}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: sidebarOpen ? '0.75rem' : '0',
+                    justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                    padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: isActive ? 'var(--primary)' : 'transparent',
+                    color: isActive ? 'white' : 'var(--foreground)',
+                    fontWeight: isActive ? 600 : 500,
+                    transition: 'all 0.15s',
+                    textDecoration: 'none',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Icon size={20} style={{ flexShrink: 0 }} />
+                  {sidebarOpen && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>}
+                </Link>
+              );
+            })
+          )}
         </nav>
 
         {/* Footer */}
