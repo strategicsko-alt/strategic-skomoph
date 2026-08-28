@@ -7,6 +7,7 @@ import { RealtimeRefresher } from '@/components/RealtimeRefresher';
 import { DistrictSelector } from '@/components/DistrictSelector';
 import { 
   FileText,
+  BookOpen,
   Briefcase, 
   GitBranch, 
   Target, 
@@ -206,8 +207,28 @@ export default async function DashboardPage(props: {
                   transition: 'all 0.2s'
                 }}
               >
-                <FileText size={16} /> ประกาศค่าใช้สสจ.สระแก้วปี 2570
-              </a>
+                <FileText size={16} /> ประกาศอัตราค่าใช้จ่ายสสจ.สระแก้วปี 2570
+                            </a>
+              <Link 
+                href="/manual" 
+                className="btn-secondary" 
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.9)', 
+                  borderColor: 'rgba(255,255,255,1)', 
+                  color: 'var(--primary)', 
+                  fontSize: '0.875rem', 
+                  fontWeight: 600,
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <BookOpen size={16} /> คู่มือการใช้งาน
+              </Link>
               <Link 
                 href="/editor/login" 
                 className="btn-secondary" 
