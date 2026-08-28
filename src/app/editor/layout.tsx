@@ -26,18 +26,32 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
     router.push('/editor/login');
   };
 
-  const navItems = [
-    { name: 'Dashboard', href: '/editor/dashboard', icon: LayoutDashboard },
-    { name: 'ข้อมูลองค์กร (Core Data)', href: '/editor/core-data', icon: Building },
+  const isSuperAdmin = profile?.role === 'province_super_admin' || profile?.role === 'district_super_admin';
+
+  // Items available to ALL logged-in users
+  const baseNavItems = [
     { name: 'Workshop (แผนยุทธศาสตร์ 5 ปี)', href: '/editor/workshop', icon: BookOpen },
     { name: 'แผนปฏิบัติการ 1 ปี', href: '/editor/action-plan', icon: CalendarDays },
     { name: 'KPI Dictionary', href: '/editor/kpi-dictionary', icon: FileText },
-    { name: 'สำรอง/กู้คืนข้อมูล (Backup)', href: '/editor/admin', icon: Settings },
   ];
 
-  if (profile && (profile.role === 'province_super_admin' || profile.role === 'district_super_admin')) {
-    navItems.push({ name: 'จัดการสิทธิ์ (Users)', href: '/editor/users', icon: Users });
-  }
+  // Extra items only for Super Admins
+  const adminNavItems = [
+    { name: 'Dashboard', href: '/editor/dashboard', icon: LayoutDashboard },
+    { name: 'ข้อมูลองค์กร (Core Data)', href: '/editor/core-data', icon: Building },
+    { name: 'สำรอง/กู้คืนข้อมูล (Backup)', href: '/editor/admin', icon: Settings },
+    { name: 'จัดการสิทธิ์ (Users)', href: '/editor/users', icon: Users },
+  ];
+
+  const navItems = isSuperAdmin
+    ? [
+        { name: 'Dashboard', href: '/editor/dashboard', icon: LayoutDashboard },
+        { name: 'ข้อมูลองค์กร (Core Data)', href: '/editor/core-data', icon: Building },
+        ...baseNavItems,
+        { name: 'สำรอง/กู้คืนข้อมูล (Backup)', href: '/editor/admin', icon: Settings },
+        { name: 'จัดการสิทธิ์ (Users)', href: '/editor/users', icon: Users },
+      ]
+    : baseNavItems;
 
   const sidebarWidth = sidebarOpen ? '240px' : '64px';
 
