@@ -12,9 +12,9 @@ export default function ActionPlanPage() {
   const [measurements, setMeasurements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = async (background = false) => {
     if (!districtId) return;
-    setLoading(true);
+    if (!background) setLoading(true);
 
     try {
       // 1. Fetch structure
@@ -58,7 +58,6 @@ export default function ActionPlanPage() {
         .eq('district_id', districtId);
         
       if (mError) {
-        // Table might not exist yet, suppress error if it's 'relation does not exist'
         if (mError.code !== '42P01') {
           console.error(mError);
         }
@@ -69,20 +68,20 @@ export default function ActionPlanPage() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (!ctxLoading) {
-      fetchData();
+      fetchData(false);
     }
 
     // Set up real-time subscription
     const channel = supabase
       .channel('action-plan-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'action_plan_measurements' }, () => {
-        if (!ctxLoading) fetchData();
+        if (!ctxLoading) fetchData(true);
       })
       .subscribe();
 
@@ -106,7 +105,7 @@ export default function ActionPlanPage() {
             จัดการเป้าหมายและตัวชี้วัดรายไตรมาส (Q1 - Q4) โดยอิงจาก Key Result ปี 2570
           </p>
         </div>
-        <button onClick={fetchData} className="btn-secondary">
+        <button onClick={() => fetchData(false)} className="btn-secondary">
           รีเฟรชข้อมูล
         </button>
       </div>
@@ -143,7 +142,7 @@ export default function ActionPlanPage() {
                               keyResult={kr} 
                               themeColor={issue.theme_color || 'var(--primary)'}
                               measurements={measurements.filter(m => m.key_result_id === kr.id)}
-                              onUpdate={fetchData}
+                              onUpdate={() => fetchData(true)}
                             />
                           </div>
                         ))}
