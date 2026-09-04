@@ -55,7 +55,7 @@ function emptyRow(overrides?: Partial<KpiRow>): KpiRow {
     kr_id: null, dict_id: null, auto_id: '', kr_name: '',
     objective_name: '', kpi_type: 'ministry',
     calc_type: 'percent', calc_formula: '(A/B)*100',
-    data_items: [{ id: 'A', label: 'ตัวตั้ง' }, { id: 'B', label: 'ตัวหาร' }],
+    data_items: [{ id: 'A', label: '' }, { id: 'B', label: '' }],
     measurement_level: 'province', target_operator: '>=',
     work_group: '', eval_criteria: {},
     tags: [], api_enabled: false, api_config: {},
@@ -107,15 +107,15 @@ export default function TemplateManagerPage() {
         
       if (!dataItems || dataItems.length === 0) {
         dataItems = [
-          { id: 'A', label: dict?.numerator || 'ตัวตั้ง' }, 
-          { id: 'B', label: dict?.denominator || 'ตัวหาร' }
+          { id: 'A', label: dict?.numerator || '' }, 
+          { id: 'B', label: dict?.denominator || '' }
         ];
       } else {
         if (dataItems.length > 0 && (dataItems[0].label === 'ตัวตั้ง' || !dataItems[0].label)) {
-          dataItems[0].label = dict?.numerator || 'ตัวตั้ง';
+          dataItems[0].label = dict?.numerator || '';
         }
         if (dataItems.length > 1 && (dataItems[1].label === 'ตัวหาร' || !dataItems[1].label)) {
-          dataItems[1].label = dict?.denominator || 'ตัวหาร';
+          dataItems[1].label = dict?.denominator || '';
         }
       }
 
@@ -153,15 +153,15 @@ export default function TemplateManagerPage() {
         
       if (!dataItems || dataItems.length === 0) {
         dataItems = [
-          { id: 'A', label: dict?.numerator || 'ตัวตั้ง' }, 
-          { id: 'B', label: dict?.denominator || 'ตัวหาร' }
+          { id: 'A', label: dict?.numerator || '' }, 
+          { id: 'B', label: dict?.denominator || '' }
         ];
       } else {
         if (dataItems.length > 0 && (dataItems[0].label === 'ตัวตั้ง' || !dataItems[0].label)) {
-          dataItems[0].label = dict?.numerator || 'ตัวตั้ง';
+          dataItems[0].label = dict?.numerator || '';
         }
         if (dataItems.length > 1 && (dataItems[1].label === 'ตัวหาร' || !dataItems[1].label)) {
-          dataItems[1].label = dict?.denominator || 'ตัวหาร';
+          dataItems[1].label = dict?.denominator || '';
         }
       }
 
@@ -534,7 +534,7 @@ export default function TemplateManagerPage() {
                             <button onClick={() => removeDataItem(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem', padding: '0' }}>✕</button>
                           )}
                         </div>
-                        <input type="text" className="input-field" placeholder="คำอธิบายค่า" value={item.label}
+                        <input type="text" className="input-field" placeholder="ยังไม่มีการกำหนดไว้" value={item.label}
                           onChange={e => updateDataItem(idx, e.target.value)} />
                       </div>
                     ))}
