@@ -7,13 +7,13 @@ export default function KpiPrototypeLayout({ children }: { children: React.React
       <nav style={{ backgroundColor: 'var(--card)', borderBottom: '1px solid var(--border)', padding: '1rem 2rem', display: 'flex', gap: '2rem', alignItems: 'center' }}>
         <h2 style={{ color: 'var(--primary)', fontWeight: 700, margin: 0, fontSize: '1.25rem' }}>KPI System Mockup</h2>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <Link href="/kpi-prototype/dashboard" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
+          <Link href="/kpi/dashboard" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
             📊 Dashboard
           </Link>
-          <Link href="/kpi-prototype/template" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
+          <Link href="/kpi/template" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
             📝 ตั้งค่าตัวชี้วัด (Templates)
           </Link>
-          <Link href="/kpi-prototype/report" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
+          <Link href="/kpi/report" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
             ✍️ รายงานผล (Data Entry)
           </Link>
         </div>

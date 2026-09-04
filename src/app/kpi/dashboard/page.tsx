@@ -83,7 +83,7 @@ export default function DashboardPage() {
             auto_id: kr.auto_id,
             name: kr.name,
             tags: tags,
-            responsible_group: 'พัฒนายุทธศาสตร์สาธารณสุข', // Default for strategy KRs
+            responsible_group: dict.work_group || 'ไม่ระบุกลุ่มงาน',
             measurement_level: dict.measurement_level || 'province',
             formula: dict.calculation_type === 'process_status' ? 'เชิงกระบวนการ' : (dict.calculation_formula || 'ร้อยละ'),
             calculation_formula: dict.calculation_formula,
