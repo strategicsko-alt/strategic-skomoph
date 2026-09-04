@@ -1,4 +1,34 @@
-// Items available to ALL logged-in users
+"use client";
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { BarChart2, LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings, CalendarDays, Users, User } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { EditorProvider, useEditor } from '@/components/EditorContext';
+
+// We create an InnerLayout to use the hook, while the default export wraps it in the Provider.
+function EditorLayoutInner({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { profile, loading } = useEditor();
+  
+
+  // Don't show sidebar on login/register/pending pages
+  if (pathname === '/editor/login' || pathname === '/editor/register' || pathname === '/editor/pending-approval') {
+    return <>{children}</>;
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    document.cookie = 'editor_auth=; Max-Age=0; path=/';
+    router.push('/editor/login');
+  };
+
+  const isSuperAdmin = profile?.role === 'province_super_admin' || profile?.role === 'district_super_admin';
+
+  // Items available to ALL logged-in users
   const baseNavItems = [
     { name: 'Workshop (แผนยุทธศาสตร์ 5 ปี)', href: '/editor/workshop', icon: BookOpen },
     { name: 'แผนปฏิบัติการ 1 ปี', href: '/editor/action-plan', icon: CalendarDays },
