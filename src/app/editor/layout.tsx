@@ -40,8 +40,8 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
   let navItems = [...baseNavItems];
 
   if (isProvincial) {
-    navItems.push({ name: '📝 รายงานผล KPI', href: '/kpi/report', icon: FileText });
-    navItems.push({ name: '⚙️ สร้างตัวชี้วัด (KPI)', href: '/kpi/template', icon: BarChart2 });
+    navItems.push({ name: '📝 บันทึกผล KPI', href: '/editor/kpi-report', icon: FileText });
+    navItems.push({ name: '⚙️ ตั้งค่าตัวชี้วัด (KPI)', href: '/editor/kpi-template', icon: BarChart2 });
   }
 
   if (isSuperAdmin) {

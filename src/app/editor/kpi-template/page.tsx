@@ -110,6 +110,13 @@ export default function TemplateManagerPage() {
           { id: 'A', label: dict?.numerator || 'ตัวตั้ง' }, 
           { id: 'B', label: dict?.denominator || 'ตัวหาร' }
         ];
+      } else {
+        if (dataItems.length > 0 && (dataItems[0].label === 'ตัวตั้ง' || !dataItems[0].label)) {
+          dataItems[0].label = dict?.numerator || 'ตัวตั้ง';
+        }
+        if (dataItems.length > 1 && (dataItems[1].label === 'ตัวหาร' || !dataItems[1].label)) {
+          dataItems[1].label = dict?.denominator || 'ตัวหาร';
+        }
       }
 
       const evalCriteria = dict?.evaluation_criteria_json
@@ -149,6 +156,13 @@ export default function TemplateManagerPage() {
           { id: 'A', label: dict?.numerator || 'ตัวตั้ง' }, 
           { id: 'B', label: dict?.denominator || 'ตัวหาร' }
         ];
+      } else {
+        if (dataItems.length > 0 && (dataItems[0].label === 'ตัวตั้ง' || !dataItems[0].label)) {
+          dataItems[0].label = dict?.numerator || 'ตัวตั้ง';
+        }
+        if (dataItems.length > 1 && (dataItems[1].label === 'ตัวหาร' || !dataItems[1].label)) {
+          dataItems[1].label = dict?.denominator || 'ตัวหาร';
+        }
       }
 
       const evalCriteria = dict?.evaluation_criteria_json

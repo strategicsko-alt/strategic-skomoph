@@ -10,12 +10,6 @@ export default function KpiPrototypeLayout({ children }: { children: React.React
           <Link href="/kpi/dashboard" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
             📊 Dashboard
           </Link>
-          <Link href="/kpi/template" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
-            📝 ตั้งค่าตัวชี้วัด (Templates)
-          </Link>
-          <Link href="/kpi/report" className="btn-secondary" style={{ padding: '0.5rem 1rem', textDecoration: 'none' }}>
-            ✍️ รายงานผล (Data Entry)
-          </Link>
         </div>
       </nav>
       <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
