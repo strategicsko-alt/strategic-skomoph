@@ -6,7 +6,6 @@ import { ExportButton } from '@/components/ExportButton';
 import { RealtimeRefresher } from '@/components/RealtimeRefresher';
 import { DistrictSelector } from '@/components/DistrictSelector';
 import { 
-  BarChart2,
   FileText,
   BookOpen,
   Briefcase, 
@@ -210,27 +209,6 @@ export default async function DashboardPage(props: {
               >
                 <FileText size={16} /> ประกาศอัตราค่าใช้จ่ายสสจ.สระแก้วปี 2570
                             </a>
-              
-              <Link 
-                href="/kpi/dashboard" 
-                className="btn-secondary" 
-                style={{ 
-                  backgroundColor: 'rgba(255,255,255,0.9)', 
-                  borderColor: 'rgba(255,255,255,1)', 
-                  color: 'var(--primary)', 
-                  fontSize: '0.875rem', 
-                  fontWeight: 600,
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <BarChart2 size={16} /> กำกับติดตามตัวชี้วัด (KPIs)
-              </Link>
               <Link 
                 href="/manual" 
                 className="btn-secondary" 
