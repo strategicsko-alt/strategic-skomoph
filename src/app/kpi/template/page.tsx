@@ -80,13 +80,13 @@ export default function TemplateManagerPage() {
     // 1. ดึง key_results จากระบบแผน + dict ที่เชื่อมอยู่
     const { data: krData } = await supabase
       .from('key_results')
-      .select('id, name, auto_id, objective:objectives(name), tags:key_result_tags(tag:kpi_tags(name))')
+      .select('id, name, auto_id, responsible_group, objective:objectives(name), tags:key_result_tags(tag:kpi_tags(name))')
       .order('order_index', { ascending: true });
 
     // 2. ดึง kpi_dictionaries ทั้งหมด (รวม standalone ที่ไม่มี key_result_id)
     const { data: dictData } = await supabase
       .from('kpi_dictionaries')
-      .select('id, key_result_id, kpi_name, kpi_type, calculation_type, calculation_formula, data_items_json, measurement_level, target_operator, work_group, evaluation_criteria_json, api_enabled, api_config_json');
+      .select('id, key_result_id, kpi_name, kpi_type, calculation_type, calculation_formula, data_items_json, measurement_level, target_operator, work_group, responsible_person, numerator, denominator, evaluation_criteria_json, api_enabled, api_config_json');
 
     const dictMap: Record<string, any> = {};
     (dictData || []).forEach((d: any) => {
@@ -99,15 +99,28 @@ export default function TemplateManagerPage() {
     (krData || []).forEach((kr: any) => {
       const dict = dictMap[kr.id] || null;
       const tags = kr.tags?.map((t: any) => t.tag?.name).filter(Boolean) || [];
-      const dataItems = dict?.data_items_json
+      
+      // Merge data_items with dictionary fields (A=numerator, B=denominator)
+      let dataItems = dict?.data_items_json
         ? (typeof dict.data_items_json === 'string' ? JSON.parse(dict.data_items_json) : dict.data_items_json)
-        : [{ id: 'A', label: 'ตัวตั้ง' }, { id: 'B', label: 'ตัวหาร' }];
+        : null;
+        
+      if (!dataItems || dataItems.length === 0) {
+        dataItems = [
+          { id: 'A', label: dict?.numerator || 'ตัวตั้ง' }, 
+          { id: 'B', label: dict?.denominator || 'ตัวหาร' }
+        ];
+      }
+
       const evalCriteria = dict?.evaluation_criteria_json
         ? (typeof dict.evaluation_criteria_json === 'string' ? JSON.parse(dict.evaluation_criteria_json) : dict.evaluation_criteria_json)
         : {};
       const apiConfig = dict?.api_config_json
         ? (typeof dict.api_config_json === 'string' ? JSON.parse(dict.api_config_json) : dict.api_config_json)
         : {};
+
+      // Fallback for work_group
+      const wg = dict?.work_group || dict?.responsible_person || kr.responsible_group || '';
 
       rows.push({
         kr_id: kr.id, dict_id: dict?.id || null, auto_id: kr.auto_id || '',
@@ -118,7 +131,7 @@ export default function TemplateManagerPage() {
         data_items: dataItems,
         measurement_level: dict?.measurement_level || 'province',
         target_operator: dict?.target_operator || '>=',
-        work_group: dict?.work_group || '',
+        work_group: wg,
         eval_criteria: evalCriteria, tags,
         api_enabled: dict?.api_enabled || false, api_config: apiConfig,
       });
@@ -126,9 +139,18 @@ export default function TemplateManagerPage() {
 
     // ตัวชี้วัด standalone (ไม่มี key_result_id)
     (dictData || []).filter((d: any) => !d.key_result_id).forEach((dict: any) => {
-      const dataItems = dict?.data_items_json
+      
+      let dataItems = dict?.data_items_json
         ? (typeof dict.data_items_json === 'string' ? JSON.parse(dict.data_items_json) : dict.data_items_json)
-        : [];
+        : null;
+        
+      if (!dataItems || dataItems.length === 0) {
+        dataItems = [
+          { id: 'A', label: dict?.numerator || 'ตัวตั้ง' }, 
+          { id: 'B', label: dict?.denominator || 'ตัวหาร' }
+        ];
+      }
+
       const evalCriteria = dict?.evaluation_criteria_json
         ? (typeof dict.evaluation_criteria_json === 'string' ? JSON.parse(dict.evaluation_criteria_json) : dict.evaluation_criteria_json)
         : {};
@@ -145,7 +167,7 @@ export default function TemplateManagerPage() {
         data_items: dataItems,
         measurement_level: dict.measurement_level || 'province',
         target_operator: dict.target_operator || '>=',
-        work_group: dict.work_group || '',
+        work_group: dict.work_group || dict.responsible_person || '',
         eval_criteria: evalCriteria, tags: [],
         api_enabled: dict.api_enabled || false, api_config: apiConfig,
       });
@@ -178,11 +200,17 @@ export default function TemplateManagerPage() {
       measurement_level: editingKpi.measurement_level,
       target_operator: editingKpi.target_operator,
       work_group: editingKpi.work_group,
+      responsible_person: editingKpi.work_group, // Sync with Dictionary
       evaluation_criteria_json: editingKpi.eval_criteria,
       api_enabled: editingKpi.api_enabled,
       api_config_json: editingKpi.api_config,
       kpi_type: editingKpi.kpi_type,
     };
+
+    if (editingKpi.calc_type !== 'process_status') {
+      if (editingKpi.data_items.length >= 1) payload.numerator = editingKpi.data_items[0].label;
+      if (editingKpi.data_items.length >= 2) payload.denominator = editingKpi.data_items[1].label;
+    }
 
     if (editingKpi.kr_id) {
       payload.key_result_id = editingKpi.kr_id;
