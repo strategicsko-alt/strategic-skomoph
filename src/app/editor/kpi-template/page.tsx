@@ -124,10 +124,10 @@ export default function TemplateManagerPage() {
         : {};
       
       // Auto-extract number from target_2570 to use as Q4 default if missing
-      if (!evalCriteria['Q4'] && kr.target_2570) {
+      if (!evalCriteria['q4'] && kr.target_2570) {
         const numMatch = kr.target_2570.toString().replace(/,/g, '').match(/\d+(\.\d+)?/);
         if (numMatch) {
-          evalCriteria['Q4'] = numMatch[0];
+          evalCriteria['q4'] = numMatch[0];
         }
       }
 
