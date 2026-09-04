@@ -80,7 +80,7 @@ export default function TemplateManagerPage() {
     // 1. ดึง key_results จากระบบแผน + dict ที่เชื่อมอยู่
     const { data: krData } = await supabase
       .from('key_results')
-      .select('id, name, auto_id, responsible_group, objective:objectives(name), tags:key_result_tags(tag:kpi_tags(name))')
+      .select('id, name, auto_id, responsible_group, target_2570, objective:objectives(name), tags:key_result_tags(tag:kpi_tags(name))')
       .order('order_index', { ascending: true });
 
     // 2. ดึง kpi_dictionaries ทั้งหมด (รวม standalone ที่ไม่มี key_result_id)
@@ -122,6 +122,15 @@ export default function TemplateManagerPage() {
       const evalCriteria = dict?.evaluation_criteria_json
         ? (typeof dict.evaluation_criteria_json === 'string' ? JSON.parse(dict.evaluation_criteria_json) : dict.evaluation_criteria_json)
         : {};
+      
+      // Auto-extract number from target_2570 to use as Q4 default if missing
+      if (!evalCriteria['Q4'] && kr.target_2570) {
+        const numMatch = kr.target_2570.toString().replace(/,/g, '').match(/\d+(\.\d+)?/);
+        if (numMatch) {
+          evalCriteria['Q4'] = numMatch[0];
+        }
+      }
+
       const apiConfig = dict?.api_config_json
         ? (typeof dict.api_config_json === 'string' ? JSON.parse(dict.api_config_json) : dict.api_config_json)
         : {};
