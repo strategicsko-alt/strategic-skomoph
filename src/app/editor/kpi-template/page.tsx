@@ -221,10 +221,7 @@ export default function TemplateManagerPage() {
       kpi_type: editingKpi.kpi_type,
     };
 
-    if (editingKpi.calc_type !== 'process_status') {
-      if (editingKpi.data_items.length >= 1) payload.numerator = editingKpi.data_items[0].label;
-      if (editingKpi.data_items.length >= 2) payload.denominator = editingKpi.data_items[1].label;
-    }
+    // Removed overwriting of numerator and denominator to prevent data loss in KPI Dictionary
 
     if (editingKpi.kr_id) {
       payload.key_result_id = editingKpi.kr_id;
