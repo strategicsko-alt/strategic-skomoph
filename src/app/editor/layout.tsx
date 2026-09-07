@@ -30,6 +30,7 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
 
   // Items available to ALL logged-in users
   const baseNavItems = [
+    { name: 'Dashboard', href: '/editor/dashboard', icon: LayoutDashboard },
     { name: 'Workshop (แผนยุทธศาสตร์ 5 ปี)', href: '/editor/workshop', icon: BookOpen },
     { name: 'แผนปฏิบัติการ 1 ปี', href: '/editor/action-plan', icon: CalendarDays },
     { name: 'KPI Dictionary', href: '/editor/kpi-dictionary', icon: FileText },
@@ -46,7 +47,6 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
 
   if (isSuperAdmin) {
     navItems = [
-      { name: 'Dashboard', href: '/editor/dashboard', icon: LayoutDashboard },
       { name: 'ข้อมูลองค์กร (Core Data)', href: '/editor/core-data', icon: Building },
       ...navItems,
       { name: 'สำรอง/กู้คืนข้อมูล (Backup)', href: '/editor/admin', icon: Settings },

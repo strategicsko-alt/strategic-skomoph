@@ -68,7 +68,6 @@ export async function updateSession(request: NextRequest) {
         // 3. Regular users cannot access super-admin-only pages
         const superAdminOnlyPaths = [
           '/editor/core-data',
-          '/editor/dashboard',
           '/editor/admin',
           '/editor/users',
         ]
