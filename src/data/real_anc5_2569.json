@@ -1,0 +1,612 @@
+{
+  "28842": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "6/8 คน"
+  },
+  "02518": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "15/20 คน"
+  },
+  "02486": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "2/3 คน"
+  },
+  "02521": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "2/2 คน"
+  },
+  "02458": {
+    "value": "83.3%",
+    "status": "success",
+    "detail": "5/6 คน"
+  },
+  "02459": {
+    "value": "90.0%",
+    "status": "success",
+    "detail": "9/10 คน"
+  },
+  "02460": {
+    "value": "62.5%",
+    "status": "warning",
+    "detail": "5/8 คน"
+  },
+  "02487": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "4/5 คน"
+  },
+  "02491": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "1/1 คน"
+  },
+  "02530": {
+    "value": "62.5%",
+    "status": "warning",
+    "detail": "5/8 คน"
+  },
+  "77702": {
+    "value": "71.2%",
+    "status": "warning",
+    "detail": "57/80 คน"
+  },
+  "21289": {
+    "value": "44.4%",
+    "status": "error",
+    "detail": "4/9 คน"
+  },
+  "02476": {
+    "value": "71.4%",
+    "status": "warning",
+    "detail": "5/7 คน"
+  },
+  "10202": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "4/5 คน"
+  },
+  "00219": {
+    "value": "33.3%",
+    "status": "error",
+    "detail": "1/3 คน"
+  },
+  "02535": {
+    "value": "70.0%",
+    "status": "warning",
+    "detail": "7/10 คน"
+  },
+  "02441": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "3/4 คน"
+  },
+  "02440": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "6/6 คน"
+  },
+  "02451": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "8/10 คน"
+  },
+  "02466": {
+    "value": "60.0%",
+    "status": "warning",
+    "detail": "3/5 คน"
+  },
+  "02470": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "3/3 คน"
+  },
+  "02464": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "8/10 คน"
+  },
+  "02472": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "3/4 คน"
+  },
+  "02471": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "2/2 คน"
+  },
+  "02501": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "4/5 คน"
+  },
+  "02506": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "2/2 คน"
+  },
+  "02467": {
+    "value": "91.3%",
+    "status": "success",
+    "detail": "21/23 คน"
+  },
+  "02509": {
+    "value": "83.3%",
+    "status": "success",
+    "detail": "5/6 คน"
+  },
+  "02489": {
+    "value": "77.8%",
+    "status": "success",
+    "detail": "7/9 คน"
+  },
+  "02496": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "4/5 คน"
+  },
+  "02498": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "3/4 คน"
+  },
+  "02523": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "4/6 คน"
+  },
+  "02529": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "1/1 คน"
+  },
+  "02510": {
+    "value": "73.9%",
+    "status": "warning",
+    "detail": "17/23 คน"
+  },
+  "02511": {
+    "value": "70.6%",
+    "status": "warning",
+    "detail": "12/17 คน"
+  },
+  "02512": {
+    "value": "92.3%",
+    "status": "success",
+    "detail": "12/13 คน"
+  },
+  "02524": {
+    "value": "71.4%",
+    "status": "warning",
+    "detail": "5/7 คน"
+  },
+  "02528": {
+    "value": "85.7%",
+    "status": "success",
+    "detail": "6/7 คน"
+  },
+  "02532": {
+    "value": "90.0%",
+    "status": "success",
+    "detail": "9/10 คน"
+  },
+  "02515": {
+    "value": "72.7%",
+    "status": "warning",
+    "detail": "8/11 คน"
+  },
+  "02516": {
+    "value": "57.1%",
+    "status": "error",
+    "detail": "4/7 คน"
+  },
+  "02520": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "12/15 คน"
+  },
+  "02533": {
+    "value": "87.5%",
+    "status": "success",
+    "detail": "7/8 คน"
+  },
+  "02465": {
+    "value": "57.1%",
+    "status": "error",
+    "detail": "4/7 คน"
+  },
+  "02500": {
+    "value": "50.0%",
+    "status": "error",
+    "detail": "1/2 คน"
+  },
+  "02485": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "3/4 คน"
+  },
+  "02514": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "6/6 คน"
+  },
+  "10203": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "1/1 คน"
+  },
+  "10199": {
+    "value": "42.9%",
+    "status": "error",
+    "detail": "3/7 คน"
+  },
+  "10200": {
+    "value": "40.0%",
+    "status": "error",
+    "detail": "2/5 คน"
+  },
+  "10205": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "2/2 คน"
+  },
+  "10206": {
+    "value": "85.7%",
+    "status": "success",
+    "detail": "6/7 คน"
+  },
+  "10208": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "4/4 คน"
+  },
+  "10209": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "4/5 คน"
+  },
+  "02531": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "10/10 คน"
+  },
+  "02456": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "3/3 คน"
+  },
+  "02444": {
+    "value": "37.5%",
+    "status": "error",
+    "detail": "3/8 คน"
+  },
+  "02457": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "2/3 คน"
+  },
+  "02435": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "4/4 คน"
+  },
+  "02478": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "4/4 คน"
+  },
+  "02477": {
+    "value": "93.8%",
+    "status": "success",
+    "detail": "15/16 คน"
+  },
+  "10870": {
+    "value": "29.4%",
+    "status": "error",
+    "detail": "5/17 คน"
+  },
+  "10868": {
+    "value": "71.4%",
+    "status": "warning",
+    "detail": "15/21 คน"
+  },
+  "13817": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "2/2 คน"
+  },
+  "10866": {
+    "value": "38.7%",
+    "status": "error",
+    "detail": "12/31 คน"
+  },
+  "10867": {
+    "value": "18.8%",
+    "status": "error",
+    "detail": "3/16 คน"
+  },
+  "10869": {
+    "value": "30.3%",
+    "status": "error",
+    "detail": "10/33 คน"
+  },
+  "28850": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "4/4 คน"
+  },
+  "02462": {
+    "value": "88.9%",
+    "status": "success",
+    "detail": "8/9 คน"
+  },
+  "28849": {
+    "value": "83.3%",
+    "status": "success",
+    "detail": "5/6 คน"
+  },
+  "02446": {
+    "value": "78.9%",
+    "status": "success",
+    "detail": "15/19 คน"
+  },
+  "02479": {
+    "value": "88.2%",
+    "status": "success",
+    "detail": "15/17 คน"
+  },
+  "02507": {
+    "value": "70.0%",
+    "status": "warning",
+    "detail": "7/10 คน"
+  },
+  "02517": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "18/27 คน"
+  },
+  "02519": {
+    "value": "81.8%",
+    "status": "success",
+    "detail": "9/11 คน"
+  },
+  "02436": {
+    "value": "87.5%",
+    "status": "success",
+    "detail": "14/16 คน"
+  },
+  "02480": {
+    "value": "62.5%",
+    "status": "warning",
+    "detail": "5/8 คน"
+  },
+  "02483": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "3/3 คน"
+  },
+  "02488": {
+    "value": "88.9%",
+    "status": "success",
+    "detail": "8/9 คน"
+  },
+  "02490": {
+    "value": "87.5%",
+    "status": "success",
+    "detail": "7/8 คน"
+  },
+  "02449": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "9/12 คน"
+  },
+  "02475": {
+    "value": "63.6%",
+    "status": "warning",
+    "detail": "7/11 คน"
+  },
+  "02437": {
+    "value": "50.0%",
+    "status": "error",
+    "detail": "3/6 คน"
+  },
+  "02438": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "3/4 คน"
+  },
+  "02439": {
+    "value": "50.0%",
+    "status": "error",
+    "detail": "4/8 คน"
+  },
+  "02442": {
+    "value": "50.0%",
+    "status": "error",
+    "detail": "5/10 คน"
+  },
+  "02443": {
+    "value": "60.0%",
+    "status": "warning",
+    "detail": "9/15 คน"
+  },
+  "02445": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "4/6 คน"
+  },
+  "02447": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "12/15 คน"
+  },
+  "02450": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "8/10 คน"
+  },
+  "02452": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "4/6 คน"
+  },
+  "02454": {
+    "value": "83.3%",
+    "status": "success",
+    "detail": "10/12 คน"
+  },
+  "02453": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "4/5 คน"
+  },
+  "02455": {
+    "value": "70.6%",
+    "status": "warning",
+    "detail": "12/17 คน"
+  },
+  "02469": {
+    "value": "75.0%",
+    "status": "success",
+    "detail": "12/16 คน"
+  },
+  "02474": {
+    "value": "89.5%",
+    "status": "success",
+    "detail": "17/19 คน"
+  },
+  "02461": {
+    "value": "81.8%",
+    "status": "success",
+    "detail": "9/11 คน"
+  },
+  "02463": {
+    "value": "77.8%",
+    "status": "success",
+    "detail": "7/9 คน"
+  },
+  "02468": {
+    "value": "72.7%",
+    "status": "warning",
+    "detail": "8/11 คน"
+  },
+  "02473": {
+    "value": "42.9%",
+    "status": "error",
+    "detail": "3/7 คน"
+  },
+  "02482": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "10/15 คน"
+  },
+  "02481": {
+    "value": "71.4%",
+    "status": "warning",
+    "detail": "5/7 คน"
+  },
+  "02503": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "12/12 คน"
+  },
+  "02502": {
+    "value": "90.9%",
+    "status": "success",
+    "detail": "10/11 คน"
+  },
+  "02504": {
+    "value": "76.5%",
+    "status": "success",
+    "detail": "13/17 คน"
+  },
+  "02505": {
+    "value": "73.3%",
+    "status": "warning",
+    "detail": "11/15 คน"
+  },
+  "02492": {
+    "value": "62.5%",
+    "status": "warning",
+    "detail": "5/8 คน"
+  },
+  "02493": {
+    "value": "87.5%",
+    "status": "success",
+    "detail": "7/8 คน"
+  },
+  "02497": {
+    "value": "50.0%",
+    "status": "error",
+    "detail": "3/6 คน"
+  },
+  "02499": {
+    "value": "85.7%",
+    "status": "success",
+    "detail": "6/7 คน"
+  },
+  "02525": {
+    "value": "80.0%",
+    "status": "success",
+    "detail": "4/5 คน"
+  },
+  "02526": {
+    "value": "50.0%",
+    "status": "error",
+    "detail": "2/4 คน"
+  },
+  "02527": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "2/3 คน"
+  },
+  "02534": {
+    "value": "91.7%",
+    "status": "success",
+    "detail": "11/12 คน"
+  },
+  "02522": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "2/3 คน"
+  },
+  "10197": {
+    "value": "88.9%",
+    "status": "success",
+    "detail": "8/9 คน"
+  },
+  "02484": {
+    "value": "66.7%",
+    "status": "warning",
+    "detail": "4/6 คน"
+  },
+  "02448": {
+    "value": "84.8%",
+    "status": "success",
+    "detail": "28/33 คน"
+  },
+  "02513": {
+    "value": "100.0%",
+    "status": "success",
+    "detail": "5/5 คน"
+  },
+  "02494": {
+    "value": "70.0%",
+    "status": "warning",
+    "detail": "7/10 คน"
+  },
+  "02508": {
+    "value": "85.7%",
+    "status": "success",
+    "detail": "6/7 คน"
+  },
+  "22813": {
+    "value": "60.0%",
+    "status": "warning",
+    "detail": "3/5 คน"
+  }
+}

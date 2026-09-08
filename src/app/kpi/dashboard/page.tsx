@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 import healthFacilitiesData from '@/data/sa_kaeo_health_facilities.json';
+import realAnc5Data from '@/data/real_anc5_2569.json';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,7 @@ export default function DashboardPage() {
   const [isAddHdcModalOpen, setIsAddHdcModalOpen] = useState<boolean>(false);
   const [fetchingHdcId, setFetchingHdcId] = useState<string | null>(null);
 
-  // Dedicated HDC KPIs list (separate from strategic Key Results)
+  // Dedicated HDC KPIs list (Real Data from MOPH HDC Open Data)
   const [hdcKpis, setHdcKpis] = useState<Array<{
     id: string;
     code: string;
@@ -57,75 +58,30 @@ export default function DashboardPage() {
     year: string;
     targetOperator: string;
     targetValue: number;
-    results: Record<string, { value: number | string; status: 'success' | 'warning' | 'error' | 'pending' }>;
+    results: Record<string, { value: number | string; status: 'success' | 'warning' | 'error' | 'pending'; detail?: string }>;
   }>>([
     {
-      id: 'hdc-1',
+      id: 'hdc-anc5',
       code: 'HDC-01',
-      name: 'ร้อยละผู้ป่วยนอกได้รับบริการแพทย์แผนไทย',
-      tableName: 's_ttm27',
+      name: 'ร้อยละหญิงตั้งครรภ์ที่ได้รับการดูแลก่อนคลอด 5 ครั้ง ตามเกณฑ์',
+      tableName: 's_anc5',
       year: '2569',
       targetOperator: '>=',
-      targetValue: 20,
-      results: {}
-    },
-    {
-      id: 'hdc-2',
-      code: 'HDC-02',
-      name: 'ร้อยละประชากร 35 ปีขึ้นไปคัดกรองเบาหวาน',
-      tableName: 's_ncd_dm',
-      year: '2569',
-      targetOperator: '>=',
-      targetValue: 90,
-      results: {}
-    },
-    {
-      id: 'hdc-3',
-      code: 'HDC-03',
-      name: 'อัตราการรับวัคซีนครบชุดในเด็ก 1 ปี',
-      tableName: 's_epi_1y',
-      year: '2569',
-      targetOperator: '>=',
-      targetValue: 90,
-      results: {}
+      targetValue: 75,
+      results: realAnc5Data as Record<string, any>
     }
   ]);
 
   const [newHdcForm, setNewHdcForm] = useState({
-    code: 'HDC-04',
+    code: 'HDC-02',
     name: '',
     tableName: 's_ttm27',
     year: '2569',
     targetOperator: '>=',
-    targetValue: 80
+    targetValue: 20
   });
 
-  // Initialize sample results for the 108 รพ.สต.
-  useEffect(() => {
-    setHdcKpis(prev => prev.map((kpi, kIdx) => {
-      if (Object.keys(kpi.results).length > 0) return kpi;
-      const initialResults: Record<string, any> = {};
-      const rpostOnly = (healthFacilitiesData as any[]).filter(f => f.type === 'โรงพยาบาลส่งเสริมสุขภาพตำบล');
-      rpostOnly.forEach((f, fIdx) => {
-        const seed = (fIdx * 19 + kIdx * 37) % 100;
-        let val = 0;
-        let status: 'success' | 'warning' | 'error' | 'pending' = 'success';
-        if (kIdx === 0) { // s_ttm27 (target >= 20%)
-          val = Math.round((12 + (seed % 35)) * 10) / 10;
-          status = val >= 20 ? 'success' : val >= 16 ? 'warning' : 'error';
-        } else if (kIdx === 1) { // DM screening (target >= 90%)
-          val = Math.round((76 + (seed % 22)) * 10) / 10;
-          status = val >= 90 ? 'success' : val >= 85 ? 'warning' : 'error';
-        } else { // EPI (target >= 90%)
-          val = Math.round((79 + (seed % 19)) * 10) / 10;
-          status = val >= 90 ? 'success' : val >= 85 ? 'warning' : 'error';
-        }
-        initialResults[f.code5] = { value: `${val}%`, status };
-      });
-      return { ...kpi, results: initialResults };
-    }));
-  }, []);
-
+  // Fetch real data from MOPH HDC Open Data Web Service
   const handleFetchHdcData = async (kpiId: string) => {
     const targetKpi = hdcKpis.find(k => k.id === kpiId);
     if (!targetKpi) return;
@@ -142,28 +98,46 @@ export default function DashboardPage() {
       });
       const result = await res.json();
       if (result && Array.isArray(result.data)) {
-        const newResults: Record<string, any> = {};
+        // Aggregate records by hospcode
+        const byHosp: Record<string, { target: number; result: number }> = {};
         result.data.forEach((row: any) => {
-          const hCode = String(row.hospcode).padStart(5, '0');
-          let val: number | null = null;
-          if (row.op_service_pt_q1 && row.tm_service_pt_q1 !== undefined) {
-            const num = Number(row.tm_service_pt_q1) || 0;
-            const den = Number(row.op_service_pt_q1) || 1;
-            val = Math.round((num / den) * 1000) / 10;
-          } else if (row.op_service_q1 !== undefined) {
-            val = Number(row.op_service_q1) || 0;
+          const hc = String(row.hospcode).padStart(5, '0');
+          if (!byHosp[hc]) byHosp[hc] = { target: 0, result: 0 };
+
+          if (row.target !== undefined && row.result !== undefined) {
+            byHosp[hc].target += Number(row.target) || 0;
+            byHosp[hc].result += Number(row.result) || 0;
+          } else if (row.op_service_pt_q1 !== undefined && row.tm_service_pt_q1 !== undefined) {
+            byHosp[hc].target += Number(row.op_service_pt_q1) || 0;
+            byHosp[hc].result += Number(row.tm_service_pt_q1) || 0;
+          } else if (row.target4 !== undefined && row.result4 !== undefined) {
+            byHosp[hc].target += Number(row.target4) || 0;
+            byHosp[hc].result += Number(row.result4) || 0;
           }
-          if (val !== null) {
-            const isPass = targetKpi.targetOperator === '>=' ? val >= targetKpi.targetValue : val <= targetKpi.targetValue;
-            const isWarn = val >= targetKpi.targetValue * 0.8;
-            newResults[hCode] = {
-              value: `${val}%`,
-              status: isPass ? 'success' : isWarn ? 'warning' : 'error'
+        });
+
+        const newResults: Record<string, any> = {};
+        Object.entries(byHosp).forEach(([hc, vals]) => {
+          if (vals.target > 0) {
+            const pct = Math.round((vals.result / vals.target) * 1000) / 10;
+            const isPass = targetKpi.targetOperator === '>=' ? pct >= targetKpi.targetValue : pct <= targetKpi.targetValue;
+            const isWarn = pct >= targetKpi.targetValue * 0.8;
+            newResults[hc] = {
+              value: `${pct}%`,
+              status: isPass ? 'success' : isWarn ? 'warning' : 'error',
+              detail: `${vals.result}/${vals.target} คน`
+            };
+          } else {
+            newResults[hc] = {
+              value: '0%',
+              status: 'error',
+              detail: '0/0 คน'
             };
           }
         });
-        setHdcKpis(prev => prev.map(k => k.id === kpiId ? { ...k, results: { ...k.results, ...newResults } } : k));
-        alert(`✅ เชื่อมต่อและดึงข้อมูลจาก HDC Open Data สำเร็จ!\nตาราง: ${targetKpi.tableName}\nพบและอัปเดตผลงานหน่วยบริการ: ${Object.keys(newResults).length} แห่ง`);
+
+        setHdcKpis(prev => prev.map(k => k.id === kpiId ? { ...k, results: newResults } : k));
+        alert(`✅ ดึงข้อมูลสดจาก HDC Open Data สำเร็จ!\nตาราง: ${targetKpi.tableName} (ปี ${targetKpi.year})\nพบข้อมูลหน่วยบริการ: ${Object.keys(newResults).length} แห่ง`);
       } else {
         alert('เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลของตาราง ' + targetKpi.tableName);
       }
@@ -729,9 +703,7 @@ export default function DashboardPage() {
                               return (
                                 <td 
                                   key={kpi.id}
-                                  title={`[${fac.name}]
-ตัวชี้วัด: ${kpi.name}
-ผลงาน: ${valDisplay} (เป้าหมาย: ${kpi.targetOperator} ${kpi.targetValue}%)`}
+                                  title={`[${fac.name}]\nตัวชี้วัด: ${kpi.name}\nผลงาน: ${valDisplay}${res?.detail ? ` (${res.detail})` : ''} (เป้าหมาย: ${kpi.targetOperator} ${kpi.targetValue}%)`}
                                   style={{ 
                                     padding: '0', 
                                     textAlign: 'center', 
