@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
+import healthFacilitiesData from '@/data/sa_kaeo_health_facilities.json';
+
 export const dynamic = 'force-dynamic';
 
 const DISTRICTS = [
@@ -38,6 +40,11 @@ export default function DashboardPage() {
   const [kpis, setKpis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKpiId, setSelectedKpiId] = useState<string>('');
+
+  // Subdistrict view states
+  const [subdistrictDistrict, setSubdistrictDistrict] = useState<string>('เมืองสระแก้ว');
+  const [subdistrictSearch, setSubdistrictSearch] = useState<string>('');
+  const [subdistrictViewMode, setSubdistrictViewMode] = useState<'matrix' | 'list'>('matrix');
 
   useEffect(() => {
     async function fetchKPIs() {
@@ -252,73 +259,277 @@ export default function DashboardPage() {
       )}
 
       
-      {activeTab === 'subdistrict' && (
-        <div className="card" style={{ flex: 1, overflow: 'auto', padding: '0', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>ตารางสถานะตัวชี้วัดระดับ รพ.สต. (รอดึงข้อมูลจาก HDC Open Data)</h2>
-            <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)' }}>*ข้อมูลจำลองเพื่อการทดสอบ</div>
-          </div>
-          
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1000px' }}>
-              <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                <tr>
-                  <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '350px' }}>ชื่อตัวชี้วัด</th>
-                  <th style={{ padding: '1rem', textAlign: 'center', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', backgroundColor: '#f8fafc' }}>รวม รพ.สต.</th>
-                  <th style={{ padding: '1rem', textAlign: 'center', borderBottom: '2px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '120px' }}>รพ.สต.ศาลาลำดวน</th><th style={{ padding: '1rem', textAlign: 'center', borderBottom: '2px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '120px' }}>รพ.สต.บ้านสระแก้ว</th><th style={{ padding: '1rem', textAlign: 'center', borderBottom: '2px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '120px' }}>รพ.สต.ท่าเกษม</th><th style={{ padding: '1rem', textAlign: 'center', borderBottom: '2px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '120px' }}>รพ.สต.สระขวัญ</th><th style={{ padding: '1rem', textAlign: 'center', borderBottom: '2px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '120px' }}>รพ.สต.หนองบอน</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredKpis.filter(k => k.measurement_level === 'subdistrict' || k.measurement_level === 'province').map((kpi, idx) => {
-                  const getBgColor = (status: string) => status === 'success' ? '#dcfce7' : status === 'warning' ? '#fef08a' : status === 'pending' ? '#e2e8f0' : '#fee2e2';
-                  const getTextColor = (status: string) => status === 'success' ? '#166534' : status === 'warning' ? '#854d0e' : status === 'pending' ? '#475569' : '#991b1b';
-                  
-                  // Mock random status for UI demonstration
-                  const mockStatuses = ['success', 'warning', 'error', 'pending'];
-                  const overallMockStatus = mockStatuses[idx % 4];
-                  
-                  return (
-                    <tr key={kpi.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.75rem', borderRight: '1px solid var(--border)', fontWeight: 500 }}>
-                        <div style={{ marginBottom: '0.25rem' }}><span style={{color:'var(--primary)'}}>[{kpi.auto_id}]</span> {kpi.name}</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                          <span style={{ fontSize: '0.65rem', backgroundColor: '#e2e8f0', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>{kpi.responsible_group}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '2px solid var(--border)', backgroundColor: getBgColor(overallMockStatus), color: getTextColor(overallMockStatus), fontWeight: 700 }}>
-                        {overallMockStatus === 'success' ? 'ผ่าน' : overallMockStatus === 'pending' ? 'รอดำเนินการ' : overallMockStatus === 'warning' ? 'เฝ้าระวัง' : 'ไม่ผ่าน'}
-                      </td>
-                      
-                        <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)' }}>
-                          <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: getBgColor(mockStatuses[(idx + 0) % 4]), margin: '0 auto' }}></div>
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)' }}>
-                          <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: getBgColor(mockStatuses[(idx + 1) % 4]), margin: '0 auto' }}></div>
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)' }}>
-                          <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: getBgColor(mockStatuses[(idx + 2) % 4]), margin: '0 auto' }}></div>
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)' }}>
-                          <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: getBgColor(mockStatuses[(idx + 3) % 4]), margin: '0 auto' }}></div>
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)' }}>
-                          <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: getBgColor(mockStatuses[(idx + 4) % 4]), margin: '0 auto' }}></div>
-                        </td>
-                    </tr>
-                  );
-                })}
-                {filteredKpis.filter(k => k.measurement_level === 'subdistrict' || k.measurement_level === 'province').length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>
-                      ไม่พบตัวชี้วัดที่ประเมินระดับ รพ.สต.
-                    </td>
-                  </tr>
+      {activeTab === 'subdistrict' && (() => {
+        // Filter health facilities to only primary care / subdistrict health centers
+        const rpostFacilities = (healthFacilitiesData as any[]).filter(f => 
+          ('ส่งเสริมสุขภาพตำบล' in f.type || f.name.includes('สถานีอนามัย') || f.name.includes('รพ.สต.'))
+        );
+
+        // Filter by selected district and search keyword
+        const displayFacilities = rpostFacilities.filter(f => {
+          const matchDistrict = subdistrictDistrict === 'ALL' || f.district === subdistrictDistrict;
+          const matchSearch = !subdistrictSearch || 
+            f.name.toLowerCase().includes(subdistrictSearch.toLowerCase()) || 
+            (f.code5 && f.code5.includes(subdistrictSearch)) ||
+            (f.code9_new && f.code9_new.toLowerCase().includes(subdistrictSearch.toLowerCase()));
+          return matchDistrict && matchSearch;
+        });
+
+        // Calculate count per district for the dropdown
+        const countByDistrict: Record<string, number> = {};
+        DISTRICTS.forEach(d => { countByDistrict[d] = 0; });
+        rpostFacilities.forEach(f => {
+          if (f.district && countByDistrict[f.district] !== undefined) {
+            countByDistrict[f.district]++;
+          }
+        });
+
+        const cleanShortName = (name: string) => {
+          return name
+            .replace('โรงพยาบาลส่งเสริมสุขภาพตำบล', 'รพ.สต.')
+            .replace('โรงพยาบาลส่งเสริมสุขภาพบ้าน', 'รพ.สต.')
+            .replace('สถานีอนามัยเฉลิมพระเกียรติ 60 พรรษา นวมินทราชินี', 'สอน.')
+            .replace('สถานีอนามัย', 'สอน.');
+        };
+
+        const getBgColor = (status: string) => status === 'success' ? '#dcfce7' : status === 'warning' ? '#fef08a' : status === 'pending' ? '#e2e8f0' : '#fee2e2';
+        const getTextColor = (status: string) => status === 'success' ? '#166534' : status === 'warning' ? '#854d0e' : status === 'pending' ? '#475569' : '#991b1b';
+        const mockStatuses = ['success', 'warning', 'error', 'pending'];
+
+        return (
+          <div className="card" style={{ flex: 1, overflow: 'hidden', padding: '0', display: 'flex', flexDirection: 'column' }}>
+            {/* Filter and Control Bar */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card)' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                  การติดตามตัวชี้วัดระดับ รพ.สต. (HDC Open Data)
+                </h2>
+                <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>
+                  ฐานข้อมูลหน่วยบริการสุขภาพปฐมภูมิ จ.สระแก้ว ({rpostFacilities.length} แห่ง) • รอดึงผลคะแนนจาก HDC API
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8rem' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }}></span> ผ่านเกณฑ์
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#eab308', display: 'inline-block' }}></span> เฝ้าระวัง
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }}></span> ไม่ผ่านเกณฑ์
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#94a3b8', display: 'inline-block' }}></span> รอดำเนินการ
+                </span>
+              </div>
+            </div>
+
+            {/* Filter Row */}
+            <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>เลือกอำเภอ:</label>
+                <select 
+                  className="input-field" 
+                  style={{ width: '220px', padding: '0.4rem 0.6rem', fontSize: '0.875rem' }}
+                  value={subdistrictDistrict} 
+                  onChange={(e) => setSubdistrictDistrict(e.target.value)}
+                >
+                  <option value="ALL">📍 ทุกอำเภอ ({rpostFacilities.length} แห่ง)</option>
+                  {DISTRICTS.map(d => (
+                    <option key={d} value={d}>
+                      อำเภอ{d} ({countByDistrict[d] || 0} แห่ง)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  style={{ width: '240px', padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                  placeholder="ค้นหาชื่อ รพ.สต. หรือ รหัส 5 หลัก..."
+                  value={subdistrictSearch}
+                  onChange={(e) => setSubdistrictSearch(e.target.value)}
+                />
+                {subdistrictSearch && (
+                  <button 
+                    onClick={() => setSubdistrictSearch('')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--secondary-foreground)' }}
+                  >
+                    ✕ ล้าง
+                  </button>
                 )}
-              </tbody>
-            </table>
+              </div>
+
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  onClick={() => setSubdistrictViewMode('matrix')}
+                  style={{ 
+                    padding: '0.35rem 0.75rem', 
+                    borderRadius: 'var(--radius-sm)', 
+                    border: '1px solid var(--border)',
+                    fontSize: '0.8rem', 
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: subdistrictViewMode === 'matrix' ? 'var(--primary)' : '#fff',
+                    color: subdistrictViewMode === 'matrix' ? '#fff' : 'var(--foreground)'
+                  }}
+                >
+                  ตารางสถานะ (Heatmap)
+                </button>
+                <button 
+                  onClick={() => setSubdistrictViewMode('list')}
+                  style={{ 
+                    padding: '0.35rem 0.75rem', 
+                    borderRadius: 'var(--radius-sm)', 
+                    border: '1px solid var(--border)',
+                    fontSize: '0.8rem', 
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: subdistrictViewMode === 'list' ? 'var(--primary)' : '#fff',
+                    color: subdistrictViewMode === 'list' ? '#fff' : 'var(--foreground)'
+                  }}
+                >
+                  รายชื่อหน่วยบริการ ({displayFacilities.length})
+                </button>
+              </div>
+            </div>
+
+            {/* Content Area */}
+            {subdistrictViewMode === 'matrix' ? (
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${380 + displayFacilities.length * 52}px` }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <tr>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '320px', minWidth: '320px', position: 'sticky', left: 0, backgroundColor: 'var(--card)', zIndex: 11 }}>
+                        ชื่อตัวชี้วัด (KPI)
+                      </th>
+                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '90px', minWidth: '90px', backgroundColor: '#f1f5f9', position: 'sticky', left: '320px', zIndex: 11 }}>
+                        ภาพรวม
+                      </th>
+                      {displayFacilities.map((fac) => (
+                        <th 
+                          key={fac.code5 || fac.name}
+                          title={`${fac.name} (${fac.district}) [รหัส 5 หลัก: ${fac.code5}]`}
+                          style={{ 
+                            padding: '0.75rem 0.25rem', 
+                            textAlign: 'center', 
+                            borderBottom: '2px solid var(--border)', 
+                            borderRight: '1px solid var(--border)',
+                            writingMode: 'vertical-rl', 
+                            transform: 'rotate(180deg)', 
+                            height: '140px',
+                            minWidth: '46px',
+                            fontSize: '0.75rem',
+                            cursor: 'help'
+                          }}
+                        >
+                          <span style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '4px', display: 'inline-block' }}>{fac.code5}</span> {cleanShortName(fac.name)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredKpis.map((kpi, idx) => {
+                      const overallMockStatus = mockStatuses[idx % 4];
+                      return (
+                        <tr key={kpi.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '0.65rem 1rem', borderRight: '2px solid var(--border)', fontWeight: 500, position: 'sticky', left: 0, backgroundColor: '#fff', zIndex: 2 }}>
+                            <div style={{ marginBottom: '0.2rem', fontSize: '0.875rem' }}>
+                              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>[{kpi.auto_id}]</span> {kpi.name}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                              <span style={{ fontSize: '0.65rem', backgroundColor: '#e2e8f0', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                                {kpi.responsible_group}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.65rem 0.5rem', textAlign: 'center', borderRight: '2px solid var(--border)', backgroundColor: getBgColor(overallMockStatus), color: getTextColor(overallMockStatus), fontWeight: 700, fontSize: '0.8rem', position: 'sticky', left: '320px', zIndex: 2 }}>
+                            {overallMockStatus === 'success' ? 'ผ่าน' : overallMockStatus === 'pending' ? 'รอดำเนินการ' : overallMockStatus === 'warning' ? 'เฝ้าระวัง' : 'ไม่ผ่าน'}
+                          </td>
+                          {displayFacilities.map((fac, fIdx) => {
+                            const status = mockStatuses[(idx + fIdx * 2) % 4];
+                            return (
+                              <td 
+                                key={fac.code5 || fIdx} 
+                                title={`${fac.name}\n${kpi.name}: ${status === 'success' ? 'ผ่านเกณฑ์' : status === 'warning' ? 'เฝ้าระวัง' : status === 'error' ? 'ไม่ผ่านเกณฑ์' : 'รอดำเนินการ'}`}
+                                style={{ padding: '0.5rem 0.25rem', textAlign: 'center', borderRight: '1px solid var(--border)', cursor: 'pointer' }}
+                              >
+                                <div style={{ 
+                                  width: '18px', 
+                                  height: '18px', 
+                                  borderRadius: '50%', 
+                                  backgroundColor: status === 'success' ? '#22c55e' : status === 'warning' ? '#eab308' : status === 'pending' ? '#cbd5e1' : '#ef4444', 
+                                  margin: '0 auto',
+                                  transition: 'transform 0.1s'
+                                }} />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                    {filteredKpis.length === 0 && (
+                      <tr>
+                        <td colSpan={displayFacilities.length + 2} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>
+                          ไม่พบข้อมูลตัวชี้วัด
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              /* List View Mode */
+              <div style={{ flex: 1, overflow: 'auto', padding: '1rem 1.5rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', fontSize: '0.85rem', color: 'var(--secondary-foreground)' }}>
+                      <th style={{ padding: '0.75rem 0.5rem' }}>รหัส 5 หลัก</th>
+                      <th style={{ padding: '0.75rem 0.5rem' }}>รหัส 9 หลัก</th>
+                      <th style={{ padding: '0.75rem 0.5rem' }}>ชื่อสถานพยาบาล</th>
+                      <th style={{ padding: '0.75rem 0.5rem' }}>อำเภอ</th>
+                      <th style={{ padding: '0.75rem 0.5rem' }}>ประเภทหน่วยบริการ</th>
+                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>สถานะการส่งข้อมูล HDC</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayFacilities.map((fac) => (
+                      <tr key={fac.code5 || fac.name} style={{ borderBottom: '1px solid var(--border)', fontSize: '0.875rem' }}>
+                        <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)' }}>
+                          {fac.code5 || '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace', color: 'var(--secondary-foreground)', fontSize: '0.8rem' }}>
+                          {fac.code9_new || fac.code9 || '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
+                          {fac.name}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>
+                          <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 600 }}>
+                            {fac.district}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', color: 'var(--secondary-foreground)', fontSize: '0.8rem' }}>
+                          {fac.type}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
+                          <span style={{ backgroundColor: '#f1f5f9', color: '#475569', padding: '0.15rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem' }}>
+                            รอเชื่อมต่อ HDC API
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {activeTab === 'detail' && (
         <div style={{ display: 'flex', gap: '1.5rem', flex: 1, minHeight: 0 }}>
