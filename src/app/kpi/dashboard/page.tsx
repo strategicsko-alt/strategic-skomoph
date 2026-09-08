@@ -41,10 +41,165 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedKpiId, setSelectedKpiId] = useState<string>('');
 
-  // Subdistrict view states
-  const [subdistrictDistrict, setSubdistrictDistrict] = useState<string>('เมืองสระแก้ว');
+  // Subdistrict & HDC States
+  const [subdistrictDistrict, setSubdistrictDistrict] = useState<string>('ALL');
   const [subdistrictSearch, setSubdistrictSearch] = useState<string>('');
   const [subdistrictViewMode, setSubdistrictViewMode] = useState<'matrix' | 'list'>('matrix');
+  const [isAddHdcModalOpen, setIsAddHdcModalOpen] = useState<boolean>(false);
+  const [fetchingHdcId, setFetchingHdcId] = useState<string | null>(null);
+
+  // Dedicated HDC KPIs list (separate from strategic Key Results)
+  const [hdcKpis, setHdcKpis] = useState<Array<{
+    id: string;
+    code: string;
+    name: string;
+    tableName: string;
+    year: string;
+    targetOperator: string;
+    targetValue: number;
+    results: Record<string, { value: number | string; status: 'success' | 'warning' | 'error' | 'pending' }>;
+  }>>([
+    {
+      id: 'hdc-1',
+      code: 'HDC-01',
+      name: 'ร้อยละผู้ป่วยนอกได้รับบริการแพทย์แผนไทย',
+      tableName: 's_ttm27',
+      year: '2569',
+      targetOperator: '>=',
+      targetValue: 20,
+      results: {}
+    },
+    {
+      id: 'hdc-2',
+      code: 'HDC-02',
+      name: 'ร้อยละประชากร 35 ปีขึ้นไปคัดกรองเบาหวาน',
+      tableName: 's_ncd_dm',
+      year: '2569',
+      targetOperator: '>=',
+      targetValue: 90,
+      results: {}
+    },
+    {
+      id: 'hdc-3',
+      code: 'HDC-03',
+      name: 'อัตราการรับวัคซีนครบชุดในเด็ก 1 ปี',
+      tableName: 's_epi_1y',
+      year: '2569',
+      targetOperator: '>=',
+      targetValue: 90,
+      results: {}
+    }
+  ]);
+
+  const [newHdcForm, setNewHdcForm] = useState({
+    code: 'HDC-04',
+    name: '',
+    tableName: 's_ttm27',
+    year: '2569',
+    targetOperator: '>=',
+    targetValue: 80
+  });
+
+  // Initialize sample results for the 108 รพ.สต.
+  useEffect(() => {
+    setHdcKpis(prev => prev.map((kpi, kIdx) => {
+      if (Object.keys(kpi.results).length > 0) return kpi;
+      const initialResults: Record<string, any> = {};
+      const rpostOnly = (healthFacilitiesData as any[]).filter(f => f.type === 'โรงพยาบาลส่งเสริมสุขภาพตำบล');
+      rpostOnly.forEach((f, fIdx) => {
+        const seed = (fIdx * 19 + kIdx * 37) % 100;
+        let val = 0;
+        let status: 'success' | 'warning' | 'error' | 'pending' = 'success';
+        if (kIdx === 0) { // s_ttm27 (target >= 20%)
+          val = Math.round((12 + (seed % 35)) * 10) / 10;
+          status = val >= 20 ? 'success' : val >= 16 ? 'warning' : 'error';
+        } else if (kIdx === 1) { // DM screening (target >= 90%)
+          val = Math.round((76 + (seed % 22)) * 10) / 10;
+          status = val >= 90 ? 'success' : val >= 85 ? 'warning' : 'error';
+        } else { // EPI (target >= 90%)
+          val = Math.round((79 + (seed % 19)) * 10) / 10;
+          status = val >= 90 ? 'success' : val >= 85 ? 'warning' : 'error';
+        }
+        initialResults[f.code5] = { value: `${val}%`, status };
+      });
+      return { ...kpi, results: initialResults };
+    }));
+  }, []);
+
+  const handleFetchHdcData = async (kpiId: string) => {
+    const targetKpi = hdcKpis.find(k => k.id === kpiId);
+    if (!targetKpi) return;
+    setFetchingHdcId(kpiId);
+    try {
+      const res = await fetch('/api/hdc/report-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableName: targetKpi.tableName,
+          year: targetKpi.year,
+          province: '27'
+        })
+      });
+      const result = await res.json();
+      if (result && Array.isArray(result.data)) {
+        const newResults: Record<string, any> = {};
+        result.data.forEach((row: any) => {
+          const hCode = String(row.hospcode).padStart(5, '0');
+          let val: number | null = null;
+          if (row.op_service_pt_q1 && row.tm_service_pt_q1 !== undefined) {
+            const num = Number(row.tm_service_pt_q1) || 0;
+            const den = Number(row.op_service_pt_q1) || 1;
+            val = Math.round((num / den) * 1000) / 10;
+          } else if (row.op_service_q1 !== undefined) {
+            val = Number(row.op_service_q1) || 0;
+          }
+          if (val !== null) {
+            const isPass = targetKpi.targetOperator === '>=' ? val >= targetKpi.targetValue : val <= targetKpi.targetValue;
+            const isWarn = val >= targetKpi.targetValue * 0.8;
+            newResults[hCode] = {
+              value: `${val}%`,
+              status: isPass ? 'success' : isWarn ? 'warning' : 'error'
+            };
+          }
+        });
+        setHdcKpis(prev => prev.map(k => k.id === kpiId ? { ...k, results: { ...k.results, ...newResults } } : k));
+        alert(`✅ เชื่อมต่อและดึงข้อมูลจาก HDC Open Data สำเร็จ!\nตาราง: ${targetKpi.tableName}\nพบและอัปเดตผลงานหน่วยบริการ: ${Object.keys(newResults).length} แห่ง`);
+      } else {
+        alert('เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลของตาราง ' + targetKpi.tableName);
+      }
+    } catch (err: any) {
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ HDC: ' + err.message);
+    } finally {
+      setFetchingHdcId(null);
+    }
+  };
+
+  const handleCreateHdcKpi = () => {
+    if (!newHdcForm.name) {
+      alert('กรุณากรอกชื่อตัวชี้วัด');
+      return;
+    }
+    const newKpi = {
+      id: `hdc-${Date.now()}`,
+      code: newHdcForm.code || `HDC-0${hdcKpis.length + 1}`,
+      name: newHdcForm.name,
+      tableName: newHdcForm.tableName,
+      year: newHdcForm.year,
+      targetOperator: newHdcForm.targetOperator,
+      targetValue: Number(newHdcForm.targetValue) || 0,
+      results: {}
+    };
+    setHdcKpis(prev => [...prev, newKpi]);
+    setIsAddHdcModalOpen(false);
+    setNewHdcForm({
+      code: `HDC-0${hdcKpis.length + 2}`,
+      name: '',
+      tableName: 's_ttm27',
+      year: '2569',
+      targetOperator: '>=',
+      targetValue: 80
+    });
+  };
 
   useEffect(() => {
     async function fetchKPIs() {
@@ -52,7 +207,7 @@ export default function DashboardPage() {
       const { data, error } = await supabase
         .from('key_results')
         .select(`
-          id, name, auto_id, target_2570, measurement_status,
+          id, name, auto_id, target_2570, measurement_status, responsible_group,
           objective:objectives(name, strategy:strategies(issue:strategic_issues(name))),
           kpi_dict:kpi_dictionaries(*),
           tags:key_result_tags(tag:kpi_tags(name)),
@@ -90,7 +245,7 @@ export default function DashboardPage() {
             auto_id: kr.auto_id,
             name: kr.name,
             tags: tags,
-            responsible_group: dict.work_group || dict.responsible_person || kr.responsible_group || 'ไม่ระบุกลุ่มงาน',
+            responsible_group: kr.responsible_group || dict.work_group || dict.responsible_person || 'ไม่ระบุกลุ่มงาน',
             measurement_level: dict.measurement_level || 'province',
             formula: dict.calculation_type === 'process_status' ? 'เชิงกระบวนการ' : (dict.calculation_formula || 'ร้อยละ'),
             calculation_formula: dict.calculation_formula,
@@ -260,25 +415,22 @@ export default function DashboardPage() {
 
       
       {activeTab === 'subdistrict' && (() => {
-        // Filter health facilities to only primary care / subdistrict health centers
-        const rpostFacilities = (healthFacilitiesData as any[]).filter(f => 
-          (f.type?.includes('ส่งเสริมสุขภาพตำบล') || f.name?.includes('สถานีอนามัย') || f.name?.includes('รพ.สต.'))
-        );
+        // Filter strictly to ONLY 'โรงพยาบาลส่งเสริมสุขภาพตำบล' (exactly 108 facilities)
+        const allRpost = (healthFacilitiesData as any[]).filter(f => f.type === 'โรงพยาบาลส่งเสริมสุขภาพตำบล');
 
         // Filter by selected district and search keyword
-        const displayFacilities = rpostFacilities.filter(f => {
+        const displayFacilities = allRpost.filter(f => {
           const matchDistrict = subdistrictDistrict === 'ALL' || f.district === subdistrictDistrict;
           const matchSearch = !subdistrictSearch || 
             f.name.toLowerCase().includes(subdistrictSearch.toLowerCase()) || 
-            (f.code5 && f.code5.includes(subdistrictSearch)) ||
-            (f.code9_new && f.code9_new.toLowerCase().includes(subdistrictSearch.toLowerCase()));
+            (f.code5 && f.code5.includes(subdistrictSearch));
           return matchDistrict && matchSearch;
         });
 
-        // Calculate count per district for the dropdown
+        // Calculate count per district for the dropdown and grouping
         const countByDistrict: Record<string, number> = {};
         DISTRICTS.forEach(d => { countByDistrict[d] = 0; });
-        rpostFacilities.forEach(f => {
+        allRpost.forEach(f => {
           if (f.district && countByDistrict[f.district] !== undefined) {
             countByDistrict[f.district]++;
           }
@@ -286,43 +438,92 @@ export default function DashboardPage() {
 
         const cleanShortName = (name: string) => {
           return name
-            .replace('โรงพยาบาลส่งเสริมสุขภาพตำบล', 'รพ.สต.')
-            .replace('โรงพยาบาลส่งเสริมสุขภาพบ้าน', 'รพ.สต.')
+            .replace('โรงพยาบาลส่งเสริมสุขภาพตำบล', '')
+            .replace('โรงพยาบาลส่งเสริมสุขภาพบ้าน', '')
             .replace('สถานีอนามัยเฉลิมพระเกียรติ 60 พรรษา นวมินทราชินี', 'สอน.')
-            .replace('สถานีอนามัย', 'สอน.');
+            .replace('สถานีอนามัย', 'สอน.')
+            .trim();
         };
 
-        const getBgColor = (status: string) => status === 'success' ? '#dcfce7' : status === 'warning' ? '#fef08a' : status === 'pending' ? '#e2e8f0' : '#fee2e2';
-        const getTextColor = (status: string) => status === 'success' ? '#166534' : status === 'warning' ? '#854d0e' : status === 'pending' ? '#475569' : '#991b1b';
-        const mockStatuses = ['success', 'warning', 'error', 'pending'];
+        const getCellBg = (status: string) => {
+          if (status === 'success') return '#22c55e'; // Green
+          if (status === 'warning') return '#eab308'; // Yellow
+          if (status === 'error') return '#ef4444';   // Red
+          return '#e2e8f0';                           // Gray
+        };
+
+        const getCellTextColor = (status: string) => {
+          if (status === 'pending') return '#475569';
+          return '#ffffff';
+        };
+
+        // Group facilities by district for when 'ALL' is selected
+        const groupedByDistrict: { district: string; facilities: any[] }[] = [];
+        if (subdistrictDistrict === 'ALL') {
+          DISTRICTS.forEach(d => {
+            const facs = displayFacilities.filter(f => f.district === d);
+            if (facs.length > 0) {
+              groupedByDistrict.push({ district: d, facilities: facs });
+            }
+          });
+        } else {
+          groupedByDistrict.push({ district: subdistrictDistrict, facilities: displayFacilities });
+        }
 
         return (
           <div className="card" style={{ flex: 1, overflow: 'hidden', padding: '0', display: 'flex', flexDirection: 'column' }}>
             {/* Filter and Control Bar */}
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card)' }}>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-                  การติดตามตัวชี้วัดระดับ รพ.สต. (HDC Open Data)
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                    การติดตามตัวชี้วัดระดับ รพ.สต. (HDC Open Data)
+                  </h2>
+                  <span style={{ fontSize: '0.75rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 600 }}>
+                    {allRpost.length} รพ.สต. ในสระแก้ว
+                  </span>
+                </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>
-                  ฐานข้อมูลหน่วยบริการสุขภาพปฐมภูมิ จ.สระแก้ว ({rpostFacilities.length} แห่ง) • รอดึงผลคะแนนจาก HDC API
+                  แถว: รายชื่อ รพ.สต. แยกตามอำเภอ • คอลัมน์: ตัวชี้วัด HDC • สีเต็มช่องตามระดับผลงาน
                 </div>
               </div>
 
-              {/* Legend */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8rem' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }}></span> ผ่านเกณฑ์
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#eab308', display: 'inline-block' }}></span> เฝ้าระวัง
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }}></span> ไม่ผ่านเกณฑ์
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#94a3b8', display: 'inline-block' }}></span> รอดำเนินการ
-                </span>
+              {/* Action Buttons & Legend */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#22c55e', display: 'inline-block' }}></span> ผ่านเกณฑ์
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#eab308', display: 'inline-block' }}></span> เฝ้าระวัง
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#ef4444', display: 'inline-block' }}></span> ไม่ผ่านเกณฑ์
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#e2e8f0', display: 'inline-block' }}></span> รอดำเนินการ
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setIsAddHdcModalOpen(true)}
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.45rem 0.9rem',
+                    borderRadius: 'var(--radius-md)',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  <span>+</span> เพิ่มตัวชี้วัด HDC
+                </button>
               </div>
             </div>
 
@@ -332,11 +533,11 @@ export default function DashboardPage() {
                 <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>เลือกอำเภอ:</label>
                 <select 
                   className="input-field" 
-                  style={{ width: '220px', padding: '0.4rem 0.6rem', fontSize: '0.875rem' }}
+                  style={{ width: '230px', padding: '0.4rem 0.6rem', fontSize: '0.875rem' }}
                   value={subdistrictDistrict} 
                   onChange={(e) => setSubdistrictDistrict(e.target.value)}
                 >
-                  <option value="ALL">📍 ทุกอำเภอ ({rpostFacilities.length} แห่ง)</option>
+                  <option value="ALL">📍 แสดงทุกอำเภอ (108 รพ.สต.)</option>
                   {DISTRICTS.map(d => (
                     <option key={d} value={d}>
                       อำเภอ{d} ({countByDistrict[d] || 0} แห่ง)
@@ -349,7 +550,7 @@ export default function DashboardPage() {
                 <input 
                   type="text" 
                   className="input-field" 
-                  style={{ width: '240px', padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                  style={{ width: '260px', padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
                   placeholder="ค้นหาชื่อ รพ.สต. หรือ รหัส 5 หลัก..."
                   value={subdistrictSearch}
                   onChange={(e) => setSubdistrictSearch(e.target.value)}
@@ -378,7 +579,7 @@ export default function DashboardPage() {
                     color: subdistrictViewMode === 'matrix' ? '#fff' : 'var(--foreground)'
                   }}
                 >
-                  ตารางสถานะ (Heatmap)
+                  ตาราง Heatmap ({displayFacilities.length} แห่ง)
                 </button>
                 <button 
                   onClick={() => setSubdistrictViewMode('list')}
@@ -393,7 +594,7 @@ export default function DashboardPage() {
                     color: subdistrictViewMode === 'list' ? '#fff' : 'var(--foreground)'
                   }}
                 >
-                  รายชื่อหน่วยบริการ ({displayFacilities.length})
+                  รายชื่อ รพ.สต.
                 </button>
               </div>
             </div>
@@ -401,81 +602,172 @@ export default function DashboardPage() {
             {/* Content Area */}
             {subdistrictViewMode === 'matrix' ? (
               <div style={{ flex: 1, overflow: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${380 + displayFacilities.length * 52}px` }}>
-                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
                     <tr>
-                      <th style={{ padding: '0.75rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '320px', minWidth: '320px', position: 'sticky', left: 0, backgroundColor: 'var(--card)', zIndex: 11 }}>
-                        ชื่อตัวชี้วัด (KPI)
+                      <th style={{ padding: '0.85rem 0.75rem', textAlign: 'center', borderBottom: '2px solid var(--border)', borderRight: '1px solid var(--border)', width: '85px', minWidth: '85px', backgroundColor: 'var(--card)', position: 'sticky', left: 0, zIndex: 11 }}>
+                        รหัส 5 หลัก
                       </th>
-                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '90px', minWidth: '90px', backgroundColor: '#f1f5f9', position: 'sticky', left: '320px', zIndex: 11 }}>
-                        ภาพรวม
+                      <th style={{ padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '250px', minWidth: '250px', backgroundColor: 'var(--card)', position: 'sticky', left: '85px', zIndex: 11 }}>
+                        ชื่อ รพ.สต.
                       </th>
-                      {displayFacilities.map((fac) => (
+                      {hdcKpis.map((kpi) => (
                         <th 
-                          key={fac.code5 || fac.name}
-                          title={`${fac.name} (${fac.district}) [รหัส 5 หลัก: ${fac.code5}]`}
+                          key={kpi.id}
                           style={{ 
-                            padding: '0.75rem 0.25rem', 
+                            padding: '0.75rem 0.5rem', 
                             textAlign: 'center', 
                             borderBottom: '2px solid var(--border)', 
                             borderRight: '1px solid var(--border)',
-                            writingMode: 'vertical-rl', 
-                            transform: 'rotate(180deg)', 
-                            height: '140px',
-                            minWidth: '46px',
-                            fontSize: '0.75rem',
-                            cursor: 'help'
+                            minWidth: '180px',
+                            backgroundColor: '#f8fafc'
                           }}
                         >
-                          <span style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '4px', display: 'inline-block' }}>{fac.code5}</span> {cleanShortName(fac.name)}
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', backgroundColor: '#e0f2fe', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                                {kpi.code}
+                              </span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
+                                ({kpi.tableName})
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.3, textAlign: 'center' }}>
+                              {kpi.name}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
+                                เป้าหมาย: <strong>{kpi.targetOperator} {kpi.targetValue}%</strong>
+                              </span>
+                              <button
+                                onClick={() => handleFetchHdcData(kpi.id)}
+                                disabled={fetchingHdcId === kpi.id}
+                                title="กดเพื่อดึงผลงานสดจาก HDC Open Data Web Service"
+                                style={{
+                                  padding: '0.15rem 0.4rem',
+                                  fontSize: '0.7rem',
+                                  borderRadius: '4px',
+                                  border: '1px solid #0284c7',
+                                  backgroundColor: '#f0f9ff',
+                                  color: '#0284c7',
+                                  cursor: 'pointer',
+                                  fontWeight: 600
+                                }}
+                              >
+                                {fetchingHdcId === kpi.id ? '⏳ กำลังดึง...' : '🔄 ดึง HDC'}
+                              </button>
+                            </div>
+                          </div>
                         </th>
                       ))}
+                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border)', width: '60px', backgroundColor: '#f8fafc' }}>
+                        <button
+                          onClick={() => setIsAddHdcModalOpen(true)}
+                          title="เพิ่มตัวชี้วัด HDC ใหม่"
+                          style={{
+                            background: 'none',
+                            border: '1px dashed var(--primary)',
+                            borderRadius: '4px',
+                            color: 'var(--primary)',
+                            padding: '0.3rem 0.5rem',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: 700
+                          }}
+                        >
+                          + เพิ่ม
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredKpis.map((kpi, idx) => {
-                      const overallMockStatus = mockStatuses[idx % 4];
-                      return (
-                        <tr key={kpi.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '0.65rem 1rem', borderRight: '2px solid var(--border)', fontWeight: 500, position: 'sticky', left: 0, backgroundColor: '#fff', zIndex: 2 }}>
-                            <div style={{ marginBottom: '0.2rem', fontSize: '0.875rem' }}>
-                              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>[{kpi.auto_id}]</span> {kpi.name}
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                              <span style={{ fontSize: '0.65rem', backgroundColor: '#e2e8f0', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                                {kpi.responsible_group}
-                              </span>
-                            </div>
+                    {groupedByDistrict.map(({ district: distName, facilities: distFacilities }) => (
+                      <React.Fragment key={distName}>
+                        {/* District Divider Row */}
+                        <tr style={{ backgroundColor: '#e2e8f0' }}>
+                          <td 
+                            colSpan={2 + hdcKpis.length + 1} 
+                            style={{ 
+                              padding: '0.55rem 1rem', 
+                              fontWeight: 700, 
+                              color: '#0f172a', 
+                              fontSize: '0.875rem',
+                              borderTop: '2px solid #cbd5e1',
+                              borderBottom: '2px solid #cbd5e1'
+                            }}
+                          >
+                            📍 อำเภอ{distName} ({distFacilities.length} แห่ง)
                           </td>
-                          <td style={{ padding: '0.65rem 0.5rem', textAlign: 'center', borderRight: '2px solid var(--border)', backgroundColor: getBgColor(overallMockStatus), color: getTextColor(overallMockStatus), fontWeight: 700, fontSize: '0.8rem', position: 'sticky', left: '320px', zIndex: 2 }}>
-                            {overallMockStatus === 'success' ? 'ผ่าน' : overallMockStatus === 'pending' ? 'รอดำเนินการ' : overallMockStatus === 'warning' ? 'เฝ้าระวัง' : 'ไม่ผ่าน'}
-                          </td>
-                          {displayFacilities.map((fac, fIdx) => {
-                            const status = mockStatuses[(idx + fIdx * 2) % 4];
-                            return (
-                              <td 
-                                key={fac.code5 || fIdx} 
-                                title={`${fac.name}\n${kpi.name}: ${status === 'success' ? 'ผ่านเกณฑ์' : status === 'warning' ? 'เฝ้าระวัง' : status === 'error' ? 'ไม่ผ่านเกณฑ์' : 'รอดำเนินการ'}`}
-                                style={{ padding: '0.5rem 0.25rem', textAlign: 'center', borderRight: '1px solid var(--border)', cursor: 'pointer' }}
-                              >
-                                <div style={{ 
-                                  width: '18px', 
-                                  height: '18px', 
-                                  borderRadius: '50%', 
-                                  backgroundColor: status === 'success' ? '#22c55e' : status === 'warning' ? '#eab308' : status === 'pending' ? '#cbd5e1' : '#ef4444', 
-                                  margin: '0 auto',
-                                  transition: 'transform 0.1s'
-                                }} />
-                              </td>
-                            );
-                          })}
                         </tr>
-                      );
-                    })}
-                    {filteredKpis.length === 0 && (
+
+                        {/* Facilities rows in this district */}
+                        {distFacilities.map((fac) => (
+                          <tr key={fac.code5 || fac.name} style={{ borderBottom: '1px solid var(--border)' }}>
+                            {/* Column 1: รหัส 5 หลัก */}
+                            <td style={{ padding: '0.5rem 0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)', fontSize: '0.85rem', backgroundColor: '#fff', position: 'sticky', left: 0, zIndex: 2 }}>
+                              {fac.code5 || '-'}
+                            </td>
+
+                            {/* Column 2: ชื่อ รพ.สต. */}
+                            <td style={{ padding: '0.5rem 1rem', borderRight: '2px solid var(--border)', backgroundColor: '#fff', position: 'sticky', left: '85px', zIndex: 2 }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                                รพ.สต.{cleanShortName(fac.name)}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
+                                อ.{fac.district}
+                              </div>
+                            </td>
+
+                            {/* HDC KPI Result Cells (Full-cell background color with percentage) */}
+                            {hdcKpis.map((kpi) => {
+                              const res = kpi.results[fac.code5];
+                              const status = res?.status || 'pending';
+                              const valDisplay = res?.value || 'รอผล';
+                              const bgColor = getCellBg(status);
+                              const textColor = getCellTextColor(status);
+
+                              return (
+                                <td 
+                                  key={kpi.id}
+                                  title={`[${fac.name}]
+ตัวชี้วัด: ${kpi.name}
+ผลงาน: ${valDisplay} (เป้าหมาย: ${kpi.targetOperator} ${kpi.targetValue}%)`}
+                                  style={{ 
+                                    padding: '0', 
+                                    textAlign: 'center', 
+                                    borderRight: '1px solid #e2e8f0',
+                                    backgroundColor: bgColor,
+                                    color: textColor,
+                                    height: '46px'
+                                  }}
+                                >
+                                  <div style={{ 
+                                    width: '100%', 
+                                    height: '100%', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    fontWeight: 700, 
+                                    fontSize: '0.875rem',
+                                    letterSpacing: '0.02em',
+                                    textShadow: status !== 'pending' ? '0 1px 2px rgba(0,0,0,0.2)' : 'none'
+                                  }}>
+                                    {valDisplay}
+                                  </div>
+                                </td>
+                              );
+                            })}
+
+                            <td style={{ borderRight: '1px solid var(--border)', backgroundColor: '#fafafa' }}></td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+
+                    {displayFacilities.length === 0 && (
                       <tr>
-                        <td colSpan={displayFacilities.length + 2} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>
-                          ไม่พบข้อมูลตัวชี้วัด
+                        <td colSpan={2 + hdcKpis.length + 1} style={{ padding: '3rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>
+                          ไม่พบข้อมูล รพ.สต. ตามเงื่อนไขที่เลือก
                         </td>
                       </tr>
                     )}
@@ -490,10 +782,10 @@ export default function DashboardPage() {
                     <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', fontSize: '0.85rem', color: 'var(--secondary-foreground)' }}>
                       <th style={{ padding: '0.75rem 0.5rem' }}>รหัส 5 หลัก</th>
                       <th style={{ padding: '0.75rem 0.5rem' }}>รหัส 9 หลัก</th>
-                      <th style={{ padding: '0.75rem 0.5rem' }}>ชื่อสถานพยาบาล</th>
+                      <th style={{ padding: '0.75rem 0.5rem' }}>ชื่อ รพ.สต.</th>
                       <th style={{ padding: '0.75rem 0.5rem' }}>อำเภอ</th>
-                      <th style={{ padding: '0.75rem 0.5rem' }}>ประเภทหน่วยบริการ</th>
-                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>สถานะการส่งข้อมูล HDC</th>
+                      <th style={{ padding: '0.75rem 0.5rem' }}>ประเภท</th>
+                      <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>สถานะการเชื่อมต่อ HDC</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -517,14 +809,181 @@ export default function DashboardPage() {
                           {fac.type}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
-                          <span style={{ backgroundColor: '#f1f5f9', color: '#475569', padding: '0.15rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem' }}>
-                            รอเชื่อมต่อ HDC API
+                          <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.15rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                            พร้อมเชื่อม HDC API
                           </span>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Modal: เพิ่มตัวชี้วัด HDC */}
+            {isAddHdcModalOpen && (
+              <div style={{
+                position: 'fixed',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '1rem'
+              }}>
+                <div style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 'var(--radius-lg)',
+                  width: '100%',
+                  maxWidth: '560px',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                  padding: '1.5rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)' }}>
+                      ➕ เพิ่มตัวชี้วัด HDC Open Data (ระดับ รพ.สต.)
+                    </h3>
+                    <button 
+                      onClick={() => setIsAddHdcModalOpen(false)}
+                      style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          รหัสตัวชี้วัด
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={newHdcForm.code}
+                          onChange={(e) => setNewHdcForm({ ...newHdcForm, code: e.target.value })}
+                          placeholder="เช่น HDC-04"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          ชื่อตัวชี้วัด *
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={newHdcForm.name}
+                          onChange={(e) => setNewHdcForm({ ...newHdcForm, name: e.target.value })}
+                          placeholder="เช่น ร้อยละหญิงตั้งครรภ์ฝากครรภ์ครั้งแรกก่อน 12 สัปดาห์"
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          ชื่อตาราง HDC (tableName) *
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={newHdcForm.tableName}
+                          onChange={(e) => setNewHdcForm({ ...newHdcForm, tableName: e.target.value })}
+                          placeholder="เช่น s_ttm27, s_ncd_dm"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          ปีงบประมาณ (year)
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={newHdcForm.year}
+                          onChange={(e) => setNewHdcForm({ ...newHdcForm, year: e.target.value })}
+                          placeholder="2569"
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          เครื่องหมายเป้าหมาย
+                        </label>
+                        <select
+                          className="input-field"
+                          value={newHdcForm.targetOperator}
+                          onChange={(e) => setNewHdcForm({ ...newHdcForm, targetOperator: e.target.value })}
+                        >
+                          <option value=">=">&gt;= (มากกว่าหรือเท่ากับ)</option>
+                          <option value="<=">&lt;= (น้อยกว่าหรือเท่ากับ)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          ค่าเป้าหมาย (%)
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          value={newHdcForm.targetValue}
+                          onChange={(e) => setNewHdcForm({ ...newHdcForm, targetValue: Number(e.target.value) })}
+                          placeholder="เช่น 80"
+                        />
+                      </div>
+                    </div>
+
+                    {/* API Code Preview */}
+                    <div style={{ backgroundColor: '#0f172a', borderRadius: 'var(--radius-md)', padding: '0.85rem', color: '#f8fafc', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                      <div style={{ color: '#94a3b8', marginBottom: '0.4rem' }}>// โครงสร้าง Web Service (POST https://opendata.moph.go.th/api/report_data):</div>
+                      <pre style={{ margin: 0, overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+{`{
+  "tableName": "${newHdcForm.tableName || 's_ttm27'}",
+  "year": "${newHdcForm.year || '2569'}",
+  "province": "27",
+  "type": "json"
+}`}
+                      </pre>
+                    </div>
+
+                    {/* Buttons */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddHdcModalOpen(false)}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border)',
+                          backgroundColor: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateHdcKpi}
+                        style={{
+                          padding: '0.5rem 1.25rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: 'none',
+                          backgroundColor: 'var(--primary)',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        บันทึกตัวชี้วัด
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
