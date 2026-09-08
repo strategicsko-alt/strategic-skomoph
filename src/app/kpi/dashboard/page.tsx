@@ -31,7 +31,7 @@ const WORK_GROUPS = [
 ];
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<'detail' | 'executive'>('detail');
+  const [activeTab, setActiveTab] = useState<'detail' | 'executive' | 'subdistrict'>('detail');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [search, setSearch] = useState('');
