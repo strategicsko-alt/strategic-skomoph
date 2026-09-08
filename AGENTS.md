@@ -7,3 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Strategic SKO System Architecture & Guidelines
+For full system architecture, database schema, strategic hierarchy, authentication roles, and implementation details, always refer to [SYSTEM_DOCUMENTATION.md](SYSTEM_DOCUMENTATION.md).
+When updating system features or database schema, keep [SYSTEM_DOCUMENTATION.md](SYSTEM_DOCUMENTATION.md) updated.
