@@ -82,8 +82,21 @@ export default function DashboardPage() {
   });
 
   // Fetch real data from MOPH HDC Open Data Web Service
-  const handleFetchHdcData = async (kpiId: string) => {
-    const targetKpi = hdcKpis.find(k => k.id === kpiId);
+  // Load saved custom HDC KPIs from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('hdc_kpis_custom_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setHdcKpis(parsed);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  const handleFetchHdcData = async (kpiId: string, kpiObj?: any) => {
+    const targetKpi = kpiObj || hdcKpis.find(k => k.id === kpiId);
     if (!targetKpi) return;
     setFetchingHdcId(kpiId);
     try {
@@ -108,8 +121,10 @@ export default function DashboardPage() {
             byHosp[hc].target += Number(row.target) || 0;
             byHosp[hc].result += Number(row.result) || 0;
           } else if (row.op_service_pt_q1 !== undefined && row.tm_service_pt_q1 !== undefined) {
-            byHosp[hc].target += Number(row.op_service_pt_q1) || 0;
-            byHosp[hc].result += Number(row.tm_service_pt_q1) || 0;
+            const opSum = (Number(row.op_service_pt_q1) || 0) + (Number(row.op_service_pt_q2) || 0) + (Number(row.op_service_pt_q3) || 0) + (Number(row.op_service_pt_q4) || 0);
+            const tmSum = (Number(row.tm_service_pt_q1) || 0) + (Number(row.tm_service_pt_q2) || 0) + (Number(row.tm_service_pt_q3) || 0) + (Number(row.tm_service_pt_q4) || 0);
+            byHosp[hc].target += opSum > 0 ? opSum : (Number(row.op_service_pt_q1) || 0);
+            byHosp[hc].result += tmSum > 0 ? tmSum : (Number(row.tm_service_pt_q1) || 0);
           } else if (row.target4 !== undefined && row.result4 !== undefined) {
             byHosp[hc].target += Number(row.target4) || 0;
             byHosp[hc].result += Number(row.result4) || 0;
@@ -136,7 +151,11 @@ export default function DashboardPage() {
           }
         });
 
-        setHdcKpis(prev => prev.map(k => k.id === kpiId ? { ...k, results: newResults } : k));
+        setHdcKpis(prev => {
+          const updated = prev.map(k => k.id === kpiId ? { ...k, results: newResults } : k);
+          try { localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(updated)); } catch (e) {}
+          return updated;
+        });
         alert(`✅ ดึงข้อมูลสดจาก HDC Open Data สำเร็จ!\nตาราง: ${targetKpi.tableName} (ปี ${targetKpi.year})\nพบข้อมูลหน่วยบริการ: ${Object.keys(newResults).length} แห่ง`);
       } else {
         alert('เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลของตาราง ' + targetKpi.tableName);
@@ -148,31 +167,52 @@ export default function DashboardPage() {
     }
   };
 
-  const handleCreateHdcKpi = () => {
+  const handleCreateHdcKpi = async () => {
     if (!newHdcForm.name) {
       alert('กรุณากรอกชื่อตัวชี้วัด');
+      return;
+    }
+    const cleanTable = newHdcForm.tableName.trim();
+    if (!cleanTable) {
+      alert('กรุณากรอกชื่อตาราง HDC Open Data (เช่น s_ttm27, s_anc5)');
       return;
     }
     const newKpi = {
       id: `hdc-${Date.now()}`,
       code: newHdcForm.code || `HDC-0${hdcKpis.length + 1}`,
       name: newHdcForm.name,
-      tableName: newHdcForm.tableName,
-      year: newHdcForm.year,
-      targetOperator: newHdcForm.targetOperator,
+      tableName: cleanTable,
+      year: newHdcForm.year || '2569',
+      targetOperator: newHdcForm.targetOperator || '>=',
       targetValue: Number(newHdcForm.targetValue) || 0,
       results: {}
     };
-    setHdcKpis(prev => [...prev, newKpi]);
+    const updated = [...hdcKpis, newKpi];
+    setHdcKpis(updated);
+    try {
+      localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(updated));
+    } catch (e) {}
     setIsAddHdcModalOpen(false);
     setNewHdcForm({
-      code: `HDC-0${hdcKpis.length + 2}`,
+      code: `HDC-0${updated.length + 1}`,
       name: '',
       tableName: 's_ttm27',
       year: '2569',
       targetOperator: '>=',
       targetValue: 80
     });
+    // Auto-fetch data from HDC right away!
+    handleFetchHdcData(newKpi.id, newKpi);
+  };
+
+  const handleDeleteHdcKpi = (kpiId: string) => {
+    if (confirm('คุณต้องการลบตัวชี้วัดนี้ออกจากตารางหรือไม่?')) {
+      const updated = hdcKpis.filter(k => k.id !== kpiId);
+      setHdcKpis(updated);
+      try {
+        localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(updated));
+      } catch (e) {}
+    }
   };
 
   useEffect(() => {
@@ -605,6 +645,15 @@ export default function DashboardPage() {
                               <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
                                 ({kpi.tableName})
                               </span>
+                              {kpi.id !== 'hdc-anc5' && (
+                                <button
+                                  onClick={() => handleDeleteHdcKpi(kpi.id)}
+                                  title="ลบตัวชี้วัดนี้"
+                                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', padding: '0 0.2rem' }}
+                                >
+                                  ✕
+                                </button>
+                              )}
                             </div>
                             <div style={{ fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.3, textAlign: 'center' }}>
                               {kpi.name}
