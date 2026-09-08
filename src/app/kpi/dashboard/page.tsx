@@ -58,6 +58,7 @@ export default function DashboardPage() {
     year: string;
     targetOperator: string;
     targetValue: number;
+    warningValue?: number;
     results: Record<string, { value: number | string; status: 'success' | 'warning' | 'error' | 'pending'; detail?: string }>;
   }>>([
     {
@@ -68,6 +69,7 @@ export default function DashboardPage() {
       year: '2569',
       targetOperator: '>=',
       targetValue: 75,
+      warningValue: 60,
       results: realAnc5Data as Record<string, any>
     }
   ]);
@@ -78,7 +80,8 @@ export default function DashboardPage() {
     tableName: 's_ttm27',
     year: '2569',
     targetOperator: '>=',
-    targetValue: 20
+    targetValue: 20,
+    warningValue: 16
   });
 
   // Fetch real data from MOPH HDC Open Data Web Service
@@ -135,8 +138,11 @@ export default function DashboardPage() {
         Object.entries(byHosp).forEach(([hc, vals]) => {
           if (vals.target > 0) {
             const pct = Math.round((vals.result / vals.target) * 1000) / 10;
+            const warnTarget = targetKpi.warningValue !== undefined && targetKpi.warningValue !== null
+              ? Number(targetKpi.warningValue)
+              : targetKpi.targetValue * 0.8;
             const isPass = targetKpi.targetOperator === '>=' ? pct >= targetKpi.targetValue : pct <= targetKpi.targetValue;
-            const isWarn = pct >= targetKpi.targetValue * 0.8;
+            const isWarn = targetKpi.targetOperator === '>=' ? (pct >= warnTarget && !isPass) : (pct <= (targetKpi.targetValue * 1.2) && !isPass);
             newResults[hc] = {
               value: `${pct}%`,
               status: isPass ? 'success' : isWarn ? 'warning' : 'error',
@@ -185,6 +191,7 @@ export default function DashboardPage() {
       year: newHdcForm.year || '2569',
       targetOperator: newHdcForm.targetOperator || '>=',
       targetValue: Number(newHdcForm.targetValue) || 0,
+      warningValue: Number(newHdcForm.warningValue) || (Number(newHdcForm.targetValue) * 0.8),
       results: {}
     };
     const updated = [...hdcKpis, newKpi];
@@ -199,7 +206,8 @@ export default function DashboardPage() {
       tableName: 's_ttm27',
       year: '2569',
       targetOperator: '>=',
-      targetValue: 80
+      targetValue: 80,
+      warningValue: 64
     });
     // Auto-fetch data from HDC right away!
     handleFetchHdcData(newKpi.id, newKpi);
@@ -930,30 +938,45 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          เครื่องหมายเป้าหมาย
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          เครื่องหมาย
                         </label>
                         <select
                           className="input-field"
                           value={newHdcForm.targetOperator}
                           onChange={(e) => setNewHdcForm({ ...newHdcForm, targetOperator: e.target.value })}
                         >
-                          <option value=">=">&gt;= (มากกว่าหรือเท่ากับ)</option>
-                          <option value="<=">&lt;= (น้อยกว่าหรือเท่ากับ)</option>
+                          <option value=">=">&gt;= (มากกว่า)</option>
+                          <option value="<=">&lt;= (น้อยกว่า)</option>
                         </select>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          ค่าเป้าหมาย (%)
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: '#16a34a' }}>
+                          ผ่านเกณฑ์ (เขียว %) *
                         </label>
                         <input
                           type="number"
                           className="input-field"
                           value={newHdcForm.targetValue}
-                          onChange={(e) => setNewHdcForm({ ...newHdcForm, targetValue: Number(e.target.value) })}
-                          placeholder="เช่น 80"
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setNewHdcForm({ ...newHdcForm, targetValue: val, warningValue: Math.round(val * 0.8) });
+                          }}
+                          placeholder="เช่น 75"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: '#ca8a04' }}>
+                          เฝ้าระวัง (เหลือง %)
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          value={newHdcForm.warningValue !== undefined ? newHdcForm.warningValue : Math.round(newHdcForm.targetValue * 0.8)}
+                          onChange={(e) => setNewHdcForm({ ...newHdcForm, warningValue: Number(e.target.value) })}
+                          placeholder="เช่น 60"
                         />
                       </div>
                     </div>
