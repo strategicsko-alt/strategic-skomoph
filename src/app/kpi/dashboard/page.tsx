@@ -262,7 +262,7 @@ export default function DashboardPage() {
       {activeTab === 'subdistrict' && (() => {
         // Filter health facilities to only primary care / subdistrict health centers
         const rpostFacilities = (healthFacilitiesData as any[]).filter(f => 
-          ('ส่งเสริมสุขภาพตำบล' in f.type || f.name.includes('สถานีอนามัย') || f.name.includes('รพ.สต.'))
+          (f.type?.includes('ส่งเสริมสุขภาพตำบล') || f.name?.includes('สถานีอนามัย') || f.name?.includes('รพ.สต.'))
         );
 
         // Filter by selected district and search keyword
