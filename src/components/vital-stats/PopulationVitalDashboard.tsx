@@ -109,7 +109,7 @@ export default function PopulationVitalDashboard() {
           }}
         >
           <Clock size={17} />
-          <span>อายุคาดเฉลี่ย (Life Expectancy: $e_0$)</span>
+          <span>อายุคาดเฉลี่ยและสุขภาวะ (LE: e₀ & HALE)</span>
         </button>
       </div>
 

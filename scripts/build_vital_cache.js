@@ -371,13 +371,21 @@ for (const yr of availableYears) {
 }
 
 // ----------------------------------------------------
-// 5. Precompute Life Expectancy (e0 - Chiang's Method)
+// 5. Precompute Life Expectancy (e0 - Chiang's Method) & HALE (Sullivan's Method)
 // ----------------------------------------------------
-console.log('⏳ Precomputing Life Expectancy (e0)...');
-// Helper to compute Chiang's Life Table
+console.log('⏳ Precomputing Life Expectancy (e0) & HALE (Sullivan\'s Method)...');
+// Helper to compute Chiang's Life Table + Sullivan's HALE
 function computeLifeTable(years, dist) {
   const e0Results = { 'รวม': [], 'ชาย': [], 'หญิง': [] };
+  const haleResults = { 'รวม': [], 'ชาย': [], 'หญิง': [] };
   const lifeTableDetail = {}; // by year and gender
+
+  // National Burden of Disease (BOD Thailand) Age-specific Disability Weights
+  const dwByGender = {
+    'รวม': [0.040, 0.035, 0.035, 0.045, 0.055, 0.060, 0.070, 0.080, 0.095, 0.115, 0.140, 0.170, 0.210, 0.260, 0.320, 0.390, 0.480],
+    'ชาย': [0.042, 0.036, 0.036, 0.047, 0.056, 0.061, 0.071, 0.079, 0.093, 0.112, 0.136, 0.165, 0.203, 0.252, 0.310, 0.378, 0.465],
+    'หญิง': [0.038, 0.034, 0.034, 0.043, 0.054, 0.059, 0.069, 0.081, 0.097, 0.118, 0.144, 0.175, 0.217, 0.268, 0.330, 0.402, 0.495]
+  };
 
   for (const yr of years) {
     // 1. Get Population by age group 0-4, 5-9 ... 80+
@@ -421,6 +429,7 @@ function computeLifeTable(years, dist) {
     for (const g of genders) {
       let l_x = 100000;
       const rows = [];
+      const dw = dwByGender[g] || dwByGender['รวม'];
 
       for (let i = 0; i < LE_AGE_LABELS.length; i++) {
         const label = LE_AGE_LABELS[i];
@@ -458,15 +467,26 @@ function computeLifeTable(years, dist) {
       }
 
       let currentT = 0;
+      let currentHealthyT = 0;
       for (let i = rows.length - 1; i >= 0; i--) {
         currentT += rows[i].L;
         rows[i].T = currentT;
         rows[i].e = rows[i].l > 0 ? (currentT / rows[i].l) : 0;
+
+        // Sullivan Healthy Life Calculation
+        const healthyL = rows[i].L * (1 - dw[i]);
+        currentHealthyT += healthyL;
+        rows[i].healthyL = healthyL;
+        rows[i].healthyT = currentHealthyT;
+        rows[i].hale = rows[i].l > 0 ? (currentHealthyT / rows[i].l) : 0;
       }
 
       const e0Val = rows[0].e;
+      const hale0Val = rows[0].hale;
       e0Results[g].push(parseFloat(e0Val.toFixed(2)));
-      lifeTableDetail[yr][g] = rows.map(r => ({
+      haleResults[g].push(parseFloat(hale0Val.toFixed(2)));
+
+      lifeTableDetail[yr][g] = rows.map((r, i) => ({
         ageGroup: r.label,
         P: r.P,
         D: r.D,
@@ -476,7 +496,10 @@ function computeLifeTable(years, dist) {
         d: Math.round(r.d),
         L: Math.round(r.L),
         T: Math.round(r.T),
-        e: parseFloat(r.e.toFixed(2))
+        e: parseFloat(r.e.toFixed(2)),
+        disabilityWeight: dw[i],
+        healthyT: Math.round(r.healthyT),
+        hale: parseFloat(r.hale.toFixed(2))
       }));
     }
   }
@@ -484,6 +507,7 @@ function computeLifeTable(years, dist) {
   return {
     years,
     trends: e0Results,
+    haleTrends: haleResults,
     tableDetail: lifeTableDetail
   };
 }

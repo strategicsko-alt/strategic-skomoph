@@ -22,6 +22,37 @@ const LINE_COLORS = [
   '#ec4899', '#14b8a6', '#f43f5e', '#6366f1', '#84cc16'
 ];
 
+const SinglePointTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length > 0) {
+    const item = payload[0];
+    if (!item || item.value === undefined || item.value === null) return null;
+    return (
+      <div style={{
+        background: 'rgba(15, 23, 42, 0.95)',
+        color: '#ffffff',
+        padding: '0.5rem 0.75rem',
+        borderRadius: '0.5rem',
+        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
+        fontSize: '0.8rem',
+        border: `1px solid ${item.color || '#475569'}`,
+        maxWidth: '320px',
+        pointerEvents: 'none'
+      }}>
+        <div style={{ color: '#94a3b8', fontSize: '0.72rem', marginBottom: '0.2rem' }}>
+          {label}
+        </div>
+        <div style={{ fontWeight: 600, color: item.color || '#38bdf8', marginBottom: '0.25rem', lineHeight: 1.35, wordBreak: 'break-word' }}>
+          {item.name}
+        </div>
+        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc' }}>
+          {Number(item.value).toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8' }}>ต่อแสนประชากร</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function DeathTab({ districts }: DeathTabProps) {
   const deathYears = vitalSummaryData.meta.deathYears || [2564, 2565, 2566, 2567, 2568];
   const deathAgeGroups = vitalSummaryData.meta.deathAgeGroups || [];
@@ -182,7 +213,7 @@ export default function DeathTab({ districts }: DeathTabProps) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="year" fontSize={11} stroke="#64748b" />
                 <YAxis fontSize={11} stroke="#64748b" tickFormatter={(v) => v.toLocaleString()} />
-                <Tooltip formatter={(v: any, name: any) => [`${Number(v).toFixed(2)} ต่อแสน`, name]} />
+                <Tooltip shared={false} content={<SinglePointTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                 {deathData.generalDatasets.map((ds: any, idx: number) => (
                   <Line
@@ -191,8 +222,8 @@ export default function DeathTab({ districts }: DeathTabProps) {
                     dataKey={ds.label}
                     stroke={LINE_COLORS[idx % LINE_COLORS.length]}
                     strokeWidth={2.5}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
+                    dot={{ r: 4, strokeWidth: 1 }}
+                    activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 2 }}
                   />
                 ))}
               </LineChart>
@@ -225,7 +256,7 @@ export default function DeathTab({ districts }: DeathTabProps) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="year" fontSize={11} stroke="#64748b" />
                 <YAxis fontSize={11} stroke="#64748b" tickFormatter={(v) => v.toLocaleString()} />
-                <Tooltip formatter={(v: any, name: any) => [`${Number(v).toFixed(2)} ต่อแสน`, name]} />
+                <Tooltip shared={false} content={<SinglePointTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                 {deathData.cancerDatasets.map((ds: any, idx: number) => (
                   <Line
@@ -234,8 +265,8 @@ export default function DeathTab({ districts }: DeathTabProps) {
                     dataKey={ds.label}
                     stroke={LINE_COLORS[(idx + 3) % LINE_COLORS.length]}
                     strokeWidth={2.5}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
+                    dot={{ r: 4, strokeWidth: 1 }}
+                    activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 2 }}
                   />
                 ))}
               </LineChart>
