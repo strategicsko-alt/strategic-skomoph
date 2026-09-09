@@ -112,6 +112,9 @@ graph TD
 | `key_result_tags` | ความสัมพันธ์ Many-to-Many ระหว่าง KR กับ Tag | `key_result_id`, `tag_id` |
 | `kpi_measurements` | ข้อมูลผลการวัดผลตัวชี้วัดรายไตรมาส/พื้นที่ | `id`, `key_result_id` (FK), `period` (`Q1`-`Q4`), `area_id` (`province` หรือ ชื่ออำเภอ), `values_json`, `result_value`, `updated_by` |
 | `action_plan_measurements` | แผนปฏิบัติการรายไตรมาสภายใต้ KR | `id`, `district_id`, `key_result_id`, `quarter` (1-4), `auto_id`, `kpi_name`, `target_value`, `order_index` |
+| `dopa_populations` | ข้อมูลสถิติประชากรรายอายุและสำนักทะเบียน (DOPA) | `id`, `year`, `office_name`, `district_name`, `age_label`, `age_num`, `male_thai`, `female_thai`, `male_foreign`, `female_foreign`, `male_total`, `female_total`, `grand_total` |
+| `dopa_deaths` | ข้อมูลสถิติสาเหตุการตายรายบุคคล (MOPH & DOPA) | `id`, `gender`, `age`, `age_group`, `death_date`, `death_month`, `death_year`, `district_id`, `district_name`, `ncause`, `is_cancer`, `death_group_code`, `cause_name` |
+| `dopa_births` | ข้อมูลสถิติการเกิดมีชีพรายบุคคล (DOPA) | `id`, `prov_code`, `district_code`, `district_name`, `gender`, `birth_year`, `birth_month`, `birth_date`, `nationality`, `birth_order`, `birth_weight`, `is_low_weight`, `mother_age`, `mother_age_group` |
 
 ---
 
@@ -282,6 +285,32 @@ graph TD
 - **การรองรับทิศทางตัวชี้วัด `<= (ยิ่งน้อยยิ่งดี)` และการตัดเกรดสีที่ถูกต้อง:** รองรับทั้งตัวชี้วัดแบบ `>=` (ยิ่งมากยิ่งดี) และ `<=` (เช่น ภาวะโลหิตจาง อัตราตาย ที่ยิ่งน้อยยิ่งดี) โดยสำหรับ `<=`: ผลงาน `<= เป้าหมาย` จะแสดงสีเขียว (ผ่านเกณฑ์), เกินเป้าหมายเล็กน้อยอยู่ในช่วงเฝ้าระวังจะแสดงสีเหลือง, และหากเกินเกณฑ์เฝ้าระวังจะแสดงสีแดง (ไม่ผ่านเกณฑ์) พร้อมคำอธิบายกำกับสีในโมดอล
 - **การจัดการหน่วยบริการที่ไม่มีกลุ่มเป้าหมาย (0/0 คน):** แสดงผลเป็นสถานะสีเทาอ่อน (`-`) แทนการแสดงสีแดงผิดพลาด เพื่อให้ถูกต้องตามหลักสถิติสาธารณสุข
 
+### 9. ระบบแดชบอร์ดสถิติประชากร เกิด สาเหตุการตาย และอายุคาดเฉลี่ย (Vital Statistics Dashboard)
+ในหน้า `/kpi/dashboard` มีแท็บ **"สถิติประชากร เกิด ตาย (Vital Statistics)"** ที่บูรณาการชุดข้อมูลสถิติชีพจากทะเบียนราษฎร์ (DOPA) และกองยุทธศาสตร์และแผนงาน สป.สธ. (กยผ.):
+1. **ข้อมูลสถิติประชากร (Population Demographics):**
+   - แสดงผลพีระมิดประชากร (Population Pyramid) ทั้งแบบกลุ่มอายุ 5 ปี (17 ช่วง) และแบบรายปี (0-100+ ปี)
+   - กราฟแนวโน้มประชากรย้อนหลัง 11 ปี (2558 - 2568) แยก ชาย หญิง รวม
+   - กรองข้อมูลตามอำเภอ (9 อำเภอ), สัญชาติ (ไทย / ไม่ใช่สัญชาติไทย), และปีงบประมาณ
+2. **ข้อมูลสถิติการเกิด (Birth Statistics):**
+   - ติดตามจำนวนเด็กเกิดมีชีพทั้งหมด และอัตราเกิดอย่างหยาบ (Crude Birth Rate per 1,000 pop)
+   - ตัวชี้วัดสำคัญทางอนามัยแม่และเด็ก: ทารกแรกเกิดน้ำหนักน้อยกว่า 2,500 กรัม, การตั้งครรภ์ในวัยรุ่น (มารดาอายุ < 20 ปี), และมารดาสูงวัย (≥ 35 ปี)
+   - กราฟแนวโน้มการเกิดรายปี (2564-2568) และเปรียบเทียบ 9 อำเภอ
+3. **ข้อมูลสถิติสาเหตุการตาย (Mortality & Cause of Death):**
+   - คำนวณอัตราตายต่อแสนประชากร (Mortality Rate per 100,000 pop) โดยนำประชากรตามปี/อำเภอ/เพศ/กลุ่มอายุมาเป็นตัวหารโดยอัตโนมัติ
+   - กราฟแนวโน้มสาเหตุการตายทั่วไป 10 อันดับแรก (โรคมะเร็งนับรวมกัน) และกราฟเจาะลึกเฉพาะกลุ่มโรคมะเร็ง (ICD-10 หมวด C)
+   - ตาราง Matrix สรุปจำนวนรายและอัตราต่อแสนประชากรรายปี (2564-2568)
+4. **อายุคาดเฉลี่ยเมื่อแรกเกิด (Life Expectancy: $e_0$):**
+   - ใช้วิธีคำนวณตารางชีพแบบย่อ **Chiang's Abridged Life Table Method** 17 ช่วงอายุ ($0-4, 5-9, ..., 80+$) โดยคำนวณ $M_x, q_x, l_x, d_x, L_x, T_x, e_x$ เพื่อหา $e_0$
+   - กราฟเส้นแนวโน้ม $e_0$ ย้อนหลังรายปี (2564-2568) แยก ชาย, หญิง, รวม
+   - ตารางชีพเชิงลึก (Abridged Life Table Viewer) สำหรับนักวิชาการสาธารณสุข
+5. **การอ้างอิงแหล่งที่มาของข้อมูล (Official Data Source Citations):**
+   - 🏛️ **ข้อมูลประชากรและการเกิด:** ข้อมูลทะเบียนราษฎร์ สำนักบริหารการทะเบียน กรมการปกครอง กระทรวงมหาดไทย (DOPA)
+   - 🏥 **ข้อมูลสาเหตุการตาย:** กองยุทธศาสตร์และแผนงาน สำนักงานปลัดกระทรวงสาธารณสุข (กยผ. สป.สธ.)
+6. **สถาปัตยกรรมฐานข้อมูลและแคชความเร็วสูง (Hybrid Architecture):**
+   - ไฟล์ Migration: `vital_statistics_schema.sql` สร้างตาราง `dopa_populations`, `dopa_deaths`, `dopa_births` พร้อม Index และ RLS
+   - สคริปต์ Seeding: `scripts/seed_vital_stats.js`
+   - สคริปต์ Fast-Cache: `scripts/build_vital_cache.js` สร้างไฟล์ `src/data/vital_stats_summary.json` โหลดหน้าแดชบอร์ดได้เร็ว 0 วินาที
+
 ---
 
 ## 10. แผนผังไฟล์และโค้ดของระบบ (Source Code Structure)
@@ -294,10 +323,11 @@ strategicsko/
 │   │   ├── api/
 │   │   │   ├── admin/users/route.ts      # API จัดการอนุมัติและเปลี่ยน Role ผู้ใช้
 │   │   │   ├── auth/login/route.ts       # API จัดการการเข้าสู่ระบบ
-│   │   │   └── generate-kpi/route.ts     # Gemini AI สำหรับสร้าง KPI Dictionary
+│   │   │   ├── generate-kpi/route.ts     # Gemini AI สำหรับสร้าง KPI Dictionary
+│   │   │   └── vital-stats/route.ts      # API บริการข้อมูลสถิติประชากร เกิด ตาย
 │   │   ├── editor/
 │   │   │   ├── action-plan/page.tsx      # แผนปฏิบัติการ 1 ปี (รายไตรมาส Q1-Q4)
-│   │   │   ├── admin/page.tsx            # สำรองและกู้คืนข้อมูล (Backup/Restore)
+│   │   │   ├── admin/page.tsx            # สำรองและกู้คืนข้อมูล และจัดการ Vital Stats DB
 │   │   │   ├── core-data/page.tsx        # จัดการ Vision, Mission, Goal, SWOT
 │   │   │   ├── dashboard/page.tsx        # สรุปสถิติและตรวจความสมบูรณ์ของแผน (QC)
 │   │   │   ├── kpi-dictionary/page.tsx   # พจนานุกรมตัวชี้วัดและปุ่ม AI Auto-fill
@@ -311,7 +341,7 @@ strategicsko/
 │   │   │   └── layout.tsx                # Layout หลักของ Editor Portal (Sidebar & Guard)
 │   │   ├── kpi/
 │   │   │   ├── [id]/page.tsx             # หน้ารายละเอียด KPI รายตัว (Public)
-│   │   │   ├── dashboard/page.tsx        # แดชบอร์ดติดตาม KPI เปรียบเทียบอำเภอ (Public)
+│   │   │   ├── dashboard/page.tsx        # แดชบอร์ดติดตาม KPI เปรียบเทียบอำเภอ + แท็บ Vital Stats
 │   │   │   └── layout.tsx                # Layout ของส่วน KPI
 │   │   ├── manual/page.tsx               # หน้าคู่มือการใช้งานระบบสำหรับผู้ใช้ (Public)
 │   │   ├── print-book/page.tsx           # หน้ารูปเล่มเอกสารสำหรับพิมพ์ / ส่งออก PDF
@@ -319,6 +349,12 @@ strategicsko/
 │   │   ├── layout.tsx                    # Root Layout (Noto Sans Thai & Geist Fonts)
 │   │   └── page.tsx                      # หน้าแรก (Public Strategic Roadmap & Bento Grid)
 │   ├── components/
+│   │   ├── vital-stats/                  # ชุดคอมโพเนนต์สถิติชีพ (ประชากร, เกิด, ตาย, e0)
+│   │   │   ├── PopulationVitalDashboard.tsx
+│   │   │   ├── PopulationTab.tsx
+│   │   │   ├── BirthTab.tsx
+│   │   │   ├── DeathTab.tsx
+│   │   │   └── LifeExpectancyTab.tsx
 │   │   ├── CollapsibleSection.tsx        # กล่องยุทธศาสตร์แบบพับ/ขยายได้
 │   │   ├── DistrictSelector.tsx          # ตัวเลือกสลับอำเภอ (Dropdown)
 │   │   ├── EditorContext.tsx             # React Context จัดการ Session & Profile
@@ -327,6 +363,11 @@ strategicsko/
 │   │   ├── Modal.tsx                     # Popup Modal มาตรฐาน
 │   │   ├── QuarterlyPlanTable.tsx        # ตารางแผนปฏิบัติการรายไตรมาส Q1-Q4
 │   │   └── RealtimeRefresher.tsx         # Realtime listener สำหรับรีเฟรชหน้าหลัก
+│   ├── data/
+│   │   ├── vital_stats_summary.json      # ชุดข้อมูลสรุปสถิติชีพ Fast-cache (ประชากร, เกิด, ตาย, e0)
+│   │   ├── sa_kaeo_health_facilities.json
+│   │   ├── real_anc5_2569.json
+│   │   └── real_anc12_2569.json
 │   ├── lib/
 │   │   └── supabase.ts                   # Supabase Browser Client Singleton
 │   ├── utils/supabase/
@@ -335,6 +376,10 @@ strategicsko/
 │   │   ├── middleware.ts                 # Next.js Middleware อัปเดต Cookie & Route Guards
 │   │   └── server.ts                     # Supabase Server Client creation helper
 │   └── middleware.ts                     # Next.js Middleware matcher entrypoint
+├── scripts/
+│   ├── build_vital_cache.js              # สคริปต์สกัดและประมวลผลข้อมูล Fast-cache
+│   └── seed_vital_stats.js               # สคริปต์นำเข้าข้อมูลดิบเข้าสู่ Supabase
+├── vital_statistics_schema.sql           # SQL Migration สำหรับตาราง dopa_populations, deaths, births
 ├── kpi_final_migration.sql               # SQL Schema ล่าสุดสำหรับตาราง KPI และ Tag
 ├── supabase_district_upgrade.sql         # SQL สำหรับ District Scoping ใน Action Plan
 ├── fix_rls.sql                           # SQL ป้องกัน Recursion ใน RLS Policies

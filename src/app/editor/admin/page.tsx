@@ -225,6 +225,53 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+
+        {/* Vital Statistics Database Management Section */}
+        <div className="card" style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid #0284c7' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#0284c7' }}>
+              <CheckCircle size={24} />
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>ฐานข้อมูลสถิติประชากร เกิด ตาย (Vital Statistics Database)</h2>
+                <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>
+                  ระบบบูรณาการฐานข้อมูลสถิติประชากร การเกิด และสาเหตุการตาย สสจ.สระแก้ว
+                </p>
+              </div>
+            </div>
+            <a
+              href="/kpi/dashboard"
+              className="btn-primary"
+              style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+            >
+              📊 ไปยังแดชบอร์ดสถิติชีพ
+            </a>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>ตาราง dopa_populations</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#0284c7', marginTop: '0.25rem' }}>20,394 เรคคอร์ด</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>ปี 2558 - 2568 (18 ทะเบียน 9 อำเภอ)</div>
+            </div>
+            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>ตาราง dopa_deaths</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#ef4444', marginTop: '0.25rem' }}>20,896 เรคคอร์ด</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>ปี 2564 - 2568 (ICD-10 & มะเร็ง)</div>
+            </div>
+            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>ตาราง dopa_births</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#10b981', marginTop: '0.25rem' }}>19,667 เรคคอร์ด</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>ปี 2564 - 2568 (น้ำหนัก & อายุมารดา)</div>
+            </div>
+          </div>
+
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.5rem', padding: '0.85rem 1rem', fontSize: '0.825rem', color: '#1e40af' }}>
+            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>💡 การจัดการข้อมูลดิบผ่านคำสั่ง Command Line / SQL:</div>
+            <div>• ไฟล์ Migration: <code>vital_statistics_schema.sql</code> (สำหรับสร้างตาราง Index และ RLS ใน Supabase SQL Editor)</div>
+            <div style={{ marginTop: '0.2rem' }}>• คำสั่ง Seeding นำเข้าข้อมูล: <code>node scripts/seed_vital_stats.js</code></div>
+            <div style={{ marginTop: '0.2rem' }}>• คำสั่งประมวลผล Fast Cache: <code>node scripts/build_vital_cache.js</code></div>
+          </div>
+        </div>
       </div>
     </div>
   );

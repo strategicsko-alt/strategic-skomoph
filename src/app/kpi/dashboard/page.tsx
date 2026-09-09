@@ -6,6 +6,7 @@ import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveCo
 import healthFacilitiesData from '@/data/sa_kaeo_health_facilities.json';
 import realAnc5Data from '@/data/real_anc5_2569.json';
 import realAnc12Data from '@/data/real_anc12_2569.json';
+import PopulationVitalDashboard from '@/components/vital-stats/PopulationVitalDashboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,7 +101,7 @@ export const HDC_CATEGORIES: Record<string, string[]> = {
 };
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<'detail' | 'executive' | 'subdistrict'>('detail');
+  const [activeTab, setActiveTab] = useState<'detail' | 'executive' | 'subdistrict' | 'vital'>('detail');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [search, setSearch] = useState('');
@@ -940,9 +941,9 @@ export default function DashboardPage() {
     <div style={{ 
       display: 'flex', 
       flexDirection: 'column', 
-      gap: activeTab === 'subdistrict' ? '0.75rem' : '1.5rem', 
-      height: isSubdistrictFullscreen ? '100vh' : (activeTab === 'subdistrict' ? 'auto' : 'calc(100vh - 100px)'),
-      minHeight: activeTab === 'subdistrict' && !isSubdistrictFullscreen ? 'calc(100vh - 80px)' : undefined
+      gap: (activeTab === 'subdistrict' || activeTab === 'vital') ? '0.75rem' : '1.5rem', 
+      height: isSubdistrictFullscreen ? '100vh' : (activeTab === 'subdistrict' || activeTab === 'vital' ? 'auto' : 'calc(100vh - 100px)'),
+      minHeight: (activeTab === 'subdistrict' || activeTab === 'vital') && !isSubdistrictFullscreen ? 'calc(100vh - 80px)' : undefined
     }}>
       {/* Top Header & Tabs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -958,10 +959,13 @@ export default function DashboardPage() {
             <button onClick={() => setActiveTab('subdistrict')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'subdistrict' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'subdistrict' ? 700 : 500, color: activeTab === 'subdistrict' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
               ระดับ รพ.สต. (HDC Open Data)
             </button>
+            <button onClick={() => setActiveTab('vital')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'vital' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'vital' ? 700 : 500, color: activeTab === 'vital' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+              สถิติประชากร เกิด ตาย (Vital Statistics)
+            </button>
           </div>
         </div>
         
-        {activeTab !== 'subdistrict' ? (
+        {activeTab !== 'subdistrict' && activeTab !== 'vital' ? (
           <div style={{ display: 'flex', gap: '1rem' }}>
             <select className="input-field" style={{ width: '220px' }} value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="">-- ทุกหมวดหมู่ --</option>
@@ -2611,6 +2615,10 @@ export default function DashboardPage() {
           </div>
         );
       })()}
+
+      {activeTab === 'vital' && (
+        <PopulationVitalDashboard />
+      )}
 
       {activeTab === 'detail' && (
         <div style={{ display: 'flex', gap: '1.5rem', flex: 1, minHeight: 0 }}>
