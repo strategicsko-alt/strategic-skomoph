@@ -6,7 +6,7 @@ import {
   ArrowLeft, BookOpen, MapPin, ShieldCheck, Target, Activity, 
   Sparkles, BarChart2, Download, Printer, Database, Settings, 
   HelpCircle, Search, Layers, RefreshCw, AlertTriangle, ArrowRight, 
-  Calendar, FileText, Lock, Sliders, X, Eye
+  Calendar, FileText, Lock, Sliders, X, Eye, ExternalLink
 } from 'lucide-react';
 
 interface ManualSection {
@@ -287,6 +287,191 @@ export default function ManualPage() {
     {
       id: 'section-5',
       number: '5',
+      title: 'การติดตามตัวชี้วัดระดับ รพ.สต. และการเชื่อมต่อ HDC Open Data (HDC Sub-district Monitoring)',
+      category: 'kpi',
+      icon: Database,
+      summary: 'การติดตามผลงาน รพ.สต. 108 แห่ง การดึงข้อมูลสดผ่าน API จาก opendata.moph.go.th และลิงก์ไปยังคลังข้อมูล HDC',
+      keywords: ['hdc', 'รพ.สต', 'รพสต', 'open data', 'opendata', 'ตาราง hdc', 'ดึงข้อมูล', 'anc', 'ซิงค์', 'สระแก้ว', '108', 'หมวดหมู่'],
+      content: (
+        <div>
+          <p>
+            ระบบ Strategic SKO มีระบบติดตามตัวชี้วัดบริการสุขภาพระดับปฐมภูมิ 
+            <strong> ครอบคลุมโรงพยาบาลส่งเสริมสุขภาพตำบล (รพ.สต.) ทั้ง 108 แห่งใน 9 อำเภอของจังหวัดสระแก้ว</strong> 
+            โดยเชื่อมโยงผลงานจริงแบบเรียลไทม์ผ่าน <strong>HDC Open Data API Web Service</strong> ของกระทรวงสาธารณสุข
+          </p>
+
+          {/* Quick Access Action Buttons / Links */}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', margin: '1rem 0 1.25rem' }}>
+            <a 
+              href="https://opendata.moph.go.th/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn-primary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                backgroundColor: '#0284c7',
+                color: 'white',
+                padding: '0.6rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+                boxShadow: 'var(--shadow-sm)'
+              }}
+            >
+              <ExternalLink size={16} /> ไปยัง MOPH HDC Open Data Portal
+            </a>
+            <a 
+              href="https://sko.hdc.moph.go.th/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                backgroundColor: 'white',
+                color: '#0284c7',
+                border: '1px solid #0284c7',
+                padding: '0.6rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+                boxShadow: 'var(--shadow-sm)'
+              }}
+            >
+              <ExternalLink size={16} /> ไปยัง HDC สสจ.สระแก้ว (sko.hdc.moph.go.th)
+            </a>
+            <Link 
+              href="/kpi/dashboard" 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                backgroundColor: '#f0fdf4',
+                color: '#166534',
+                border: '1px solid #bbf7d0',
+                padding: '0.6rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                textDecoration: 'none'
+              }}
+            >
+              <BarChart2 size={16} /> เปิดแท็บ &ldquo;ระดับ รพ.สต.&rdquo; ในแดชบอร์ด
+            </Link>
+          </div>
+
+          <div className="info-box">
+            <h4 style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <Database size={18} /> วิธีการเข้าใช้งานแท็บระดับ รพ.สต.:
+            </h4>
+            <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem', lineHeight: 1.7 }}>
+              <li>ไปที่หน้า <Link href="/kpi/dashboard" style={{ color: 'var(--primary)', fontWeight: 600 }}>แดชบอร์ดตัวชี้วัด (/kpi/dashboard)</Link></li>
+              <li>คลิกที่แท็บ <strong>&ldquo;ระดับ รพ.สต. (HDC Open Data)&rdquo;</strong> ที่แถบแท็บด้านบน</li>
+              <li>จะพบตารางเมทริกซ์ขนาดใหญ่ โดย <strong>แถวคือรายชื่อ รพ.สต. ทั้ง 108 แห่งแยกตามอำเภอ</strong> และ <strong>คอลัมน์คือตัวชี้วัด HDC แต่ละตัว</strong></li>
+              <li>สีในแต่ละช่องจะสะท้อนผลงานจริงทันที: 🟢 สีเขียว (ผ่านเกณฑ์), 🟡 สีเหลือง (เฝ้าระวัง), 🔴 สีแดง (ไม่ผ่านเกณฑ์), ⚪ สีเทา (รอผลงาน)</li>
+            </ol>
+          </div>
+
+          <h4 style={{ fontWeight: 700, color: 'var(--foreground)', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+            1. วิธีหาชื่อตาราง (Table Name) จาก HDC Open Data เพื่อนำมาดึงข้อมูล:
+          </h4>
+          <div className="feature-box" style={{ lineHeight: 1.7 }}>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
+              ผู้ใช้งานสามารถค้นหาชื่อตาราง API ได้อย่างง่ายดายจากเว็บไซต์ <a href="https://opendata.moph.go.th/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'underline' }}>opendata.moph.go.th</a>:
+            </p>
+            <ol style={{ paddingLeft: '1.25rem', margin: 0, fontSize: '0.875rem' }}>
+              <li>เปิดเว็บไซต์ <a href="https://opendata.moph.go.th/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>https://opendata.moph.go.th/</a></li>
+              <li>เลือกเมนู <strong>&ldquo;ชุดข้อมูล (Datasets)&rdquo;</strong> หรือพิมพ์คำค้นหาที่ต้องการ เช่น <em>ฝากครรภ์, วัคซีน, คัดกรองเบาหวาน, ความดัน, โลหิตจาง, พัฒนาการเด็ก, แพทย์แผนไทย</em></li>
+              <li>เมื่อคลิกเข้าไปในชุดข้อมูล ให้สังเกตช่อง <strong>&ldquo;ชื่อตาราง (Table Name)&rdquo;</strong> เช่น <code>s_anc5</code>, <code>s_kpi_anc12</code>, <code>s_labor_hct</code>, <code>s_dm</code>, <code>s_ht</code>, <code>s_ttm27</code></li>
+              <li>คัดลอกชื่อตารางดังกล่าวมาใช้เพิ่มในระบบ Strategic SKO</li>
+            </ol>
+          </div>
+
+          <h4 style={{ fontWeight: 700, color: 'var(--foreground)', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+            2. ขั้นตอนการเพิ่มตัวชี้วัด HDC ใหม่ (+ เพิ่มตัวชี้วัด):
+          </h4>
+          <ol style={{ paddingLeft: '1.25rem', lineHeight: '1.8', fontSize: '0.9rem' }}>
+            <li>ที่หัวตาราง HDC ในแท็บระดับ รพ.สต. ให้คลิกปุ่ม <strong>&ldquo;+ เพิ่ม&rdquo;</strong> (มุมขวาบนของตาราง)</li>
+            <li>กรอก <strong>รหัสตัวชี้วัด</strong> (เช่น <code>HDC-03</code>) และ <strong>ชื่อตัวชี้วัด</strong> (เช่น ร้อยละหญิงตั้งครรภ์มีภาวะซีด)</li>
+            <li>กรอก <strong>ชื่อตาราง HDC (Table Name)</strong> (เช่น <code>s_labor_hct</code>) และ <strong>ปีงบประมาณ</strong> (เช่น <code>2569</code> หรือ <code>2570</code>)</li>
+            <li>
+              <strong>🌟 ฟังก์ชันเด่น - กดปุ่ม &ldquo;🔍 ตรวจสอบโครงสร้างตาราง (Inspect Table Schema)&rdquo;:</strong> 
+              ระบบจะยิง API ตรงไปทดสอบที่ HDC Open Data แล้วนำรายชื่อคอลัมน์จริงทั้งหมดมาแสดงให้ท่านเลือก พร้อมตัวอย่างข้อมูล 1 แถวทันที!
+            </li>
+            <li>
+              เลือก <strong>คอลัมน์ผลงาน (Result Column)</strong> เช่น <code>result</code> หรือ <code>result2</code> และ 
+              <strong>คอลัมน์เป้าหมาย (Target Column)</strong> เช่น <code>target</code>
+            </li>
+            <li>
+              เลือก <strong>ตัวดำเนินการเปรียบเทียบ</strong>:
+              <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
+                <li><code>&gt;=</code> (มากกว่าหรือเท่ากับ): เช่น การได้รับวัคซีน, การตรวจคัดกรอง (ยิ่งสูงยิ่งดี)</li>
+                <li><code>&lt;=</code> (น้อยกว่าหรือเท่ากับ): เช่น ภาวะซีดในหญิงตั้งครรภ์, อัตราการป่วย (ยิ่งต่ำยิ่งดี)</li>
+              </ul>
+            </li>
+            <li>กำหนด <strong>ค่าเป้าหมาย (Target %)</strong> และ <strong>ค่าเกณฑ์เตือนภัย (Warning %)</strong></li>
+            <li>เลือก <strong>หมวดหมู่หลัก</strong> (เช่น ส่งเสริมป้องกัน, การเข้าถึงบริการ, ฟื้นฟู) และ <strong>หมวดหมู่ย่อย</strong> (เช่น อนามัยแม่และเด็ก, โรคไม่ติดต่อ, แพทย์แผนไทย)</li>
+            <li>กดปุ่ม <strong>&ldquo;บันทึกตัวชี้วัด&rdquo;</strong> ตัวชี้วัดจะถูกเพิ่มเป็นคอลัมน์ใหม่ในตารางทันที</li>
+          </ol>
+
+          <h4 style={{ fontWeight: 700, color: 'var(--foreground)', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+            3. การดึงผลงานสดและการซิงค์ข้อมูล (Live Sync & Auto Sync):
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            <div className="feature-box">
+              <strong style={{ color: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <RefreshCw size={16} /> ซิงค์รายตัวชี้วัด (Single Sync)
+              </strong>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                ที่หัวคอลัมน์ของตัวชี้วัดใดๆ จะมีปุ่ม <strong>&ldquo;🔄 ดึง HDC&rdquo;</strong> 
+                กดเพื่อดึงผลงานสดของทั้ง 108 รพ.สต. เฉพาะตัวชี้วัดนั้นได้ทันใจใน 2-3 วินาที
+              </p>
+            </div>
+            <div className="feature-box">
+              <strong style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <RefreshCw size={16} /> ซิงค์ทุกตัวชี้วัด (Sync All)
+              </strong>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                กดปุ่ม <strong>&ldquo;🔄 ซิงค์ทุกตัวชี้วัด&rdquo;</strong> ที่แถบด้านบนขวา 
+                ระบบจะวนดึงข้อมูลจาก HDC Open Data ครบทุกคอลัมน์ให้โดยอัตโนมัติ
+              </p>
+            </div>
+            <div className="feature-box">
+              <strong style={{ color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Calendar size={16} /> ระบบตั้งเวลาซิงค์รายวัน (Daily Auto-Sync)
+              </strong>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                สามารถกำหนดเวลาซิงค์ประจำวันได้ เช่น <strong>08:00 น.</strong> 
+                เมื่อมีผู้เปิดหน้านี้ในแต่ละวัน ระบบจะตรวจสอบและดึงผลงานอัปเดตให้อัตโนมัติวันละ 1 ครั้ง
+              </p>
+            </div>
+          </div>
+
+          <h4 style={{ fontWeight: 700, color: 'var(--foreground)', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+            4. ตัวกรองและการแสดงผล (Filters & View Modes):
+          </h4>
+          <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.8', fontSize: '0.9rem' }}>
+            <li><strong>ตัวกรองอำเภอ:</strong> เลือกดูเฉพาะอำเภอ เช่น อ.เมืองสระแก้ว (16 รพ.สต.), อ.อรัญประเทศ (16 รพ.สต.), อ.คลองหาด (10 รพ.สต.) หรือดูทั้ง 9 อำเภอ</li>
+            <li><strong>ตัวกรองหมวดหมู่:</strong> เลือกกรองเฉพาะตัวชี้วัดในหมวดหมู่ที่ต้องการ เช่น ส่งเสริมป้องกัน &gt; อนามัยแม่และเด็ก</li>
+            <li><strong>ค้นหา รพ.สต.:</strong> พิมพ์ชื่อ รพ.สต. หรือ รหัส 5 หลัก เพื่อกระโดดไปยังแถวนั้นทันที</li>
+            <li><strong>⛶ โหมดเต็มจอ (Fullscreen):</strong> กดปุ่มขยายเต็มจอเพื่อแสดงตารางแบบไร้สิ่งรบกวน เหมาะสำหรับเปิดจอ War Room มอนิเตอร์ในห้องประชุม</li>
+          </ul>
+
+          <div className="tip-box" style={{ marginTop: '1rem' }}>
+            <strong>💡 รหัสสถานพยาบาล (5 หลัก และ 9 หลัก):</strong> 
+            ในตารางระบบจะแสดงรหัส 5 หลักของ รพ.สต. ซึ่งเป็นรหัสมาตรฐานที่ใช้จับคู่กับข้อมูลรายงานใน HDC 
+            ทำให้มั่นใจได้ว่าข้อมูลถูกต้องตรงตามหน่วยบริการ 100%
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'section-6',
+      number: '6',
       title: 'เวิร์กช็อปจัดทำแผนยุทธศาสตร์ 5 ปี (Strategic Workshop)',
       category: 'user',
       icon: Activity,
@@ -350,8 +535,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-6',
-      number: '6',
+      id: 'section-7',
+      number: '7',
       title: 'ระบบอัจฉริยะ Auto-Renumbering และการย้ายข้อมูล (Smart Workshop Features)',
       category: 'user',
       icon: RefreshCw,
@@ -400,8 +585,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-7',
-      number: '7',
+      id: 'section-8',
+      number: '8',
       title: 'พจนานุกรมตัวชี้วัดและการใช้ AI ช่วยสร้าง (KPI Dictionary & Gemini AI ✨)',
       category: 'kpi',
       icon: Sparkles,
@@ -438,8 +623,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-8',
-      number: '8',
+      id: 'section-9',
+      number: '9',
       title: 'การตั้งค่าสูตรและสร้างตัวชี้วัด (KPI Template Builder)',
       category: 'kpi',
       icon: Settings,
@@ -495,8 +680,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-9',
-      number: '9',
+      id: 'section-10',
+      number: '10',
       title: 'การบันทึกผลการดำเนินงานตัวชี้วัด (KPI Quarterly Reporting)',
       category: 'kpi',
       icon: FileText,
@@ -525,8 +710,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-10',
-      number: '10',
+      id: 'section-11',
+      number: '11',
       title: 'แผนปฏิบัติการ 1 ปี (Action Plan รายไตรมาส)',
       category: 'user',
       icon: Calendar,
@@ -566,8 +751,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-11',
-      number: '11',
+      id: 'section-12',
+      number: '12',
       title: 'การพิมพ์เล่มรายงานทางการ (Print Book) และการส่งออก Excel',
       category: 'general',
       icon: Printer,
@@ -608,8 +793,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-12',
-      number: '12',
+      id: 'section-13',
+      number: '13',
       title: 'การจัดการข้อมูลองค์กร (Core Data) และตรวจสอบคุณภาพแผน (QC Dashboard)',
       category: 'admin',
       icon: Layers,
@@ -643,8 +828,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-13',
-      number: '13',
+      id: 'section-14',
+      number: '14',
       title: 'การสำรองและกู้คืนฐานข้อมูล (Backup & Disaster Recovery)',
       category: 'admin',
       icon: Database,
@@ -688,8 +873,8 @@ export default function ManualPage() {
       )
     },
     {
-      id: 'section-14',
-      number: '14',
+      id: 'section-15',
+      number: '15',
       title: 'คำถามที่พบบ่อยและการแก้ไขปัญหา (FAQ & Troubleshooting)',
       category: 'faq',
       icon: HelpCircle,

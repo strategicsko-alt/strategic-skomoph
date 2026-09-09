@@ -345,7 +345,7 @@ strategicsko/
 │   │   │   ├── [id]/page.tsx             # หน้ารายละเอียด KPI รายตัว (Public)
 │   │   │   ├── dashboard/page.tsx        # แดชบอร์ดติดตาม KPI เปรียบเทียบอำเภอ + แท็บ Vital Stats
 │   │   │   └── layout.tsx                # Layout ของส่วน KPI
-│   │   ├── manual/page.tsx               # หน้าคู่มือการใช้งานระบบแบบละเอียด (14 หมวดหมู่ พร้อมระบบค้นหา & กรอง)
+│   │   ├── manual/page.tsx               # หน้าคู่มือการใช้งานระบบแบบละเอียด (15 หมวดหมู่ พร้อมระบบค้นหา & กรอง และคู่มือ HDC รพ.สต.)
 │   │   ├── print-book/page.tsx           # หน้ารูปเล่มเอกสารสำหรับพิมพ์ / ส่งออก PDF
 │   │   ├── globals.css                   # Global CSS, Theme Variables, Bento Grid
 │   │   ├── layout.tsx                    # Root Layout (Noto Sans Thai & Geist Fonts)
