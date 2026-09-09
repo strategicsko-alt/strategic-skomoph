@@ -5,6 +5,7 @@ import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveCo
 
 import healthFacilitiesData from '@/data/sa_kaeo_health_facilities.json';
 import realAnc5Data from '@/data/real_anc5_2569.json';
+import realAnc12Data from '@/data/real_anc12_2569.json';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,11 +72,22 @@ export default function DashboardPage() {
       targetValue: 75,
       warningValue: 60,
       results: realAnc5Data as Record<string, any>
+    },
+    {
+      id: 'hdc-anc12',
+      code: 'HDC-02',
+      name: 'ร้อยละหญิงตั้งครรภ์ได้รับการฝากครรภ์ครั้งแรกก่อนหรือเท่ากับ 12 สัปดาห์',
+      tableName: 's_kpi_anc12',
+      year: '2569',
+      targetOperator: '>=',
+      targetValue: 75,
+      warningValue: 60,
+      results: realAnc12Data as Record<string, any>
     }
   ]);
 
   const [newHdcForm, setNewHdcForm] = useState({
-    code: 'HDC-02',
+    code: 'HDC-03',
     name: '',
     tableName: 's_ttm27',
     year: '2569',
@@ -92,6 +104,21 @@ export default function DashboardPage() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          // Ensure HDC-02 (s_kpi_anc12) is available
+          const hasAnc12 = parsed.some((k: any) => k.tableName === 's_kpi_anc12');
+          if (!hasAnc12) {
+            parsed.push({
+              id: 'hdc-anc12',
+              code: 'HDC-02',
+              name: 'ร้อยละหญิงตั้งครรภ์ได้รับการฝากครรภ์ครั้งแรกก่อนหรือเท่ากับ 12 สัปดาห์',
+              tableName: 's_kpi_anc12',
+              year: '2569',
+              targetOperator: '>=',
+              targetValue: 75,
+              warningValue: 60,
+              results: realAnc12Data as Record<string, any>
+            });
+          }
           setHdcKpis(parsed);
         }
       }
@@ -103,24 +130,73 @@ export default function DashboardPage() {
     if (!targetKpi) return;
     setFetchingHdcId(kpiId);
     try {
-      const res = await fetch('/api/hdc/report-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tableName: targetKpi.tableName,
-          year: targetKpi.year,
-          province: '27'
-        })
-      });
-      const result = await res.json();
+      let result: any = null;
+      let fetchSuccess = false;
+
+      // 1. Direct browser fetch (Thai residential/commercial IP, avoids Cloudflare US datacenter IP block)
+      try {
+        const directRes = await fetch('https://opendata.moph.go.th/api/report_data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tableName: targetKpi.tableName,
+            year: String(targetKpi.year),
+            province: '27',
+            type: 'json'
+          })
+        });
+
+        if (directRes.status === 429) {
+          throw new Error('HDC_RATE_LIMIT');
+        }
+
+        if (directRes.ok) {
+          result = await directRes.json();
+          fetchSuccess = true;
+        }
+      } catch (directErr: any) {
+        if (directErr.message === 'HDC_RATE_LIMIT') {
+          throw new Error('ระบบ HDC Open Data มีการจำกัดความถี่ในการเชื่อมต่อ (ไม่เกิน 10 ครั้ง/นาที)\nกรุณารอสักครู่ (ประมาณ 30-60 วินาที) แล้วลองกดดึงข้อมูลใหม่อีกครั้ง');
+        }
+        console.warn('Direct client HDC fetch failed, falling back to server proxy...', directErr);
+      }
+
+      // 2. Fallback to server proxy if direct fetch was blocked by network/browser
+      if (!fetchSuccess) {
+        const res = await fetch('/api/hdc/report-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tableName: targetKpi.tableName,
+            year: targetKpi.year,
+            province: '27'
+          })
+        });
+
+        if (res.status === 429) {
+          throw new Error('ระบบ HDC Open Data มีการจำกัดความถี่ในการเชื่อมต่อ (ไม่เกิน 10 ครั้ง/นาที)\nกรุณารอสักครู่ (ประมาณ 30-60 วินาที) แล้วลองกดดึงข้อมูลใหม่อีกครั้ง');
+        }
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.error || `เซิร์ฟเวอร์ตอบกลับสถานะ ${res.status}`);
+        }
+        result = await res.json();
+      }
+
       if (result && Array.isArray(result.data)) {
+        if (result.data.length === 0) {
+          alert(`เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลในตาราง "${targetKpi.tableName}" ของจังหวัดสระแก้ว ประจำปี ${targetKpi.year}`);
+          return;
+        }
+
         // Aggregate records by hospcode
         const byHosp: Record<string, { target: number; result: number }> = {};
         result.data.forEach((row: any) => {
           const hc = String(row.hospcode).padStart(5, '0');
           if (!byHosp[hc]) byHosp[hc] = { target: 0, result: 0 };
 
-          if (row.target !== undefined && row.result !== undefined) {
+          if (row.target !== undefined && row.result !== undefined && row.target !== null && row.result !== null) {
             byHosp[hc].target += Number(row.target) || 0;
             byHosp[hc].result += Number(row.result) || 0;
           } else if (row.op_service_pt_q1 !== undefined && row.tm_service_pt_q1 !== undefined) {
@@ -164,10 +240,10 @@ export default function DashboardPage() {
         });
         alert(`✅ ดึงข้อมูลสดจาก HDC Open Data สำเร็จ!\nตาราง: ${targetKpi.tableName} (ปี ${targetKpi.year})\nพบข้อมูลหน่วยบริการ: ${Object.keys(newResults).length} แห่ง`);
       } else {
-        alert('เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลของตาราง ' + targetKpi.tableName);
+        alert(`ไม่สามารถดึงข้อมูลจาก HDC ได้\n${result?.message || result?.error || 'กรุณาลองใหม่อีกครั้ง'}`);
       }
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ HDC: ' + err.message);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ HDC:\n' + err.message);
     } finally {
       setFetchingHdcId(null);
     }

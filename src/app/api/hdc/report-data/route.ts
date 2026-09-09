@@ -20,8 +20,14 @@ export async function POST(req: Request) {
     });
 
     if (!response.ok) {
+      const errText = await response.text();
+      let errMsg = `HDC Open Data returned status ${response.status}`;
+      try {
+        const json = JSON.parse(errText);
+        if (json.message) errMsg = json.message;
+      } catch (e) {}
       return NextResponse.json(
-        { error: `HDC Open Data returned status ${response.status}` },
+        { error: errMsg, status: response.status },
         { status: response.status }
       );
     }
