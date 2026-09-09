@@ -34,6 +34,71 @@ const WORK_GROUPS = [
   "การแพทย์แผนไทยและการแพทย์ทางเลือก"
 ];
 
+// HDC Taxonomy (Major Category & Subcategory)
+export const HDC_CATEGORIES: Record<string, string[]> = {
+  "การเข้าถึงบริการ": [
+    "CMI",
+    "การบำบัดรักษาและฟื้นฟูผู้ติดยาเสพติด จากระบบ(บสต.)",
+    "การเข้าถึงระบบบริการสุขภาพจิต",
+    "การใช้บริการสาธารณสุข",
+    "ต่างด้าว",
+    "ทันตกรรม(บริการ)",
+    "สุขภาพประชากรข้ามชาติ",
+    "เภสัชกรรม",
+    "แพทย์แผนจีน",
+    "แพทย์แผนไทย",
+    "โรคจากการประกอบอาชีพและสิ่งแวดล้อมแรงงานต่างด้าว",
+    "โรคมาลาเรีย"
+  ],
+  "ข้อมูลตอบสนอง service plan": [
+    "ข้อมูลเพื่อตอบสนอง Service Plan 4 สาขาหลัก",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขา Intermediate & Palliative Care",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขา RDU",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขากัญชา",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาตา",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาทารกแรกเกิด",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขามะเร็ง",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขายาเสพติด",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาสุขภาพจิตและจิตเวช",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาสุขภาพช่องปาก",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาออร์โธปิดิกส์",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาอายุรกรรม",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาแม่และเด็ก",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาโรคปอดอุดกั้นเรื้อรัง(COPD)",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาโรคหัวใจ และหลอดเลือด",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาโรคไม่ติดต่อ (NCD DM,HT,CVD)",
+    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาไต"
+  ],
+  "ข้อมูลทั่วไป": [
+    "ข้อมูลพื้นฐานและสรุปผู้รับบริการ",
+    "ความครอบคลุมการมีหลักประกันสุขภาพโดยรัฐ",
+    "จำนวนหน่วยงานสาธารณสุข",
+    "บุคลากรสาธารณสุข",
+    "ประชากร",
+    "โรงเรียนและนักเรียน"
+  ],
+  "ส่งเสริมป้องกัน": [
+    "การคัดกรอง",
+    "การสร้างเสริมภูมิคุ้มกันโรค",
+    "การเฝ้าระวัง",
+    "การเฝ้าระวังด้านส่งเสริมสุขภาพและอนามัยสิ่งแวดล้อม",
+    "งานโภชนาการ",
+    "ส่งเสริมและป้องกันปัญหาสุขภาพจิต",
+    "อนามัยแม่และเด็ก",
+    "อนามัยโรงเรียน"
+  ],
+  "สถานะสุขภาพ": [
+    "กลุ่มพระภิกษุ-สามเณร",
+    "การป่วยด้วยโรคจากมลพิษทางอากาศ",
+    "การป่วยด้วยโรคติดต่อที่สำคัญ",
+    "การป่วยด้วยโรคไม่ติดต่อที่สำคัญ",
+    "การรายงานโรคตามพรบ.โรคติดต่อ พ.ศ. 2558",
+    "งานวัณโรค",
+    "สาเหตุการป่วย/ตาย",
+    "โรคจากการประกอบอาชีพและสิ่งแวดล้อม"
+  ]
+};
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'detail' | 'executive' | 'subdistrict'>('detail');
   const [filterGroup, setFilterGroup] = useState('');
@@ -50,6 +115,10 @@ export default function DashboardPage() {
   const [isAddHdcModalOpen, setIsAddHdcModalOpen] = useState<boolean>(false);
   const [fetchingHdcId, setFetchingHdcId] = useState<string | null>(null);
 
+  // Category filters for HDC KPIs
+  const [hdcFilterMainCategory, setHdcFilterMainCategory] = useState<string>('ALL');
+  const [hdcFilterSubCategory, setHdcFilterSubCategory] = useState<string>('ALL');
+
   // Edit HDC KPI State
   const [isEditHdcModalOpen, setIsEditHdcModalOpen] = useState<boolean>(false);
   const [editingHdcKpi, setEditingHdcKpi] = useState<{
@@ -58,6 +127,8 @@ export default function DashboardPage() {
     name: string;
     tableName: string;
     year: string;
+    mainCategory: string;
+    subCategory: string;
     targetOperator: string;
     targetValue: number;
     warningValue?: number;
@@ -76,6 +147,8 @@ export default function DashboardPage() {
     name: string;
     tableName: string;
     year: string;
+    mainCategory?: string;
+    subCategory?: string;
     targetOperator: string;
     targetValue: number;
     warningValue?: number;
@@ -87,6 +160,8 @@ export default function DashboardPage() {
       name: 'ร้อยละหญิงตั้งครรภ์ที่ได้รับการดูแลก่อนคลอด 5 ครั้ง ตามเกณฑ์',
       tableName: 's_anc5',
       year: '2569',
+      mainCategory: 'ส่งเสริมป้องกัน',
+      subCategory: 'อนามัยแม่และเด็ก',
       targetOperator: '>=',
       targetValue: 75,
       warningValue: 60,
@@ -98,6 +173,8 @@ export default function DashboardPage() {
       name: 'ร้อยละหญิงตั้งครรภ์ได้รับการฝากครรภ์ครั้งแรกก่อนหรือเท่ากับ 12 สัปดาห์',
       tableName: 's_kpi_anc12',
       year: '2569',
+      mainCategory: 'ส่งเสริมป้องกัน',
+      subCategory: 'อนามัยแม่และเด็ก',
       targetOperator: '>=',
       targetValue: 75,
       warningValue: 60,
@@ -110,6 +187,8 @@ export default function DashboardPage() {
     name: '',
     tableName: 's_ttm27',
     year: '2569',
+    mainCategory: 'การเข้าถึงบริการ',
+    subCategory: 'แพทย์แผนไทย',
     targetOperator: '>=',
     targetValue: 20,
     warningValue: 16
@@ -132,13 +211,37 @@ export default function DashboardPage() {
               name: 'ร้อยละหญิงตั้งครรภ์ได้รับการฝากครรภ์ครั้งแรกก่อนหรือเท่ากับ 12 สัปดาห์',
               tableName: 's_kpi_anc12',
               year: '2569',
+              mainCategory: 'ส่งเสริมป้องกัน',
+              subCategory: 'อนามัยแม่และเด็ก',
               targetOperator: '>=',
               targetValue: 75,
               warningValue: 60,
               results: realAnc12Data as Record<string, any>
             });
           }
-          setHdcKpis(parsed);
+          // Enrich any items that lack categories
+          const enriched = parsed.map((k: any) => {
+            let mainCat = k.mainCategory;
+            let subCat = k.subCategory;
+            if (!mainCat || !subCat) {
+              if (k.tableName === 's_anc5' || k.tableName === 's_kpi_anc12') {
+                mainCat = 'ส่งเสริมป้องกัน';
+                subCat = 'อนามัยแม่และเด็ก';
+              } else if (k.tableName === 's_ttm27') {
+                mainCat = 'การเข้าถึงบริการ';
+                subCat = 'แพทย์แผนไทย';
+              } else {
+                mainCat = 'ข้อมูลทั่วไป';
+                subCat = 'ข้อมูลพื้นฐานและสรุปผู้รับบริการ';
+              }
+            }
+            return {
+              ...k,
+              mainCategory: mainCat,
+              subCategory: subCat
+            };
+          });
+          setHdcKpis(enriched);
         }
       }
     } catch (e) {}
@@ -372,6 +475,8 @@ export default function DashboardPage() {
       name: kpi.name,
       tableName: kpi.tableName,
       year: kpi.year || '2569',
+      mainCategory: kpi.mainCategory || 'ส่งเสริมป้องกัน',
+      subCategory: kpi.subCategory || 'อนามัยแม่และเด็ก',
       targetOperator: kpi.targetOperator || '>=',
       targetValue: kpi.targetValue,
       warningValue: kpi.warningValue !== undefined ? kpi.warningValue : Math.round(kpi.targetValue * 0.8),
@@ -402,6 +507,8 @@ export default function DashboardPage() {
       name: editingHdcKpi.name.trim(),
       tableName: cleanTable,
       year: String(editingHdcKpi.year || '2569'),
+      mainCategory: editingHdcKpi.mainCategory || 'ส่งเสริมป้องกัน',
+      subCategory: editingHdcKpi.subCategory || 'อนามัยแม่และเด็ก',
       targetOperator: editingHdcKpi.targetOperator,
       targetValue: Number(editingHdcKpi.targetValue),
       warningValue: Number(editingHdcKpi.warningValue),
@@ -461,6 +568,8 @@ export default function DashboardPage() {
       name: newHdcForm.name,
       tableName: cleanTable,
       year: newHdcForm.year || '2569',
+      mainCategory: newHdcForm.mainCategory || 'การเข้าถึงบริการ',
+      subCategory: newHdcForm.subCategory || 'แพทย์แผนไทย',
       targetOperator: newHdcForm.targetOperator || '>=',
       targetValue: Number(newHdcForm.targetValue) || 0,
       warningValue: Number(newHdcForm.warningValue) || (Number(newHdcForm.targetValue) * 0.8),
@@ -477,6 +586,8 @@ export default function DashboardPage() {
       name: '',
       tableName: 's_ttm27',
       year: '2569',
+      mainCategory: 'การเข้าถึงบริการ',
+      subCategory: 'แพทย์แผนไทย',
       targetOperator: '>=',
       targetValue: 80,
       warningValue: 64
@@ -764,6 +875,17 @@ export default function DashboardPage() {
           groupedByDistrict.push({ district: subdistrictDistrict, facilities: displayFacilities });
         }
 
+        // Filter HDC KPIs by selected categories
+        const filteredHdcKpis = hdcKpis.filter(kpi => {
+          if (hdcFilterMainCategory !== 'ALL' && (kpi.mainCategory || 'ส่งเสริมป้องกัน') !== hdcFilterMainCategory) {
+            return false;
+          }
+          if (hdcFilterSubCategory !== 'ALL' && (kpi.subCategory || 'อนามัยแม่และเด็ก') !== hdcFilterSubCategory) {
+            return false;
+          }
+          return true;
+        });
+
         return (
           <div className="card" style={{ flex: 1, overflow: 'hidden', padding: '0', display: 'flex', flexDirection: 'column' }}>
             {/* Filter and Control Bar */}
@@ -864,7 +986,7 @@ export default function DashboardPage() {
                 <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>เลือกอำเภอ:</label>
                 <select 
                   className="input-field" 
-                  style={{ width: '230px', padding: '0.4rem 0.6rem', fontSize: '0.875rem' }}
+                  style={{ width: '210px', padding: '0.4rem 0.6rem', fontSize: '0.875rem' }}
                   value={subdistrictDistrict} 
                   onChange={(e) => setSubdistrictDistrict(e.target.value)}
                 >
@@ -877,11 +999,61 @@ export default function DashboardPage() {
                 </select>
               </div>
 
+              {/* Category Filter: Main Category */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>หมวดหมู่หลัก:</label>
+                <select 
+                  className="input-field" 
+                  style={{ width: '190px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                  value={hdcFilterMainCategory} 
+                  onChange={(e) => {
+                    setHdcFilterMainCategory(e.target.value);
+                    setHdcFilterSubCategory('ALL');
+                  }}
+                >
+                  <option value="ALL">📁 ทุกหมวดหมู่หลัก</option>
+                  {Object.keys(HDC_CATEGORIES).map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Category Filter: Subcategory */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>หมวดหมู่ย่อย:</label>
+                <select 
+                  className="input-field" 
+                  style={{ width: '210px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                  value={hdcFilterSubCategory} 
+                  onChange={(e) => setHdcFilterSubCategory(e.target.value)}
+                >
+                  <option value="ALL">📂 ทุกหมวดหมู่ย่อย</option>
+                  {(hdcFilterMainCategory !== 'ALL'
+                    ? HDC_CATEGORIES[hdcFilterMainCategory] || []
+                    : Array.from(new Set(Object.values(HDC_CATEGORIES).flat()))
+                  ).map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                </select>
+                {(hdcFilterMainCategory !== 'ALL' || hdcFilterSubCategory !== 'ALL') && (
+                  <button
+                    onClick={() => {
+                      setHdcFilterMainCategory('ALL');
+                      setHdcFilterSubCategory('ALL');
+                    }}
+                    title="ล้างตัวกรองหมวดหมู่"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: '#0284c7', fontWeight: 600 }}
+                  >
+                    ✕ ล้าง
+                  </button>
+                )}
+              </div>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input 
                   type="text" 
                   className="input-field" 
-                  style={{ width: '260px', padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                  style={{ width: '220px', padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
                   placeholder="ค้นหาชื่อ รพ.สต. หรือ รหัส 5 หลัก..."
                   value={subdistrictSearch}
                   onChange={(e) => setSubdistrictSearch(e.target.value)}
@@ -933,6 +1105,69 @@ export default function DashboardPage() {
             {/* Content Area */}
             {subdistrictViewMode === 'matrix' ? (
               <div style={{ flex: 1, overflow: 'auto' }}>
+                {filteredHdcKpis.length === 0 && (
+                  <div style={{
+                    margin: '1.25rem',
+                    padding: '1.5rem',
+                    backgroundColor: '#f8fafc',
+                    border: '1px dashed #cbd5e1',
+                    borderRadius: 'var(--radius-md)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>📂</div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b', marginBottom: '0.25rem' }}>
+                      ไม่พบตัวชี้วัดที่ตรงกับหมวดหมู่ที่เลือก
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
+                      หมวดหมู่หลัก: <strong style={{ color: '#0f172a' }}>{hdcFilterMainCategory === 'ALL' ? 'ทุกหมวด' : hdcFilterMainCategory}</strong> 
+                      {hdcFilterSubCategory !== 'ALL' && <> | หมวดหมู่ย่อย: <strong style={{ color: '#0f172a' }}>{hdcFilterSubCategory}</strong></>}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                      <button
+                        onClick={() => {
+                          setHdcFilterMainCategory('ALL');
+                          setHdcFilterSubCategory('ALL');
+                        }}
+                        style={{
+                          padding: '0.45rem 1rem',
+                          backgroundColor: '#0284c7',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        🔄 แสดงตัวชี้วัดทั้งหมด
+                      </button>
+                      <button
+                        onClick={() => {
+                          const mainCat = hdcFilterMainCategory !== 'ALL' ? hdcFilterMainCategory : 'การเข้าถึงบริการ';
+                          const subCat = hdcFilterSubCategory !== 'ALL' ? hdcFilterSubCategory : (HDC_CATEGORIES[mainCat]?.[0] || 'แพทย์แผนไทย');
+                          setNewHdcForm(prev => ({
+                            ...prev,
+                            mainCategory: mainCat,
+                            subCategory: subCat
+                          }));
+                          setIsAddHdcModalOpen(true);
+                        }}
+                        style={{
+                          padding: '0.45rem 1rem',
+                          backgroundColor: '#fff',
+                          color: '#0284c7',
+                          border: '1px solid #bae6fd',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        ➕ เพิ่มตัวชี้วัดใหม่ในหมวดนี้
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
                   <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
                     <tr>
@@ -942,7 +1177,7 @@ export default function DashboardPage() {
                       <th style={{ padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '250px', minWidth: '250px', backgroundColor: 'var(--card)', position: 'sticky', left: '85px', zIndex: 11 }}>
                         ชื่อ รพ.สต.
                       </th>
-                      {hdcKpis.map((kpi) => (
+                      {filteredHdcKpis.map((kpi) => (
                         <th 
                           key={kpi.id}
                           style={{ 
@@ -950,7 +1185,7 @@ export default function DashboardPage() {
                             textAlign: 'center', 
                             borderBottom: '2px solid var(--border)', 
                             borderRight: '1px solid var(--border)',
-                            minWidth: '180px',
+                            minWidth: '190px',
                             backgroundColor: '#f8fafc'
                           }}
                         >
@@ -976,6 +1211,28 @@ export default function DashboardPage() {
                                 }}
                               >
                                 📅 ปี {kpi.year || '2569'}
+                              </span>
+                              {/* Tag หมวดหมู่ */}
+                              <span 
+                                title={`หมวดหมู่: ${kpi.mainCategory || 'ส่งเสริมป้องกัน'} > ${kpi.subCategory || 'อนามัยแม่และเด็ก'}`}
+                                style={{ 
+                                  fontSize: '0.66rem', 
+                                  fontWeight: 600, 
+                                  color: '#6b21a8', 
+                                  backgroundColor: '#f3e8ff', 
+                                  border: '1px solid #e9d5ff',
+                                  padding: '0.08rem 0.4rem', 
+                                  borderRadius: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.15rem',
+                                  maxWidth: '170px',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                🏷️ {kpi.subCategory || kpi.mainCategory || 'ทั่วไป'}
                               </span>
                               <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
                                 ({kpi.tableName})
@@ -1061,7 +1318,7 @@ export default function DashboardPage() {
                         {/* District Divider Row */}
                         <tr style={{ backgroundColor: '#e2e8f0' }}>
                           <td 
-                            colSpan={2 + hdcKpis.length + 1} 
+                            colSpan={2 + filteredHdcKpis.length + 1} 
                             style={{ 
                               padding: '0.55rem 1rem', 
                               fontWeight: 700, 
@@ -1094,7 +1351,7 @@ export default function DashboardPage() {
                             </td>
 
                             {/* HDC KPI Result Cells (Full-cell background color with percentage) */}
-                            {hdcKpis.map((kpi) => {
+                            {filteredHdcKpis.map((kpi) => {
                               const res = kpi.results[fac.code5];
                               const status = res?.status || 'pending';
                               const valDisplay = res?.value || 'รอผล';
@@ -1282,6 +1539,46 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
+                    {/* หมวดหมู่หลัก และ หมวดหมู่ย่อย */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          หมวดหมู่หลัก *
+                        </label>
+                        <select
+                          className="input-field"
+                          value={newHdcForm.mainCategory}
+                          onChange={(e) => {
+                            const selectedCat = e.target.value;
+                            const firstSub = HDC_CATEGORIES[selectedCat]?.[0] || '';
+                            setNewHdcForm({
+                              ...newHdcForm,
+                              mainCategory: selectedCat,
+                              subCategory: firstSub
+                            });
+                          }}
+                        >
+                          {Object.keys(HDC_CATEGORIES).map((cat) => (
+                            <option key={cat} value={cat}>📁 {cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          หมวดหมู่ย่อย *
+                        </label>
+                        <select
+                          className="input-field"
+                          value={newHdcForm.subCategory}
+                          onChange={(e) => setNewHdcForm({ ...newHdcForm, subCategory: e.target.value })}
+                        >
+                          {(HDC_CATEGORIES[newHdcForm.mainCategory] || []).map((sub) => (
+                            <option key={sub} value={sub}>📂 {sub}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
@@ -1463,6 +1760,46 @@ export default function DashboardPage() {
                           <option value="2569">ปีงบประมาณ 2569</option>
                           <option value="2568">ปีงบประมาณ 2568</option>
                           <option value="2567">ปีงบประมาณ 2567</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* หมวดหมู่หลัก และ หมวดหมู่ย่อย */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          หมวดหมู่หลัก *
+                        </label>
+                        <select
+                          className="input-field"
+                          value={editingHdcKpi.mainCategory || 'ส่งเสริมป้องกัน'}
+                          onChange={(e) => {
+                            const selectedCat = e.target.value;
+                            const firstSub = HDC_CATEGORIES[selectedCat]?.[0] || '';
+                            setEditingHdcKpi({
+                              ...editingHdcKpi,
+                              mainCategory: selectedCat,
+                              subCategory: firstSub
+                            });
+                          }}
+                        >
+                          {Object.keys(HDC_CATEGORIES).map((cat) => (
+                            <option key={cat} value={cat}>📁 {cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          หมวดหมู่ย่อย *
+                        </label>
+                        <select
+                          className="input-field"
+                          value={editingHdcKpi.subCategory || (HDC_CATEGORIES[editingHdcKpi.mainCategory || 'ส่งเสริมป้องกัน']?.[0] || '')}
+                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, subCategory: e.target.value })}
+                        >
+                          {(HDC_CATEGORIES[editingHdcKpi.mainCategory || 'ส่งเสริมป้องกัน'] || []).map((sub) => (
+                            <option key={sub} value={sub}>📂 {sub}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
