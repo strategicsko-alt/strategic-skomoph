@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -7,7 +7,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   Legend
 } from 'recharts';
 import { Skull, Filter, Activity, Table, AlertCircle } from 'lucide-react';
@@ -22,116 +21,6 @@ const LINE_COLORS = [
   '#ec4899', '#14b8a6', '#f43f5e', '#6366f1', '#84cc16'
 ];
 
-const SinglePointTooltip = ({ active, payload, label, coordinate, hoveredLine }: any) => {
-  if (!active || !payload || payload.length === 0) return null;
-
-  let targetItem = null;
-
-  // 1. If a specific line/disease is being hovered or focused
-  if (hoveredLine) {
-    targetItem = payload.find((p: any) => p.dataKey === hoveredLine || p.name === hoveredLine);
-  }
-
-  // 2. If no hoveredLine, pick the line closest to the mouse cursor's vertical position
-  if (!targetItem && coordinate && coordinate.y != null) {
-    const validItems = payload.filter((p: any) => p.value != null && !isNaN(Number(p.value)));
-    if (validItems.length > 0) {
-      const maxVal = Math.max(...validItems.map((p: any) => Number(p.value)));
-      const minVal = Math.min(...validItems.map((p: any) => Number(p.value)));
-      const range = maxVal - minVal;
-
-      if (range > 0) {
-        // Chart top margin ~10, bottom ~20, height 340 => plot area ~260
-        const plotTop = 15;
-        const plotHeight = 260;
-        const ratio = Math.max(0, Math.min(1, (coordinate.y - plotTop) / plotHeight));
-        const estimatedVal = maxVal - ratio * range;
-
-        let closestDist = Infinity;
-        for (const item of validItems) {
-          const dist = Math.abs(Number(item.value) - estimatedVal);
-          if (dist < closestDist) {
-            closestDist = dist;
-            targetItem = item;
-          }
-        }
-      } else {
-        targetItem = validItems[0];
-      }
-    }
-  }
-
-  if (!targetItem) {
-    targetItem = payload[0];
-  }
-
-  if (!targetItem || targetItem.value === undefined || targetItem.value === null) return null;
-
-  return (
-    <div style={{
-      background: 'rgba(15, 23, 42, 0.95)',
-      color: '#ffffff',
-      padding: '0.5rem 0.75rem',
-      borderRadius: '0.5rem',
-      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)',
-      fontSize: '0.8rem',
-      border: `1.5px solid ${targetItem.color || '#38bdf8'}`,
-      maxWidth: '320px',
-      pointerEvents: 'none'
-    }}>
-      <div style={{ color: '#94a3b8', fontSize: '0.72rem', marginBottom: '0.2rem' }}>
-        {label}
-      </div>
-      <div style={{ fontWeight: 600, color: targetItem.color || '#38bdf8', marginBottom: '0.25rem', lineHeight: 1.35, wordBreak: 'break-word' }}>
-        {targetItem.name}
-      </div>
-      <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc' }}>
-        {Number(targetItem.value).toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8' }}>ต่อแสนประชากร</span>
-      </div>
-    </div>
-  );
-};
-
-const renderCustomDot = (
-  dotProps: any,
-  lineKey: string,
-  strokeColor: string,
-  activeLine: string | null,
-  setActiveLine: (key: string | null) => void
-) => {
-  const { cx, cy, value, payload } = dotProps;
-  if (cx == null || cy == null || value == null || isNaN(Number(value))) return null;
-
-  const isCurrentLine = activeLine === lineKey;
-  const isDimmed = activeLine != null && !isCurrentLine;
-
-  return (
-    <g key={`dot-${lineKey}-${payload?.year}`}>
-      {/* Invisible hit area for comfortable hover */}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={13}
-        fill="transparent"
-        style={{ cursor: 'pointer' }}
-        onMouseEnter={() => setActiveLine(lineKey)}
-        onMouseLeave={() => setActiveLine(null)}
-      />
-      {/* Visible dot */}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={isCurrentLine ? 6.5 : 3.5}
-        fill={isCurrentLine ? '#ffffff' : strokeColor}
-        stroke={strokeColor}
-        strokeWidth={isCurrentLine ? 2.5 : 1}
-        opacity={isDimmed ? 0.25 : 1}
-        style={{ pointerEvents: 'none', transition: 'all 0.15s ease' }}
-      />
-    </g>
-  );
-};
-
 export default function DeathTab({ districts }: DeathTabProps) {
   const deathYears = vitalSummaryData.meta.deathYears || [2564, 2565, 2566, 2567, 2568];
   const deathAgeGroups = vitalSummaryData.meta.deathAgeGroups || [];
@@ -139,6 +28,16 @@ export default function DeathTab({ districts }: DeathTabProps) {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('รวมทั้งหมด');
   const [selectedGender, setSelectedGender] = useState<string>('รวมทั้งหมด');
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<string>('รวมทั้งหมด');
+
+  // Point tracking refs
+  const generalPointsRef = useRef<Record<string, { x: number; y: number; year: string; disease: string; value: number; color: string }>>({});
+  const cancerPointsRef = useRef<Record<string, { x: number; y: number; year: string; disease: string; value: number; color: string }>>({});
+
+  // Active point state for floating tooltips
+  const [activeGeneralPoint, setActiveGeneralPoint] = useState<{ x: number; y: number; year: string; disease: string; value: number; color: string } | null>(null);
+  const [activeCancerPoint, setActiveCancerPoint] = useState<{ x: number; y: number; year: string; disease: string; value: number; color: string } | null>(null);
+
+  // Line hover and focus state
   const [hoveredGeneralLine, setHoveredGeneralLine] = useState<string | null>(null);
   const [hoveredCancerLine, setHoveredCancerLine] = useState<string | null>(null);
   const [focusGeneralDisease, setFocusGeneralDisease] = useState<string>('all');
@@ -183,6 +82,127 @@ export default function DeathTab({ districts }: DeathTabProps) {
       cancerChartList
     };
   }, [selectedDistrict, selectedGender, selectedAgeGroup, deathYears]);
+
+  useEffect(() => {
+    generalPointsRef.current = {};
+    cancerPointsRef.current = {};
+    setActiveGeneralPoint(null);
+    setActiveCancerPoint(null);
+  }, [deathData]);
+
+  const handleGeneralMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    let closest = null;
+    let minD = 35;
+
+    for (const pt of Object.values(generalPointsRef.current)) {
+      const dist = Math.hypot(pt.x - mouseX, pt.y - mouseY);
+      if (dist < minD) {
+        minD = dist;
+        closest = pt;
+      }
+    }
+    setActiveGeneralPoint(closest);
+  };
+
+  const handleGeneralMouseLeave = () => {
+    setActiveGeneralPoint(null);
+    setHoveredGeneralLine(null);
+  };
+
+  const handleCancerMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    let closest = null;
+    let minD = 35;
+
+    for (const pt of Object.values(cancerPointsRef.current)) {
+      const dist = Math.hypot(pt.x - mouseX, pt.y - mouseY);
+      if (dist < minD) {
+        minD = dist;
+        closest = pt;
+      }
+    }
+    setActiveCancerPoint(closest);
+  };
+
+  const handleCancerMouseLeave = () => {
+    setActiveCancerPoint(null);
+    setHoveredCancerLine(null);
+  };
+
+  const renderGeneralDot = (dotProps: any, diseaseName: string, color: string) => {
+    const { cx, cy, value, payload } = dotProps;
+    if (cx == null || cy == null || value == null || isNaN(Number(value))) return null;
+
+    const key = `${diseaseName}_${payload?.year}`;
+    generalPointsRef.current[key] = {
+      x: cx,
+      y: cy,
+      year: payload?.year,
+      disease: diseaseName,
+      value: Number(value),
+      color
+    };
+
+    const isActive = activeGeneralPoint && activeGeneralPoint.disease === diseaseName && activeGeneralPoint.year === payload?.year;
+    const isLineHovered = (activeGeneralPoint && activeGeneralPoint.disease === diseaseName) || (hoveredGeneralLine === diseaseName) || (focusGeneralDisease === diseaseName);
+    const isDimmed = (activeGeneralPoint != null || hoveredGeneralLine != null || focusGeneralDisease !== 'all') && !isLineHovered;
+
+    return (
+      <g key={key}>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={isActive ? 7 : (isLineHovered ? 5 : 3.5)}
+          fill={isActive ? '#ffffff' : color}
+          stroke={color}
+          strokeWidth={isActive ? 3 : 1}
+          opacity={isDimmed ? 0.25 : 1}
+          style={{ pointerEvents: 'none', transition: 'all 0.1s ease' }}
+        />
+      </g>
+    );
+  };
+
+  const renderCancerDot = (dotProps: any, diseaseName: string, color: string) => {
+    const { cx, cy, value, payload } = dotProps;
+    if (cx == null || cy == null || value == null || isNaN(Number(value))) return null;
+
+    const key = `${diseaseName}_${payload?.year}`;
+    cancerPointsRef.current[key] = {
+      x: cx,
+      y: cy,
+      year: payload?.year,
+      disease: diseaseName,
+      value: Number(value),
+      color
+    };
+
+    const isActive = activeCancerPoint && activeCancerPoint.disease === diseaseName && activeCancerPoint.year === payload?.year;
+    const isLineHovered = (activeCancerPoint && activeCancerPoint.disease === diseaseName) || (hoveredCancerLine === diseaseName) || (focusCancerDisease === diseaseName);
+    const isDimmed = (activeCancerPoint != null || hoveredCancerLine != null || focusCancerDisease !== 'all') && !isLineHovered;
+
+    return (
+      <g key={key}>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={isActive ? 7 : (isLineHovered ? 5 : 3.5)}
+          fill={isActive ? '#ffffff' : color}
+          stroke={color}
+          strokeWidth={isActive ? 3 : 1}
+          opacity={isDimmed ? 0.25 : 1}
+          style={{ pointerEvents: 'none', transition: 'all 0.1s ease' }}
+        />
+      </g>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -312,31 +332,60 @@ export default function DeathTab({ districts }: DeathTabProps) {
             </div>
           </div>
 
-          <div style={{ height: '340px', width: '100%' }}>
+          <div
+            style={{ position: 'relative', height: '340px', width: '100%' }}
+            onMouseMove={handleGeneralMouseMove}
+            onMouseLeave={handleGeneralMouseLeave}
+          >
+            {/* Custom Isolated Point Tooltip */}
+            {activeGeneralPoint && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: activeGeneralPoint.x,
+                  top: activeGeneralPoint.y - 12,
+                  transform: activeGeneralPoint.y < 110 ? 'translate(-50%, 15px)' : 'translate(-50%, -100%)',
+                  background: 'rgba(15, 23, 42, 0.96)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#ffffff',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '0.5rem',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                  fontSize: '0.8rem',
+                  border: `1.5px solid ${activeGeneralPoint.color || '#38bdf8'}`,
+                  maxWidth: '300px',
+                  pointerEvents: 'none',
+                  zIndex: 50,
+                  transition: 'left 0.05s ease, top 0.05s ease'
+                }}
+              >
+                <div style={{ color: '#94a3b8', fontSize: '0.72rem', marginBottom: '0.2rem' }}>
+                  {activeGeneralPoint.year}
+                </div>
+                <div style={{ fontWeight: 600, color: activeGeneralPoint.color || '#38bdf8', marginBottom: '0.25rem', lineHeight: 1.35, wordBreak: 'break-word' }}>
+                  {activeGeneralPoint.disease}
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>
+                  {activeGeneralPoint.value.toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8' }}>ต่อแสนประชากร</span>
+                </div>
+              </div>
+            )}
+
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={deathData.generalChartList}
                 margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
-                onMouseLeave={() => setHoveredGeneralLine(null)}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="year" fontSize={11} stroke="#64748b" />
                 <YAxis fontSize={11} stroke="#64748b" tickFormatter={(v) => v.toLocaleString()} />
-                <Tooltip
-                  shared={false}
-                  content={
-                    <SinglePointTooltip
-                      hoveredLine={focusGeneralDisease !== 'all' ? focusGeneralDisease : hoveredGeneralLine}
-                    />
-                  }
-                />
                 <Legend
                   wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
                   onMouseEnter={(e: any) => setHoveredGeneralLine(e.dataKey)}
                   onMouseLeave={() => setHoveredGeneralLine(null)}
                 />
                 {deathData.generalDatasets.map((ds: any, idx: number) => {
-                  const activeLine = focusGeneralDisease !== 'all' ? focusGeneralDisease : hoveredGeneralLine;
+                  const activeLine = focusGeneralDisease !== 'all' ? focusGeneralDisease : (activeGeneralPoint?.disease || hoveredGeneralLine);
                   const isCurrent = activeLine === ds.label;
                   const isDimmed = activeLine != null && !isCurrent;
                   const color = LINE_COLORS[idx % LINE_COLORS.length];
@@ -348,11 +397,8 @@ export default function DeathTab({ districts }: DeathTabProps) {
                       dataKey={ds.label}
                       stroke={color}
                       strokeWidth={isCurrent ? 3.5 : (isDimmed ? 1.5 : 2.5)}
-                      strokeOpacity={isDimmed ? 0.2 : 1}
-                      onMouseEnter={() => setHoveredGeneralLine(ds.label)}
-                      onMouseLeave={() => setHoveredGeneralLine(null)}
-                      dot={(p: any) => renderCustomDot(p, ds.label, color, activeLine, setHoveredGeneralLine)}
-                      activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 2 }}
+                      strokeOpacity={isDimmed ? 0.25 : 1}
+                      dot={(p: any) => renderGeneralDot(p, ds.label, color)}
                     />
                   );
                 })}
@@ -402,31 +448,60 @@ export default function DeathTab({ districts }: DeathTabProps) {
             </div>
           </div>
 
-          <div style={{ height: '340px', width: '100%' }}>
+          <div
+            style={{ position: 'relative', height: '340px', width: '100%' }}
+            onMouseMove={handleCancerMouseMove}
+            onMouseLeave={handleCancerMouseLeave}
+          >
+            {/* Custom Isolated Point Tooltip */}
+            {activeCancerPoint && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: activeCancerPoint.x,
+                  top: activeCancerPoint.y - 12,
+                  transform: activeCancerPoint.y < 110 ? 'translate(-50%, 15px)' : 'translate(-50%, -100%)',
+                  background: 'rgba(15, 23, 42, 0.96)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#ffffff',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '0.5rem',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                  fontSize: '0.8rem',
+                  border: `1.5px solid ${activeCancerPoint.color || '#38bdf8'}`,
+                  maxWidth: '300px',
+                  pointerEvents: 'none',
+                  zIndex: 50,
+                  transition: 'left 0.05s ease, top 0.05s ease'
+                }}
+              >
+                <div style={{ color: '#94a3b8', fontSize: '0.72rem', marginBottom: '0.2rem' }}>
+                  {activeCancerPoint.year}
+                </div>
+                <div style={{ fontWeight: 600, color: activeCancerPoint.color || '#38bdf8', marginBottom: '0.25rem', lineHeight: 1.35, wordBreak: 'break-word' }}>
+                  {activeCancerPoint.disease}
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>
+                  {activeCancerPoint.value.toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8' }}>ต่อแสนประชากร</span>
+                </div>
+              </div>
+            )}
+
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={deathData.cancerChartList}
                 margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
-                onMouseLeave={() => setHoveredCancerLine(null)}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="year" fontSize={11} stroke="#64748b" />
                 <YAxis fontSize={11} stroke="#64748b" tickFormatter={(v) => v.toLocaleString()} />
-                <Tooltip
-                  shared={false}
-                  content={
-                    <SinglePointTooltip
-                      hoveredLine={focusCancerDisease !== 'all' ? focusCancerDisease : hoveredCancerLine}
-                    />
-                  }
-                />
                 <Legend
                   wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
                   onMouseEnter={(e: any) => setHoveredCancerLine(e.dataKey)}
                   onMouseLeave={() => setHoveredCancerLine(null)}
                 />
                 {deathData.cancerDatasets.map((ds: any, idx: number) => {
-                  const activeLine = focusCancerDisease !== 'all' ? focusCancerDisease : hoveredCancerLine;
+                  const activeLine = focusCancerDisease !== 'all' ? focusCancerDisease : (activeCancerPoint?.disease || hoveredCancerLine);
                   const isCurrent = activeLine === ds.label;
                   const isDimmed = activeLine != null && !isCurrent;
                   const color = LINE_COLORS[(idx + 3) % LINE_COLORS.length];
@@ -438,11 +513,8 @@ export default function DeathTab({ districts }: DeathTabProps) {
                       dataKey={ds.label}
                       stroke={color}
                       strokeWidth={isCurrent ? 3.5 : (isDimmed ? 1.5 : 2.5)}
-                      strokeOpacity={isDimmed ? 0.2 : 1}
-                      onMouseEnter={() => setHoveredCancerLine(ds.label)}
-                      onMouseLeave={() => setHoveredCancerLine(null)}
-                      dot={(p: any) => renderCustomDot(p, ds.label, color, activeLine, setHoveredCancerLine)}
-                      activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 2 }}
+                      strokeOpacity={isDimmed ? 0.25 : 1}
+                      dot={(p: any) => renderCancerDot(p, ds.label, color)}
                     />
                   );
                 })}
