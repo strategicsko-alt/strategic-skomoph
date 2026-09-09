@@ -22,35 +22,114 @@ const LINE_COLORS = [
   '#ec4899', '#14b8a6', '#f43f5e', '#6366f1', '#84cc16'
 ];
 
-const SinglePointTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length > 0) {
-    const item = payload[0];
-    if (!item || item.value === undefined || item.value === null) return null;
-    return (
-      <div style={{
-        background: 'rgba(15, 23, 42, 0.95)',
-        color: '#ffffff',
-        padding: '0.5rem 0.75rem',
-        borderRadius: '0.5rem',
-        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
-        fontSize: '0.8rem',
-        border: `1px solid ${item.color || '#475569'}`,
-        maxWidth: '320px',
-        pointerEvents: 'none'
-      }}>
-        <div style={{ color: '#94a3b8', fontSize: '0.72rem', marginBottom: '0.2rem' }}>
-          {label}
-        </div>
-        <div style={{ fontWeight: 600, color: item.color || '#38bdf8', marginBottom: '0.25rem', lineHeight: 1.35, wordBreak: 'break-word' }}>
-          {item.name}
-        </div>
-        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc' }}>
-          {Number(item.value).toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8' }}>ต่อแสนประชากร</span>
-        </div>
-      </div>
-    );
+const SinglePointTooltip = ({ active, payload, label, coordinate, hoveredLine }: any) => {
+  if (!active || !payload || payload.length === 0) return null;
+
+  let targetItem = null;
+
+  // 1. If a specific line/disease is being hovered or focused
+  if (hoveredLine) {
+    targetItem = payload.find((p: any) => p.dataKey === hoveredLine || p.name === hoveredLine);
   }
-  return null;
+
+  // 2. If no hoveredLine, pick the line closest to the mouse cursor's vertical position
+  if (!targetItem && coordinate && coordinate.y != null) {
+    const validItems = payload.filter((p: any) => p.value != null && !isNaN(Number(p.value)));
+    if (validItems.length > 0) {
+      const maxVal = Math.max(...validItems.map((p: any) => Number(p.value)));
+      const minVal = Math.min(...validItems.map((p: any) => Number(p.value)));
+      const range = maxVal - minVal;
+
+      if (range > 0) {
+        // Chart top margin ~10, bottom ~20, height 340 => plot area ~260
+        const plotTop = 15;
+        const plotHeight = 260;
+        const ratio = Math.max(0, Math.min(1, (coordinate.y - plotTop) / plotHeight));
+        const estimatedVal = maxVal - ratio * range;
+
+        let closestDist = Infinity;
+        for (const item of validItems) {
+          const dist = Math.abs(Number(item.value) - estimatedVal);
+          if (dist < closestDist) {
+            closestDist = dist;
+            targetItem = item;
+          }
+        }
+      } else {
+        targetItem = validItems[0];
+      }
+    }
+  }
+
+  if (!targetItem) {
+    targetItem = payload[0];
+  }
+
+  if (!targetItem || targetItem.value === undefined || targetItem.value === null) return null;
+
+  return (
+    <div style={{
+      background: 'rgba(15, 23, 42, 0.95)',
+      color: '#ffffff',
+      padding: '0.5rem 0.75rem',
+      borderRadius: '0.5rem',
+      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)',
+      fontSize: '0.8rem',
+      border: `1.5px solid ${targetItem.color || '#38bdf8'}`,
+      maxWidth: '320px',
+      pointerEvents: 'none'
+    }}>
+      <div style={{ color: '#94a3b8', fontSize: '0.72rem', marginBottom: '0.2rem' }}>
+        {label}
+      </div>
+      <div style={{ fontWeight: 600, color: targetItem.color || '#38bdf8', marginBottom: '0.25rem', lineHeight: 1.35, wordBreak: 'break-word' }}>
+        {targetItem.name}
+      </div>
+      <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc' }}>
+        {Number(targetItem.value).toFixed(2)} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#94a3b8' }}>ต่อแสนประชากร</span>
+      </div>
+    </div>
+  );
+};
+
+const renderCustomDot = (
+  dotProps: any,
+  lineKey: string,
+  strokeColor: string,
+  activeLine: string | null,
+  setActiveLine: (key: string | null) => void
+) => {
+  const { cx, cy, value, payload } = dotProps;
+  if (cx == null || cy == null || value == null || isNaN(Number(value))) return null;
+
+  const isCurrentLine = activeLine === lineKey;
+  const isDimmed = activeLine != null && !isCurrentLine;
+
+  return (
+    <g key={`dot-${lineKey}-${payload?.year}`}>
+      {/* Invisible hit area for comfortable hover */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={13}
+        fill="transparent"
+        style={{ cursor: 'pointer' }}
+        onMouseEnter={() => setActiveLine(lineKey)}
+        onMouseLeave={() => setActiveLine(null)}
+      />
+      {/* Visible dot */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isCurrentLine ? 6.5 : 3.5}
+        fill={isCurrentLine ? '#ffffff' : strokeColor}
+        stroke={strokeColor}
+        strokeWidth={isCurrentLine ? 2.5 : 1}
+        opacity={isDimmed ? 0.25 : 1}
+        style={{ pointerEvents: 'none', transition: 'all 0.15s ease' }}
+      />
+    </g>
+  );
 };
 
 export default function DeathTab({ districts }: DeathTabProps) {
@@ -60,6 +139,10 @@ export default function DeathTab({ districts }: DeathTabProps) {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('รวมทั้งหมด');
   const [selectedGender, setSelectedGender] = useState<string>('รวมทั้งหมด');
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<string>('รวมทั้งหมด');
+  const [hoveredGeneralLine, setHoveredGeneralLine] = useState<string | null>(null);
+  const [hoveredCancerLine, setHoveredCancerLine] = useState<string | null>(null);
+  const [focusGeneralDisease, setFocusGeneralDisease] = useState<string>('all');
+  const [focusCancerDisease, setFocusCancerDisease] = useState<string>('all');
 
   const deathData = useMemo(() => {
     const distData = (vitalSummaryData.deathCache as any)[selectedDistrict] || (vitalSummaryData.deathCache as any)['รวมทั้งหมด'] || {};
@@ -196,7 +279,7 @@ export default function DeathTab({ districts }: DeathTabProps) {
           border: '1px solid #e2e8f0',
           boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
                 📈 แนวโน้มสาเหตุการตายทั่วไป (ต่อแสนประชากร)
@@ -205,27 +288,74 @@ export default function DeathTab({ districts }: DeathTabProps) {
                 10 สาเหตุอันดับแรก (โรคมะเร็งนับรวมกัน) — {selectedDistrict}
               </p>
             </div>
+            {/* Quick Disease Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>โฟกัสโรค:</span>
+              <select
+                value={focusGeneralDisease}
+                onChange={(e) => setFocusGeneralDisease(e.target.value)}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '0.375rem',
+                  border: '1px solid #cbd5e1',
+                  maxWidth: '190px',
+                  background: '#f8fafc',
+                  color: '#1e293b'
+                }}
+              >
+                <option value="all">แสดงครบ 10 สาเหตุ</option>
+                {deathData.generalDatasets.map((ds: any) => (
+                  <option key={ds.label} value={ds.label}>{ds.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div style={{ height: '340px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={deathData.generalChartList} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+              <LineChart
+                data={deathData.generalChartList}
+                margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+                onMouseLeave={() => setHoveredGeneralLine(null)}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="year" fontSize={11} stroke="#64748b" />
                 <YAxis fontSize={11} stroke="#64748b" tickFormatter={(v) => v.toLocaleString()} />
-                <Tooltip shared={false} content={<SinglePointTooltip />} />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                {deathData.generalDatasets.map((ds: any, idx: number) => (
-                  <Line
-                    key={ds.label}
-                    type="monotone"
-                    dataKey={ds.label}
-                    stroke={LINE_COLORS[idx % LINE_COLORS.length]}
-                    strokeWidth={2.5}
-                    dot={{ r: 4, strokeWidth: 1 }}
-                    activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 2 }}
-                  />
-                ))}
+                <Tooltip
+                  shared={false}
+                  content={
+                    <SinglePointTooltip
+                      hoveredLine={focusGeneralDisease !== 'all' ? focusGeneralDisease : hoveredGeneralLine}
+                    />
+                  }
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                  onMouseEnter={(e: any) => setHoveredGeneralLine(e.dataKey)}
+                  onMouseLeave={() => setHoveredGeneralLine(null)}
+                />
+                {deathData.generalDatasets.map((ds: any, idx: number) => {
+                  const activeLine = focusGeneralDisease !== 'all' ? focusGeneralDisease : hoveredGeneralLine;
+                  const isCurrent = activeLine === ds.label;
+                  const isDimmed = activeLine != null && !isCurrent;
+                  const color = LINE_COLORS[idx % LINE_COLORS.length];
+
+                  return (
+                    <Line
+                      key={ds.label}
+                      type="monotone"
+                      dataKey={ds.label}
+                      stroke={color}
+                      strokeWidth={isCurrent ? 3.5 : (isDimmed ? 1.5 : 2.5)}
+                      strokeOpacity={isDimmed ? 0.2 : 1}
+                      onMouseEnter={() => setHoveredGeneralLine(ds.label)}
+                      onMouseLeave={() => setHoveredGeneralLine(null)}
+                      dot={(p: any) => renderCustomDot(p, ds.label, color, activeLine, setHoveredGeneralLine)}
+                      activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 2 }}
+                    />
+                  );
+                })}
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -239,7 +369,7 @@ export default function DeathTab({ districts }: DeathTabProps) {
           border: '1px solid #e2e8f0',
           boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
                 🔬 เจาะลึกแนวโน้มโรคมะเร็ง (ต่อแสนประชากร)
@@ -248,27 +378,74 @@ export default function DeathTab({ districts }: DeathTabProps) {
                 10 ชนิดมะเร็งที่มีอัตราตายสูงสุด — {selectedDistrict}
               </p>
             </div>
+            {/* Quick Disease Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>โฟกัสโรค:</span>
+              <select
+                value={focusCancerDisease}
+                onChange={(e) => setFocusCancerDisease(e.target.value)}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '0.375rem',
+                  border: '1px solid #cbd5e1',
+                  maxWidth: '190px',
+                  background: '#f8fafc',
+                  color: '#1e293b'
+                }}
+              >
+                <option value="all">แสดงครบ 10 สาเหตุ</option>
+                {deathData.cancerDatasets.map((ds: any) => (
+                  <option key={ds.label} value={ds.label}>{ds.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div style={{ height: '340px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={deathData.cancerChartList} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+              <LineChart
+                data={deathData.cancerChartList}
+                margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+                onMouseLeave={() => setHoveredCancerLine(null)}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="year" fontSize={11} stroke="#64748b" />
                 <YAxis fontSize={11} stroke="#64748b" tickFormatter={(v) => v.toLocaleString()} />
-                <Tooltip shared={false} content={<SinglePointTooltip />} />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                {deathData.cancerDatasets.map((ds: any, idx: number) => (
-                  <Line
-                    key={ds.label}
-                    type="monotone"
-                    dataKey={ds.label}
-                    stroke={LINE_COLORS[(idx + 3) % LINE_COLORS.length]}
-                    strokeWidth={2.5}
-                    dot={{ r: 4, strokeWidth: 1 }}
-                    activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 2 }}
-                  />
-                ))}
+                <Tooltip
+                  shared={false}
+                  content={
+                    <SinglePointTooltip
+                      hoveredLine={focusCancerDisease !== 'all' ? focusCancerDisease : hoveredCancerLine}
+                    />
+                  }
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                  onMouseEnter={(e: any) => setHoveredCancerLine(e.dataKey)}
+                  onMouseLeave={() => setHoveredCancerLine(null)}
+                />
+                {deathData.cancerDatasets.map((ds: any, idx: number) => {
+                  const activeLine = focusCancerDisease !== 'all' ? focusCancerDisease : hoveredCancerLine;
+                  const isCurrent = activeLine === ds.label;
+                  const isDimmed = activeLine != null && !isCurrent;
+                  const color = LINE_COLORS[(idx + 3) % LINE_COLORS.length];
+
+                  return (
+                    <Line
+                      key={ds.label}
+                      type="monotone"
+                      dataKey={ds.label}
+                      stroke={color}
+                      strokeWidth={isCurrent ? 3.5 : (isDimmed ? 1.5 : 2.5)}
+                      strokeOpacity={isDimmed ? 0.2 : 1}
+                      onMouseEnter={() => setHoveredCancerLine(ds.label)}
+                      onMouseLeave={() => setHoveredCancerLine(null)}
+                      dot={(p: any) => renderCustomDot(p, ds.label, color, activeLine, setHoveredCancerLine)}
+                      activeDot={{ r: 7, stroke: '#ffffff', strokeWidth: 2 }}
+                    />
+                  );
+                })}
               </LineChart>
             </ResponsiveContainer>
           </div>
