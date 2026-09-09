@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
@@ -49,6 +49,25 @@ export default function DashboardPage() {
   const [subdistrictViewMode, setSubdistrictViewMode] = useState<'matrix' | 'list'>('matrix');
   const [isAddHdcModalOpen, setIsAddHdcModalOpen] = useState<boolean>(false);
   const [fetchingHdcId, setFetchingHdcId] = useState<string | null>(null);
+
+  // Edit HDC KPI State
+  const [isEditHdcModalOpen, setIsEditHdcModalOpen] = useState<boolean>(false);
+  const [editingHdcKpi, setEditingHdcKpi] = useState<{
+    id: string;
+    code: string;
+    name: string;
+    tableName: string;
+    year: string;
+    targetOperator: string;
+    targetValue: number;
+    warningValue?: number;
+    refetchOnSave: boolean;
+  } | null>(null);
+
+  // Auto-sync HDC States (Daily 08:00 AM)
+  const [autoSyncStatus, setAutoSyncStatus] = useState<string>('');
+  const [isAutoSyncing, setIsAutoSyncing] = useState<boolean>(false);
+  const isSyncingRef = useRef<boolean>(false);
 
   // Dedicated HDC KPIs list (Real Data from MOPH HDC Open Data)
   const [hdcKpis, setHdcKpis] = useState<Array<{
@@ -123,9 +142,21 @@ export default function DashboardPage() {
         }
       }
     } catch (e) {}
+
+    // Initialize auto-sync status text from storage
+    try {
+      const savedDate = localStorage.getItem('hdc_daily_last_sync_date');
+      const savedTime = localStorage.getItem('hdc_daily_last_sync_time');
+      const todayKey = new Date().toISOString().slice(0, 10);
+      if (savedDate === todayKey && savedTime) {
+        setAutoSyncStatus(`อัปเดตอัตโนมัติรอบ 08:00 น. แล้ว (${savedTime} น.)`);
+      } else {
+        setAutoSyncStatus('รอบการอัปเดตถัดไป: 08:00 น.');
+      }
+    } catch (e) {}
   }, []);
 
-  const handleFetchHdcData = async (kpiId: string, kpiObj?: any) => {
+  const handleFetchHdcData = async (kpiId: string, kpiObj?: any, silent = false) => {
     const targetKpi = kpiObj || hdcKpis.find(k => k.id === kpiId);
     if (!targetKpi) return;
     setFetchingHdcId(kpiId);
@@ -186,7 +217,9 @@ export default function DashboardPage() {
 
       if (result && Array.isArray(result.data)) {
         if (result.data.length === 0) {
-          alert(`เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลในตาราง "${targetKpi.tableName}" ของจังหวัดสระแก้ว ประจำปี ${targetKpi.year}`);
+          if (!silent) {
+            alert(`เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลในตาราง "${targetKpi.tableName}" ของจังหวัดสระแก้ว ประจำปี ${targetKpi.year}`);
+          }
           return;
         }
 
@@ -238,14 +271,177 @@ export default function DashboardPage() {
           try { localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(updated)); } catch (e) {}
           return updated;
         });
-        alert(`✅ ดึงข้อมูลสดจาก HDC Open Data สำเร็จ!\nตาราง: ${targetKpi.tableName} (ปี ${targetKpi.year})\nพบข้อมูลหน่วยบริการ: ${Object.keys(newResults).length} แห่ง`);
+
+        if (!silent) {
+          alert(`✅ ดึงข้อมูลสดจาก HDC Open Data สำเร็จ!\nตาราง: ${targetKpi.tableName} (ปี ${targetKpi.year})\nพบข้อมูลหน่วยบริการ: ${Object.keys(newResults).length} แห่ง`);
+        }
       } else {
-        alert(`ไม่สามารถดึงข้อมูลจาก HDC ได้\n${result?.message || result?.error || 'กรุณาลองใหม่อีกครั้ง'}`);
+        if (!silent) {
+          alert(`ไม่สามารถดึงข้อมูลจาก HDC ได้\n${result?.message || result?.error || 'กรุณาลองใหม่อีกครั้ง'}`);
+        }
       }
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ HDC:\n' + err.message);
+      if (!silent) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ HDC:\n' + err.message);
+      }
     } finally {
       setFetchingHdcId(null);
+    }
+  };
+
+  // Daily auto-sync at 08:00 AM check
+  const checkAndRunDailySync = async (listToSync?: any[]) => {
+    if (isSyncingRef.current) return;
+    const currentList = listToSync || hdcKpis;
+    if (!currentList || currentList.length === 0) return;
+
+    const now = new Date();
+    const todayKey = now.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+    const lastSyncDate = localStorage.getItem('hdc_daily_last_sync_date');
+    const currentHour = now.getHours();
+
+    // Check if 08:00 AM or later and haven't synced today yet
+    if (currentHour >= 8 && lastSyncDate !== todayKey) {
+      isSyncingRef.current = true;
+      setIsAutoSyncing(true);
+      setAutoSyncStatus('⏳ กำลังอัปเดตข้อมูลอัตโนมัติรอบ 08:00 น. ...');
+      
+      try {
+        for (const kpi of currentList) {
+          await handleFetchHdcData(kpi.id, kpi, true);
+          // Wait 600ms between requests to avoid exceeding MOPH rate limit
+          await new Promise(r => setTimeout(r, 600));
+        }
+        localStorage.setItem('hdc_daily_last_sync_date', todayKey);
+        const syncTimeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        localStorage.setItem('hdc_daily_last_sync_time', syncTimeStr);
+        setAutoSyncStatus(`✅ อัปเดตอัตโนมัติรอบ 08:00 น. แล้ว (${syncTimeStr} น.)`);
+      } catch (err) {
+        setAutoSyncStatus('รอบการอัปเดต 08:00 น. ขัดข้อง จะลองใหม่');
+      } finally {
+        setIsAutoSyncing(false);
+        isSyncingRef.current = false;
+      }
+    } else if (lastSyncDate === todayKey) {
+      const savedTime = localStorage.getItem('hdc_daily_last_sync_time') || '08:00';
+      setAutoSyncStatus(`✅ อัปเดตอัตโนมัติรอบ 08:00 น. แล้ว (${savedTime} น.)`);
+    } else {
+      setAutoSyncStatus('รอบการอัปเดตถัดไป: 08:00 น.');
+    }
+  };
+
+  // Auto-sync interval & mount check
+  useEffect(() => {
+    if (hdcKpis.length > 0) {
+      checkAndRunDailySync(hdcKpis);
+    }
+    const interval = setInterval(() => {
+      checkAndRunDailySync();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [hdcKpis.length]);
+
+  // Force sync all HDC KPIs at once
+  const handleSyncAllHdc = async () => {
+    if (isAutoSyncing || fetchingHdcId !== null) return;
+    setIsAutoSyncing(true);
+    setAutoSyncStatus('⏳ กำลังซิงค์ข้อมูลทุกตัวชี้วัด...');
+    try {
+      for (const kpi of hdcKpis) {
+        await handleFetchHdcData(kpi.id, kpi, true);
+        await new Promise(r => setTimeout(r, 600));
+      }
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      localStorage.setItem('hdc_daily_last_sync_date', now.toISOString().slice(0, 10));
+      localStorage.setItem('hdc_daily_last_sync_time', timeStr);
+      setAutoSyncStatus(`✅ อัปเดตล่าสุด: วันนี้ ${timeStr} น.`);
+      alert(`✅ ซิงค์ข้อมูลสดจาก HDC Open Data ครบทั้ง ${hdcKpis.length} ตัวชี้วัดเรียบร้อยแล้ว!`);
+    } catch (err: any) {
+      alert('เกิดข้อผิดพลาดขณะซิงค์ข้อมูล: ' + err.message);
+    } finally {
+      setIsAutoSyncing(false);
+    }
+  };
+
+  // Edit HDC KPI handlers
+  const handleOpenEditHdcModal = (kpi: any) => {
+    setEditingHdcKpi({
+      id: kpi.id,
+      code: kpi.code,
+      name: kpi.name,
+      tableName: kpi.tableName,
+      year: kpi.year || '2569',
+      targetOperator: kpi.targetOperator || '>=',
+      targetValue: kpi.targetValue,
+      warningValue: kpi.warningValue !== undefined ? kpi.warningValue : Math.round(kpi.targetValue * 0.8),
+      refetchOnSave: true
+    });
+    setIsEditHdcModalOpen(true);
+  };
+
+  const handleSaveEditHdcKpi = async () => {
+    if (!editingHdcKpi) return;
+    if (!editingHdcKpi.name.trim()) {
+      alert('กรุณากรอกชื่อตัวชี้วัด');
+      return;
+    }
+    const cleanTable = editingHdcKpi.tableName.trim();
+    if (!cleanTable) {
+      alert('กรุณากรอกชื่อตาราง HDC Open Data');
+      return;
+    }
+
+    const currentKpi = hdcKpis.find(k => k.id === editingHdcKpi.id);
+    const tableOrYearChanged = currentKpi && (currentKpi.tableName !== cleanTable || currentKpi.year !== String(editingHdcKpi.year));
+
+    const updatedKpi = {
+      ...(currentKpi || {}),
+      id: editingHdcKpi.id,
+      code: editingHdcKpi.code,
+      name: editingHdcKpi.name.trim(),
+      tableName: cleanTable,
+      year: String(editingHdcKpi.year || '2569'),
+      targetOperator: editingHdcKpi.targetOperator,
+      targetValue: Number(editingHdcKpi.targetValue),
+      warningValue: Number(editingHdcKpi.warningValue),
+      results: currentKpi?.results || {}
+    };
+
+    const updatedList = hdcKpis.map(k => k.id === editingHdcKpi.id ? updatedKpi : k);
+    setHdcKpis(updatedList);
+    try {
+      localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(updatedList));
+    } catch (e) {}
+
+    setIsEditHdcModalOpen(false);
+
+    if (editingHdcKpi.refetchOnSave || tableOrYearChanged) {
+      await handleFetchHdcData(updatedKpi.id, updatedKpi);
+    } else {
+      // Recalculate heatmap statuses with new target/warning values
+      const currentResults = updatedKpi.results || {};
+      const recalculated: Record<string, any> = {};
+      Object.entries(currentResults).forEach(([hc, r]: [string, any]) => {
+        if (r && r.value && r.value !== '0%') {
+          const pct = parseFloat(String(r.value).replace('%', ''));
+          const warnTarget = updatedKpi.warningValue !== undefined ? updatedKpi.warningValue : (updatedKpi.targetValue * 0.8);
+          const isPass = updatedKpi.targetOperator === '>=' ? pct >= updatedKpi.targetValue : pct <= updatedKpi.targetValue;
+          const isWarn = updatedKpi.targetOperator === '>=' ? (pct >= warnTarget && !isPass) : (pct <= (updatedKpi.targetValue * 1.2) && !isPass);
+          recalculated[hc] = {
+            ...r,
+            status: isPass ? 'success' : isWarn ? 'warning' : 'error'
+          };
+        } else {
+          recalculated[hc] = r;
+        }
+      });
+      const finalUpdatedList = updatedList.map(k => k.id === updatedKpi.id ? { ...k, results: recalculated } : k);
+      setHdcKpis(finalUpdatedList);
+      try {
+        localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(finalUpdatedList));
+      } catch (e) {}
+      alert('✅ บันทึกการแก้ไขตัวชี้วัดเรียบร้อยแล้ว');
     }
   };
 
@@ -603,25 +799,62 @@ export default function DashboardPage() {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => setIsAddHdcModalOpen(true)}
-                  style={{
-                    backgroundColor: 'var(--primary)',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '0.45rem 0.9rem',
-                    borderRadius: 'var(--radius-md)',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                  {/* Auto-sync status & button */}
+                  <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.4rem',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  <span>+</span> เพิ่มตัวชี้วัด HDC
-                </button>
+                    gap: '0.5rem',
+                    backgroundColor: '#f1f5f9',
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.78rem',
+                    color: '#334155',
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    <span>{autoSyncStatus || '🕒 ซิงค์อัตโนมัติรอบ 08:00 น.'}</span>
+                    <button
+                      onClick={handleSyncAllHdc}
+                      disabled={isAutoSyncing || fetchingHdcId !== null}
+                      title="กดเพื่อดึงผลงานสดจาก HDC Open Data ครบทุกตัวชี้วัดพร้อมกันทันที"
+                      style={{
+                        padding: '0.15rem 0.5rem',
+                        fontSize: '0.72rem',
+                        borderRadius: '4px',
+                        border: '1px solid #0284c7',
+                        backgroundColor: '#0284c7',
+                        color: '#fff',
+                        cursor: isAutoSyncing ? 'not-allowed' : 'pointer',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.2rem'
+                      }}
+                    >
+                      {isAutoSyncing ? '⏳ กำลังซิงค์...' : '⚡ ดึงสดทุกตัว'}
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => setIsAddHdcModalOpen(true)}
+                    style={{
+                      backgroundColor: 'var(--primary)',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '0.45rem 0.9rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    <span>+</span> เพิ่มตัวชี้วัด HDC
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -722,18 +955,53 @@ export default function DashboardPage() {
                           }}
                         >
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', backgroundColor: '#e0f2fe', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
                                 {kpi.code}
+                              </span>
+                              {/* Tag ปีงบประมาณ */}
+                              <span 
+                                title={`ข้อมูลปีงบประมาณ ${kpi.year || '2569'}`}
+                                style={{ 
+                                  fontSize: '0.68rem', 
+                                  fontWeight: 700, 
+                                  color: '#92400e', 
+                                  backgroundColor: '#fef3c7', 
+                                  border: '1px solid #fde68a',
+                                  padding: '0.08rem 0.4rem', 
+                                  borderRadius: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.15rem'
+                                }}
+                              >
+                                📅 ปี {kpi.year || '2569'}
                               </span>
                               <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
                                 ({kpi.tableName})
                               </span>
-                              {kpi.id !== 'hdc-anc5' && (
+                              {/* ปุ่มแก้ไขตัวชี้วัด */}
+                              <button
+                                onClick={() => handleOpenEditHdcModal(kpi)}
+                                title="แก้ไขตัวชี้วัด (เปลี่ยนชื่อ, ตาราง, ปีงบประมาณ หรือเป้าหมาย)"
+                                style={{ 
+                                  background: 'none', 
+                                  border: 'none', 
+                                  color: '#0284c7', 
+                                  cursor: 'pointer', 
+                                  fontSize: '0.82rem', 
+                                  padding: '0 0.15rem',
+                                  lineHeight: 1
+                                }}
+                              >
+                                ✏️
+                              </button>
+                              {/* ปุ่มลบ */}
+                              {kpi.id !== 'hdc-anc5' && kpi.id !== 'hdc-anc12' && (
                                 <button
                                   onClick={() => handleDeleteHdcKpi(kpi.id)}
                                   title="ลบตัวชี้วัดนี้"
-                                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', padding: '0 0.2rem' }}
+                                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', padding: '0 0.15rem' }}
                                 >
                                   ✕
                                 </button>
@@ -1100,6 +1368,191 @@ export default function DashboardPage() {
                         }}
                       >
                         บันทึกตัวชี้วัด
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal: แก้ไขตัวชี้วัด HDC */}
+            {isEditHdcModalOpen && editingHdcKpi && (
+              <div style={{
+                position: 'fixed',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '1rem'
+              }}>
+                <div style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 'var(--radius-lg)',
+                  width: '100%',
+                  maxWidth: '560px',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                  padding: '1.5rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)' }}>
+                      ✏️ แก้ไขตัวชี้วัด HDC Open Data ({editingHdcKpi.code})
+                    </h3>
+                    <button 
+                      onClick={() => setIsEditHdcModalOpen(false)}
+                      style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          รหัสตัวชี้วัด
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={editingHdcKpi.code}
+                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, code: e.target.value })}
+                          placeholder="เช่น HDC-01"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          ชื่อตัวชี้วัด *
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={editingHdcKpi.name}
+                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, name: e.target.value })}
+                          placeholder="ชื่อตัวชี้วัด"
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          ชื่อตาราง HDC (tableName) *
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={editingHdcKpi.tableName}
+                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, tableName: e.target.value })}
+                          placeholder="เช่น s_kpi_anc12"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          ปีงบประมาณ (year) *
+                        </label>
+                        <select
+                          className="input-field"
+                          value={editingHdcKpi.year}
+                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, year: e.target.value })}
+                        >
+                          <option value="2570">ปีงบประมาณ 2570</option>
+                          <option value="2569">ปีงบประมาณ 2569</option>
+                          <option value="2568">ปีงบประมาณ 2568</option>
+                          <option value="2567">ปีงบประมาณ 2567</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          เครื่องหมาย
+                        </label>
+                        <select
+                          className="input-field"
+                          value={editingHdcKpi.targetOperator}
+                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, targetOperator: e.target.value })}
+                        >
+                          <option value=">=">&gt;= (มากกว่า)</option>
+                          <option value="<=">&lt;= (น้อยกว่า)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: '#16a34a' }}>
+                          ผ่านเกณฑ์ (เขียว %) *
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          value={editingHdcKpi.targetValue}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setEditingHdcKpi({ ...editingHdcKpi, targetValue: val, warningValue: Math.round(val * 0.8) });
+                          }}
+                          placeholder="เช่น 75"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: '#ca8a04' }}>
+                          เฝ้าระวัง (เหลือง %)
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          value={editingHdcKpi.warningValue !== undefined ? editingHdcKpi.warningValue : Math.round(editingHdcKpi.targetValue * 0.8)}
+                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, warningValue: Number(e.target.value) })}
+                          placeholder="เช่น 60"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Option Checkbox */}
+                    <div style={{ backgroundColor: '#f0f9ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid #bae6fd' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: '#0369a1', fontWeight: 500 }}>
+                        <input
+                          type="checkbox"
+                          checked={editingHdcKpi.refetchOnSave}
+                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, refetchOnSave: e.target.checked })}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                        />
+                        <span>🔄 ดึงข้อมูลผลงานสดจาก HDC ใหม่ทันทีหลังกดบันทึก (แนะนำเมื่อเปลี่ยนชื่อตารางหรือปีงบประมาณ)</span>
+                      </label>
+                    </div>
+
+                    {/* Buttons */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditHdcModalOpen(false)}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border)',
+                          backgroundColor: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveEditHdcKpi}
+                        style={{
+                          padding: '0.5rem 1.25rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: 'none',
+                          backgroundColor: 'var(--primary)',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        บันทึกการแก้ไข
                       </button>
                     </div>
                   </div>
