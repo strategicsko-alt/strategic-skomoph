@@ -752,7 +752,7 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        {activeTab !== 'subdistrict' && (
+        {activeTab !== 'subdistrict' ? (
           <div style={{ display: 'flex', gap: '1rem' }}>
             <select className="input-field" style={{ width: '220px' }} value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="">-- ทุกหมวดหมู่ --</option>
@@ -762,6 +762,52 @@ export default function DashboardPage() {
               <option value="">-- ทุกกลุ่มงาน --</option>
               {WORK_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {/* Outermost Quick Add HDC Button - บนสุดของจอ ในกล่องนอกสุด */}
+            <button
+              onClick={() => setIsAddHdcModalOpen(true)}
+              title="เพิ่มตัวชี้วัด HDC Open Data ตัวใหม่"
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: '#fff',
+                border: 'none',
+                padding: '0.45rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+            >
+              <span style={{ fontSize: '1rem' }}>➕</span> เพิ่มตัวชี้วัด HDC
+            </button>
+
+            {/* Outermost Fullscreen Toggle */}
+            <button
+              onClick={() => setIsSubdistrictFullscreen(!isSubdistrictFullscreen)}
+              title={isSubdistrictFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายตารางเต็มจอ'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                padding: '0.45rem 0.85rem',
+                borderRadius: 'var(--radius-md)',
+                border: isSubdistrictFullscreen ? '1px solid #ef4444' : '1px solid #0284c7',
+                backgroundColor: isSubdistrictFullscreen ? '#dc2626' : '#f0f9ff',
+                color: isSubdistrictFullscreen ? '#fff' : '#0284c7',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+            >
+              <span>{isSubdistrictFullscreen ? '✖ ย่อกลับ' : '⛶ เต็มจอ'}</span>
+            </button>
           </div>
         )}
       </div>
@@ -1559,27 +1605,29 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Modal: เพิ่มตัวชี้วัด HDC */}
+            {/* Modal: เพิ่มตัวชี้วัด HDC (บนสุดของจอ) */}
             {isAddHdcModalOpen && (
               <div style={{
                 position: 'fixed',
                 top: 0, left: 0, right: 0, bottom: 0,
                 backgroundColor: 'rgba(0,0,0,0.5)',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'center',
-                zIndex: 1000,
-                padding: '1rem'
+                zIndex: 10000,
+                padding: '1.25rem 1rem',
+                overflowY: 'auto'
               }}>
                 <div style={{
                   backgroundColor: '#fff',
                   borderRadius: 'var(--radius-lg)',
                   width: '100%',
                   maxWidth: '560px',
-                  maxHeight: '90vh',
+                  maxHeight: 'calc(100vh - 2.5rem)',
                   overflowY: 'auto',
-                  boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-                  padding: '1.5rem'
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+                  padding: '1.25rem 1.5rem',
+                  marginTop: '0.5rem'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
                     <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)' }}>
@@ -1731,10 +1779,12 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* API Code Preview */}
-                    <div style={{ backgroundColor: '#0f172a', borderRadius: 'var(--radius-md)', padding: '0.85rem', color: '#f8fafc', fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                      <div style={{ color: '#94a3b8', marginBottom: '0.4rem' }}>// โครงสร้าง Web Service (POST https://opendata.moph.go.th/api/report_data):</div>
-                      <pre style={{ margin: 0, overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                    {/* API Code Preview (Collapsible) */}
+                    <details style={{ backgroundColor: '#0f172a', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', color: '#f8fafc', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                      <summary style={{ color: '#94a3b8', cursor: 'pointer', outline: 'none' }}>
+                        // โครงสร้าง Web Service: <span style={{ color: '#38bdf8' }}>{newHdcForm.tableName || 's_ttm27'} ({newHdcForm.year || '2569'})</span>
+                      </summary>
+                      <pre style={{ margin: '0.4rem 0 0 0', overflowX: 'auto', whiteSpace: 'pre-wrap', color: '#e2e8f0', fontSize: '0.72rem' }}>
 {`{
   "tableName": "${newHdcForm.tableName || 's_ttm27'}",
   "year": "${newHdcForm.year || '2569'}",
@@ -1742,7 +1792,7 @@ export default function DashboardPage() {
   "type": "json"
 }`}
                       </pre>
-                    </div>
+                    </details>
 
                     {/* Buttons */}
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
@@ -1781,27 +1831,29 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Modal: แก้ไขตัวชี้วัด HDC */}
+            {/* Modal: แก้ไขตัวชี้วัด HDC (บนสุดของจอ) */}
             {isEditHdcModalOpen && editingHdcKpi && (
               <div style={{
                 position: 'fixed',
                 top: 0, left: 0, right: 0, bottom: 0,
                 backgroundColor: 'rgba(0,0,0,0.5)',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'center',
-                zIndex: 1000,
-                padding: '1rem'
+                zIndex: 10000,
+                padding: '1.25rem 1rem',
+                overflowY: 'auto'
               }}>
                 <div style={{
                   backgroundColor: '#fff',
                   borderRadius: 'var(--radius-lg)',
                   width: '100%',
                   maxWidth: '560px',
-                  maxHeight: '90vh',
+                  maxHeight: 'calc(100vh - 2.5rem)',
                   overflowY: 'auto',
-                  boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-                  padding: '1.5rem'
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+                  padding: '1.25rem 1.5rem',
+                  marginTop: '0.5rem'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
                     <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)' }}>
