@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Activity, Target, Briefcase, GitBranch, Folder, AlertCircle } from 'lucide-react';
 import { ExportButton } from '@/components/ExportButton';
@@ -11,7 +12,8 @@ export default function EditorDashboard() {
     strategies: 0,
     objectives: 0,
     keyResults: 0,
-    projects: 0
+    projects: 0,
+    missingKpiDict: 0
   });
   const [completenessData, setCompletenessData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +22,7 @@ export default function EditorDashboard() {
     const fetchStats = async () => {
       setLoading(true);
       
-      const [issueCount, stCount, objCount, krCount, projCount, treeRes] = await Promise.all([
+      const [issueCount, stCount, objCount, krCount, projCount, treeRes, kpiDictRes] = await Promise.all([
         supabase.from('strategic_issues').select('id', { count: 'exact', head: true }),
         supabase.from('strategies').select('id', { count: 'exact', head: true }),
         supabase.from('objectives').select('id', { count: 'exact', head: true }),
@@ -28,24 +30,42 @@ export default function EditorDashboard() {
         supabase.from('projects').select('id', { count: 'exact', head: true }),
         supabase.from('strategic_issues').select(`
           id, auto_id, name, order_index,
+          outcome_indicators:key_results!strategic_issue_id ( id, auto_id, name ),
           strategies (
             id, auto_id, name,
             objectives (
               id, auto_id, name, initiative_activity, ia_ssjj, ia_rph, ia_ssor, ia_rphst, ia_phakee,
-              key_results ( id )
+              key_results ( id, auto_id, name )
             )
           ),
           projects ( id )
-        `).order('order_index', { ascending: true })
+        `).order('order_index', { ascending: true }),
+        supabase.from('kpi_dictionaries').select('id, key_result_id, definition, numerator, denominator, inclusion_criteria, data_source')
       ]);
 
-      setStats({
-        issues: issueCount.count || 0,
-        strategies: stCount.count || 0,
-        objectives: objCount.count || 0,
-        keyResults: krCount.count || 0,
-        projects: projCount.count || 0
+      // Map kpi_dictionaries by key_result_id
+      const dictMap = new Map<string, any[]>();
+      kpiDictRes.data?.forEach(dict => {
+        if (dict.key_result_id) {
+          const list = dictMap.get(dict.key_result_id) || [];
+          list.push(dict);
+          dictMap.set(dict.key_result_id, list);
+        }
       });
+
+      const hasKpiDictContent = (krId: string) => {
+        const dicts = dictMap.get(krId);
+        if (!dicts || dicts.length === 0) return false;
+        return dicts.some(dict => 
+          (dict.definition && String(dict.definition).trim() !== '') ||
+          (dict.numerator && String(dict.numerator).trim() !== '') ||
+          (dict.denominator && String(dict.denominator).trim() !== '') ||
+          (dict.inclusion_criteria && String(dict.inclusion_criteria).trim() !== '') ||
+          (dict.data_source && String(dict.data_source).trim() !== '')
+        );
+      };
+
+      let totalSystemMissingKpiDict = 0;
 
       if (treeRes.data) {
         const cData = treeRes.data.map(issue => {
@@ -53,9 +73,19 @@ export default function EditorDashboard() {
           let missingKr = 0;
           let missingIa = 0;
           let missingHowTo = 0;
+          let missingKpiDict = 0;
+          let totalKeyResults = 0;
           
           let totalStrategies = issue.strategies?.length || 0;
           let totalObjectives = 0;
+
+          // Check outcome indicators under strategic issue (IND)
+          (issue as any).outcome_indicators?.forEach((kr: any) => {
+            totalKeyResults++;
+            if (!hasKpiDictContent(kr.id)) {
+              missingKpiDict++;
+            }
+          });
 
           issue.strategies?.forEach((st: any) => {
             if (!st.objectives || st.objectives.length === 0) {
@@ -63,7 +93,16 @@ export default function EditorDashboard() {
             } else {
               totalObjectives += st.objectives.length;
               st.objectives.forEach((obj: any) => {
-                if (!obj.key_results || obj.key_results.length === 0) missingKr++;
+                if (!obj.key_results || obj.key_results.length === 0) {
+                  missingKr++;
+                } else {
+                  obj.key_results.forEach((kr: any) => {
+                    totalKeyResults++;
+                    if (!hasKpiDictContent(kr.id)) {
+                      missingKpiDict++;
+                    }
+                  });
+                }
                 
                 // Parse or check Initiative Activity
                 let hasIa = false;
@@ -86,19 +125,32 @@ export default function EditorDashboard() {
             }
           });
 
+          totalSystemMissingKpiDict += missingKpiDict;
+
           return {
             ...issue,
             totalStrategies,
             totalObjectives,
+            totalKeyResults,
             totalProjects: issue.projects?.length || 0,
             missingObjectives,
             missingKr,
             missingIa,
-            missingHowTo
+            missingHowTo,
+            missingKpiDict
           };
         });
         setCompletenessData(cData);
       }
+
+      setStats({
+        issues: issueCount.count || 0,
+        strategies: stCount.count || 0,
+        objectives: objCount.count || 0,
+        keyResults: krCount.count || 0,
+        projects: projCount.count || 0,
+        missingKpiDict: totalSystemMissingKpiDict
+      });
       
       setLoading(false);
     };
@@ -151,6 +203,11 @@ export default function EditorDashboard() {
           <div>
             <p style={{ color: 'var(--secondary-foreground)', fontSize: '0.8rem', fontWeight: 500 }}>เป้าหมาย (Key Results)</p>
             <h2 style={{ fontSize: '2rem', fontWeight: 700 }}>{loading ? '-' : stats.keyResults}</h2>
+            {!loading && (
+              <p style={{ fontSize: '0.75rem', color: stats.missingKpiDict > 0 ? '#b91c1c' : 'var(--success)', fontWeight: 600, marginTop: '0.25rem' }}>
+                {stats.missingKpiDict > 0 ? `ยังไม่ระบุ KPI Dict ${stats.missingKpiDict} รายการ` : 'ระบุ KPI Dict ครบถ้วน'}
+              </p>
+            )}
           </div>
         </div>
 
@@ -178,12 +235,13 @@ export default function EditorDashboard() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', color: 'var(--secondary-foreground)' }}>
-                  <th style={{ padding: '0.75rem 0.5rem', width: '25%' }}>ยุทธศาสตร์</th>
+                  <th style={{ padding: '0.75rem 0.5rem', width: '22%' }}>ยุทธศาสตร์</th>
                   <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>จำนวนโครงการ</th>
                   <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', color: '#b91c1c' }}>กลยุทธ์ที่ขาดเป้าประสงค์</th>
                   <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', color: '#b91c1c' }}>เป้าประสงค์ที่ขาด KR</th>
                   <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', color: '#b91c1c' }}>เป้าประสงค์ที่ขาด Initiative</th>
                   <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', color: '#b91c1c' }}>เป้าประสงค์ที่ระบุ How To ไม่ครบ</th>
+                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', color: '#b91c1c' }}>KR ที่ยังไม่ระบุ KPI Dictionary</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,6 +287,33 @@ export default function EditorDashboard() {
                         </span>
                       ) : (
                         <span style={{ color: 'var(--success)' }}>ครบถ้วน</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
+                      {issue.totalKeyResults === 0 ? (
+                        <span style={{ color: 'var(--secondary-foreground)' }}>-</span>
+                      ) : issue.missingKpiDict > 0 ? (
+                        <Link 
+                          href="/editor/kpi-dictionary"
+                          title={`ระบุแล้ว ${issue.totalKeyResults - issue.missingKpiDict} จาก ${issue.totalKeyResults} KR (คลิกเพื่อไปจัดการ)`}
+                          style={{ textDecoration: 'none' }}
+                        >
+                          <span style={{ 
+                            padding: '0.2rem 0.6rem', 
+                            backgroundColor: '#fee2e2', 
+                            color: '#b91c1c', 
+                            borderRadius: '4px', 
+                            fontWeight: 600,
+                            display: 'inline-block',
+                            cursor: 'pointer'
+                          }}>
+                            ยังไม่ระบุ {issue.missingKpiDict} KR
+                          </span>
+                        </Link>
+                      ) : (
+                        <span style={{ color: 'var(--success)' }} title={`ระบุครบทั้ง ${issue.totalKeyResults} KR`}>
+                          ครบถ้วน
+                        </span>
                       )}
                     </td>
                   </tr>

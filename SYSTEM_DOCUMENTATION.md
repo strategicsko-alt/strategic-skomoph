@@ -250,11 +250,12 @@ graph TD
 - สามารถย้าย KR จาก Objective หนึ่งไปอีก Objective หนึ่ง หรือแปลง KR ให้กลายเป็น Outcome Indicator ของ Strategic Issue ได้
 
 ### 3. การตรวจสอบความสมบูรณ์ของแผน (Completeness / QC Dashboard)
-ในหน้า `/editor/dashboard` มีระบบตรวจจับข้อมูลที่ยังไม่สมบูรณ์ (Missing Elements):
+ในหน้า `/editor/dashboard` มีระบบตรวจจับข้อมูลที่ยังไม่สมบูรณ์ (Missing Elements / Data Completeness Tracker) และแสดงผลแยกตามรายยุทธศาสตร์:
 - กลยุทธ์ที่ยังไม่มีเป้าประสงค์ (Missing Objectives)
 - เป้าประสงค์ที่ยังไม่มีตัวชี้วัด (Missing Key Results)
 - เป้าประสงค์ที่ยังไม่มีกิจกรรมริเริ่ม (Missing Initiative Activities)
 - เป้าประสงค์ที่ยังกรอก How to 5 ระดับไม่ครบ (Missing How-To)
+- ตัวชี้วัดที่ยังไม่ระบุเนื้อหาพจนานุกรมตัวชี้วัด (Missing KPI Dictionary): ตรวจสอบทั้งตัวชี้วัดระดับยุทธศาสตร์ (Outcome Indicators) และระดับเป้าประสงค์ (Key Results) ว่ามีการกรอกคำนิยาม ตัวตั้ง ตัวหาร หรือแหล่งข้อมูลหรือไม่ พร้อมสรุปยอดรวมที่การ์ดสถิติตัวชี้วัด และมีป้ายลิงก์ให้คลิกไปยังหน้า `/editor/kpi-dictionary` เพื่อจัดการต่อได้ทันที
 
 ### 4. การสำรองและกู้คืนฐานข้อมูล (Full Database Backup & Restore)
 ในหน้า `/editor/admin` สามารถ Export ข้อมูลทั้งหมดในรูปแบบ JSON Snapshot เพียงคลิกเดียว และสามารถนำไฟล์ JSON ดังกล่าวมา Restore ข้อมูลทั้งหมดกลับคืนได้ทันที โดยระบบจะลบข้อมูลเดิมตามลำดับ Foreign Key แล้วใส่ชุดข้อมูลสำรองกลับเข้าไป
