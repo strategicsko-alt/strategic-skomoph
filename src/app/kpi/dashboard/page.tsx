@@ -861,13 +861,28 @@ export default function DashboardPage() {
           }
         });
 
-        const cleanShortName = (name: string) => {
-          return name
-            .replace('โรงพยาบาลส่งเสริมสุขภาพตำบล', '')
-            .replace('โรงพยาบาลส่งเสริมสุขภาพบ้าน', '')
-            .replace('สถานีอนามัยเฉลิมพระเกียรติ 60 พรรษา นวมินทราชินี', 'สอน.')
-            .replace('สถานีอนามัย', 'สอน.')
+        const formatFacilityDisplayName = (fac: any) => {
+          if (!fac) return '';
+          const rawName = fac.name || '';
+          
+          // 1. กรณีพิเศษ: สอน.วังสมบูรณ์ (สถานีอนามัยเฉลิมพระเกียรติ 60 พรรษา นวมินทราชินี)
+          if (fac.code5 === '02531' || rawName.includes('เฉลิมพระเกียรติ 60 พรรษา') || rawName.includes('สถานีอนามัยเฉลิมพระเกียรติ')) {
+            return 'สอน.';
+          }
+
+          // 2. ตัดคำนำหน้า: "โรงพยาบาลส่งเสริมสุขภาพตำบล", "โรงพยาบาลส่งเสริมสุขภาพบ้าน", "สถานีอนามัย"
+          let clean = rawName
+            .replace(/^โรงพยาบาลส่งเสริมสุขภาพตำบล/, '')
+            .replace(/^โรงพยาบาลส่งเสริมสุขภาพบ้าน/, '')
+            .replace(/^สถานีอนามัย/, '')
             .trim();
+
+          // 3. ตัดคำต่อท้ายชื่อตำบล: "ตำบล..." หรือ "ต...." เพื่อให้กระชับสบายตา
+          clean = clean.split(/\s+ตำบล/)[0];
+          clean = clean.split(/\s+ต\./)[0];
+          clean = clean.trim();
+
+          return `รพ.สต.${clean}`;
         };
 
         const getCellBg = (status: string) => {
@@ -1437,7 +1452,7 @@ export default function DashboardPage() {
                             {/* Column 2: ชื่อ รพ.สต. */}
                             <td style={{ padding: '0.5rem 1rem', borderRight: '2px solid var(--border)', backgroundColor: '#fff', position: 'sticky', left: '85px', zIndex: 2 }}>
                               <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                                รพ.สต.{cleanShortName(fac.name)}
+                                {formatFacilityDisplayName(fac)}
                               </div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
                                 อ.{fac.district}
@@ -1522,7 +1537,7 @@ export default function DashboardPage() {
                           {fac.code9_new || fac.code9 || '-'}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
-                          {fac.name}
+                          {formatFacilityDisplayName(fac)}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem' }}>
                           <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 600 }}>
