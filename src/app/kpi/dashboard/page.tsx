@@ -114,6 +114,7 @@ export default function DashboardPage() {
   const [subdistrictViewMode, setSubdistrictViewMode] = useState<'matrix' | 'list'>('matrix');
   const [isAddHdcModalOpen, setIsAddHdcModalOpen] = useState<boolean>(false);
   const [fetchingHdcId, setFetchingHdcId] = useState<string | null>(null);
+  const [isSubdistrictFullscreen, setIsSubdistrictFullscreen] = useState<boolean>(false);
 
   // Category filters for HDC KPIs
   const [hdcFilterMainCategory, setHdcFilterMainCategory] = useState<string>('ALL');
@@ -257,6 +258,17 @@ export default function DashboardPage() {
         setAutoSyncStatus('รอบการอัปเดตถัดไป: 08:00 น.');
       }
     } catch (e) {}
+  }, []);
+
+  // Listen for Escape key to exit fullscreen mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSubdistrictFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleFetchHdcData = async (kpiId: string, kpiObj?: any, silent = false) => {
@@ -716,34 +728,42 @@ export default function DashboardPage() {
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center' }}>กำลังโหลดข้อมูลตัวชี้วัด...</div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: 'calc(100vh - 100px)' }}>
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: activeTab === 'subdistrict' ? '0.75rem' : '1.5rem', 
+      height: isSubdistrictFullscreen ? '100vh' : (activeTab === 'subdistrict' ? 'auto' : 'calc(100vh - 100px)'),
+      minHeight: activeTab === 'subdistrict' && !isSubdistrictFullscreen ? 'calc(100vh - 80px)' : undefined
+    }}>
       {/* Top Header & Tabs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Dashboard ตัวชี้วัด (KPIs) สสจ.สระแก้ว</h1>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-            <button onClick={() => setActiveTab('detail')} style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'detail' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'detail' ? 700 : 500, color: activeTab === 'detail' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>Dashboard ตัวชี้วัด (KPIs) สสจ.สระแก้ว</h1>
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+            <button onClick={() => setActiveTab('detail')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'detail' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'detail' ? 700 : 500, color: activeTab === 'detail' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
               มุมมองรายตัวชี้วัด (Master-Detail)
             </button>
-            <button onClick={() => setActiveTab('executive')} style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'executive' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'executive' ? 700 : 500, color: activeTab === 'executive' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+            <button onClick={() => setActiveTab('executive')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'executive' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'executive' ? 700 : 500, color: activeTab === 'executive' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
               สรุปสำหรับผู้บริหาร (Executive Summary)
             </button>
-            <button onClick={() => setActiveTab('subdistrict')} style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'subdistrict' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'subdistrict' ? 700 : 500, color: activeTab === 'subdistrict' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+            <button onClick={() => setActiveTab('subdistrict')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'subdistrict' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'subdistrict' ? 700 : 500, color: activeTab === 'subdistrict' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
               ระดับ รพ.สต. (HDC Open Data)
             </button>
           </div>
         </div>
         
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <select className="input-field" style={{ width: '220px' }} value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-            <option value="">-- ทุกหมวดหมู่ --</option>
-            {CATEGORIES.map(c => <option key={c as string} value={c as string}>{c as string}</option>)}
-          </select>
-          <select className="input-field" style={{ width: '220px' }} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
-            <option value="">-- ทุกกลุ่มงาน --</option>
-            {WORK_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
-        </div>
+        {activeTab !== 'subdistrict' && (
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <select className="input-field" style={{ width: '220px' }} value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+              <option value="">-- ทุกหมวดหมู่ --</option>
+              {CATEGORIES.map(c => <option key={c as string} value={c as string}>{c as string}</option>)}
+            </select>
+            <select className="input-field" style={{ width: '220px' }} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
+              <option value="">-- ทุกกลุ่มงาน --</option>
+              {WORK_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
       {activeTab === 'executive' && (
@@ -887,61 +907,91 @@ export default function DashboardPage() {
         });
 
         return (
-          <div className="card" style={{ flex: 1, overflow: 'hidden', padding: '0', display: 'flex', flexDirection: 'column' }}>
+          <div 
+            className={isSubdistrictFullscreen ? '' : 'card'} 
+            style={isSubdistrictFullscreen ? {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 9999,
+              backgroundColor: '#ffffff',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              padding: 0
+            } : {
+              flex: 1,
+              overflow: 'hidden',
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              height: 'calc(100vh - 165px)',
+              minHeight: '620px'
+            }}
+          >
             {/* Filter and Control Bar */}
-            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card)' }}>
+            <div style={{ padding: '0.65rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isSubdistrictFullscreen ? '#f8fafc' : 'var(--card)' }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
                     การติดตามตัวชี้วัดระดับ รพ.สต. (HDC Open Data)
                   </h2>
-                  <span style={{ fontSize: '0.75rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.75rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.5rem', borderRadius: '1rem', fontWeight: 600 }}>
                     {allRpost.length} รพ.สต. ในสระแก้ว
                   </span>
+                  {isSubdistrictFullscreen && (
+                    <span style={{ fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#991b1b', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
+                      ⛶ โหมดเต็มจอ
+                    </span>
+                  )}
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)', marginTop: '0.15rem' }}>
                   แถว: รายชื่อ รพ.สต. แยกตามอำเภอ • คอลัมน์: ตัวชี้วัด HDC • สีเต็มช่องตามระดับผลงาน
                 </div>
               </div>
 
               {/* Action Buttons & Legend */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#22c55e', display: 'inline-block' }}></span> ผ่านเกณฑ์
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span style={{ width: '11px', height: '11px', borderRadius: '2px', backgroundColor: '#22c55e', display: 'inline-block' }}></span> ผ่านเกณฑ์
                   </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#eab308', display: 'inline-block' }}></span> เฝ้าระวัง
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span style={{ width: '11px', height: '11px', borderRadius: '2px', backgroundColor: '#eab308', display: 'inline-block' }}></span> เฝ้าระวัง
                   </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#ef4444', display: 'inline-block' }}></span> ไม่ผ่านเกณฑ์
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span style={{ width: '11px', height: '11px', borderRadius: '2px', backgroundColor: '#ef4444', display: 'inline-block' }}></span> ไม่ผ่านเกณฑ์
                   </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#e2e8f0', display: 'inline-block' }}></span> รอดำเนินการ
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span style={{ width: '11px', height: '11px', borderRadius: '2px', backgroundColor: '#e2e8f0', display: 'inline-block' }}></span> รอผล
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {/* Auto-sync status & button */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
+                    gap: '0.4rem',
                     backgroundColor: '#f1f5f9',
-                    padding: '0.3rem 0.65rem',
+                    padding: '0.25rem 0.55rem',
                     borderRadius: 'var(--radius-md)',
-                    fontSize: '0.78rem',
+                    fontSize: '0.75rem',
                     color: '#334155',
                     border: '1px solid #e2e8f0'
                   }}>
-                    <span>{autoSyncStatus || '🕒 ซิงค์อัตโนมัติรอบ 08:00 น.'}</span>
+                    <span>{autoSyncStatus || '🕒 ซิงค์ 08:00 น.'}</span>
                     <button
                       onClick={handleSyncAllHdc}
                       disabled={isAutoSyncing || fetchingHdcId !== null}
                       title="กดเพื่อดึงผลงานสดจาก HDC Open Data ครบทุกตัวชี้วัดพร้อมกันทันที"
                       style={{
-                        padding: '0.15rem 0.5rem',
-                        fontSize: '0.72rem',
+                        padding: '0.15rem 0.45rem',
+                        fontSize: '0.7rem',
                         borderRadius: '4px',
                         border: '1px solid #0284c7',
                         backgroundColor: '#0284c7',
@@ -953,7 +1003,7 @@ export default function DashboardPage() {
                         gap: '0.2rem'
                       }}
                     >
-                      {isAutoSyncing ? '⏳ กำลังซิงค์...' : '⚡ ดึงสดทุกตัว'}
+                      {isAutoSyncing ? '⏳ ซิงค์...' : '⚡ ดึงสดทุกตัว'}
                     </button>
                   </div>
 
@@ -963,30 +1013,52 @@ export default function DashboardPage() {
                       backgroundColor: 'var(--primary)',
                       color: '#fff',
                       border: 'none',
-                      padding: '0.45rem 0.9rem',
+                      padding: '0.35rem 0.75rem',
                       borderRadius: 'var(--radius-md)',
                       fontWeight: 600,
-                      fontSize: '0.85rem',
+                      fontSize: '0.8rem',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.4rem',
+                      gap: '0.3rem',
                       boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
                     }}
                   >
                     <span>+</span> เพิ่มตัวชี้วัด HDC
+                  </button>
+
+                  {/* Toggle Fullscreen Button */}
+                  <button
+                    onClick={() => setIsSubdistrictFullscreen(!isSubdistrictFullscreen)}
+                    title={isSubdistrictFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายตารางเต็มจอเพื่อดูผลงานได้อย่างชัดเจน'}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: isSubdistrictFullscreen ? '1px solid #ef4444' : '1px solid #0284c7',
+                      backgroundColor: isSubdistrictFullscreen ? '#dc2626' : '#f0f9ff',
+                      color: isSubdistrictFullscreen ? '#fff' : '#0284c7',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    <span>{isSubdistrictFullscreen ? '✖ ย่อกลับ (Esc)' : '⛶ ขยายเต็มจอ'}</span>
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Filter Row */}
-            <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>เลือกอำเภอ:</label>
+            <div style={{ padding: '0.5rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>เลือกอำเภอ:</label>
                 <select 
                   className="input-field" 
-                  style={{ width: '210px', padding: '0.4rem 0.6rem', fontSize: '0.875rem' }}
+                  style={{ width: '200px', padding: '0.35rem 0.55rem', fontSize: '0.82rem' }}
                   value={subdistrictDistrict} 
                   onChange={(e) => setSubdistrictDistrict(e.target.value)}
                 >
@@ -1000,11 +1072,11 @@ export default function DashboardPage() {
               </div>
 
               {/* Category Filter: Main Category */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>หมวดหมู่หลัก:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>หมวดหมู่หลัก:</label>
                 <select 
                   className="input-field" 
-                  style={{ width: '190px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                  style={{ width: '180px', padding: '0.35rem 0.55rem', fontSize: '0.82rem' }}
                   value={hdcFilterMainCategory} 
                   onChange={(e) => {
                     setHdcFilterMainCategory(e.target.value);
@@ -1019,11 +1091,11 @@ export default function DashboardPage() {
               </div>
 
               {/* Category Filter: Subcategory */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>หมวดหมู่ย่อย:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>หมวดหมู่ย่อย:</label>
                 <select 
                   className="input-field" 
-                  style={{ width: '210px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                  style={{ width: '190px', padding: '0.35rem 0.55rem', fontSize: '0.82rem' }}
                   value={hdcFilterSubCategory} 
                   onChange={(e) => setHdcFilterSubCategory(e.target.value)}
                 >
@@ -1042,18 +1114,18 @@ export default function DashboardPage() {
                       setHdcFilterSubCategory('ALL');
                     }}
                     title="ล้างตัวกรองหมวดหมู่"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: '#0284c7', fontWeight: 600 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#0284c7', fontWeight: 600 }}
                   >
                     ✕ ล้าง
                   </button>
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <input 
                   type="text" 
                   className="input-field" 
-                  style={{ width: '220px', padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                  style={{ width: '200px', padding: '0.35rem 0.65rem', fontSize: '0.82rem' }}
                   placeholder="ค้นหาชื่อ รพ.สต. หรือ รหัส 5 หลัก..."
                   value={subdistrictSearch}
                   onChange={(e) => setSubdistrictSearch(e.target.value)}
@@ -1061,21 +1133,21 @@ export default function DashboardPage() {
                 {subdistrictSearch && (
                   <button 
                     onClick={() => setSubdistrictSearch('')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--secondary-foreground)' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}
                   >
                     ✕ ล้าง
                   </button>
                 )}
               </div>
 
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                 <button 
                   onClick={() => setSubdistrictViewMode('matrix')}
                   style={{ 
-                    padding: '0.35rem 0.75rem', 
+                    padding: '0.3rem 0.65rem', 
                     borderRadius: 'var(--radius-sm)', 
                     border: '1px solid var(--border)',
-                    fontSize: '0.8rem', 
+                    fontSize: '0.78rem', 
                     fontWeight: 600,
                     cursor: 'pointer',
                     backgroundColor: subdistrictViewMode === 'matrix' ? 'var(--primary)' : '#fff',
@@ -1087,10 +1159,10 @@ export default function DashboardPage() {
                 <button 
                   onClick={() => setSubdistrictViewMode('list')}
                   style={{ 
-                    padding: '0.35rem 0.75rem', 
+                    padding: '0.3rem 0.65rem', 
                     borderRadius: 'var(--radius-sm)', 
                     border: '1px solid var(--border)',
-                    fontSize: '0.8rem', 
+                    fontSize: '0.78rem', 
                     fontWeight: 600,
                     cursor: 'pointer',
                     backgroundColor: subdistrictViewMode === 'list' ? 'var(--primary)' : '#fff',
@@ -1098,6 +1170,25 @@ export default function DashboardPage() {
                   }}
                 >
                   รายชื่อ รพ.สต.
+                </button>
+                <button 
+                  onClick={() => setIsSubdistrictFullscreen(!isSubdistrictFullscreen)}
+                  title={isSubdistrictFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มจอเพื่อดูผลงานเต็มตา'}
+                  style={{ 
+                    padding: '0.3rem 0.65rem', 
+                    borderRadius: 'var(--radius-sm)', 
+                    border: isSubdistrictFullscreen ? '1px solid #ef4444' : '1px solid #0284c7',
+                    fontSize: '0.78rem', 
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    backgroundColor: isSubdistrictFullscreen ? '#dc2626' : '#0284c7',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                  }}
+                >
+                  {isSubdistrictFullscreen ? '✖ ย่อ' : '⛶ เต็มจอ'}
                 </button>
               </div>
             </div>
@@ -1169,12 +1260,12 @@ export default function DashboardPage() {
                   </div>
                 )}
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
-                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', zIndex: 20, boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }}>
                     <tr>
-                      <th style={{ padding: '0.85rem 0.75rem', textAlign: 'center', borderBottom: '2px solid var(--border)', borderRight: '1px solid var(--border)', width: '85px', minWidth: '85px', backgroundColor: 'var(--card)', position: 'sticky', left: 0, zIndex: 11 }}>
+                      <th style={{ padding: '0.75rem 0.6rem', textAlign: 'center', borderBottom: '2px solid var(--border)', borderRight: '1px solid var(--border)', width: '85px', minWidth: '85px', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 25 }}>
                         รหัส 5 หลัก
                       </th>
-                      <th style={{ padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '250px', minWidth: '250px', backgroundColor: 'var(--card)', position: 'sticky', left: '85px', zIndex: 11 }}>
+                      <th style={{ padding: '0.75rem 0.85rem', textAlign: 'left', borderBottom: '2px solid var(--border)', borderRight: '2px solid var(--border)', width: '250px', minWidth: '250px', backgroundColor: '#f8fafc', position: 'sticky', left: '85px', zIndex: 25 }}>
                         ชื่อ รพ.สต.
                       </th>
                       {filteredHdcKpis.map((kpi) => (
@@ -1320,12 +1411,15 @@ export default function DashboardPage() {
                           <td 
                             colSpan={2 + filteredHdcKpis.length + 1} 
                             style={{ 
-                              padding: '0.55rem 1rem', 
+                              padding: '0.45rem 1rem', 
                               fontWeight: 700, 
                               color: '#0f172a', 
-                              fontSize: '0.875rem',
+                              fontSize: '0.85rem',
                               borderTop: '2px solid #cbd5e1',
-                              borderBottom: '2px solid #cbd5e1'
+                              borderBottom: '2px solid #cbd5e1',
+                              position: 'sticky',
+                              left: 0,
+                              zIndex: 3
                             }}
                           >
                             📍 อำเภอ{distName} ({distFacilities.length} แห่ง)
