@@ -1,6 +1,14 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import {
+  inspectHdcColumns,
+  fetchHdcTableData,
+  aggregateHdcByLevel,
+  AggregationItemResult,
+  SA_KAEO_DISTRICTS,
+  SA_KAEO_HOSPITALS,
+} from '@/lib/hdc';
 
 const WORK_GROUPS = [
   "กลุ่มงานบริหารทั่วไป", "กลุ่มงานบริหารทรัพยากรบุคคล", "กลุ่มกฎหมาย", 
@@ -31,6 +39,28 @@ interface EvalCriteria {
   q1_warning?: number; q2_warning?: number; q3_warning?: number; q4_warning?: number;
 }
 
+export interface ApiConfig {
+  tableName: string;
+  year: string;
+  variables: Record<string, string>;
+  filter?: string;
+  [key: string]: any;
+}
+
+export function normalizeApiConfig(cfg: any): ApiConfig {
+  if (!cfg || typeof cfg !== 'object') {
+    return { tableName: '', year: '2569', variables: { A: 'result', B: 'target' } };
+  }
+  const tableName = cfg.tableName || cfg.A?.tableName || cfg.B?.tableName || '';
+  const year = String(cfg.year || cfg.b_year || '2569');
+  const variables: Record<string, string> = { ...(cfg.variables || {}) };
+  if (!variables.A && cfg.A?.field) variables.A = cfg.A.field;
+  if (!variables.B && cfg.B?.field) variables.B = cfg.B.field;
+  if (!variables.A) variables.A = 'result';
+  if (!variables.B) variables.B = 'target';
+  return { ...cfg, tableName, year, variables };
+}
+
 interface KpiRow {
   kr_id: string | null;       // null = standalone (ไม่ได้มาจากระบบแผน)
   dict_id: string | null;
@@ -47,7 +77,7 @@ interface KpiRow {
   eval_criteria: EvalCriteria;
   tags: string[];
   api_enabled: boolean;
-  api_config: Record<string, { tableName: string; field: string; filter: string }>;
+  api_config: ApiConfig;
 }
 
 function emptyRow(overrides?: Partial<KpiRow>): KpiRow {
@@ -55,10 +85,11 @@ function emptyRow(overrides?: Partial<KpiRow>): KpiRow {
     kr_id: null, dict_id: null, auto_id: '', kr_name: '',
     objective_name: '', kpi_type: 'ministry',
     calc_type: 'percent', calc_formula: '(A/B)*100',
-    data_items: [{ id: 'A', label: '' }, { id: 'B', label: '' }],
+    data_items: [{ id: 'A', label: 'ตัวตั้ง' }, { id: 'B', label: 'ตัวหาร' }],
     measurement_level: 'province', target_operator: '>=',
     work_group: '', eval_criteria: {},
-    tags: [], api_enabled: false, api_config: {},
+    tags: [], api_enabled: false,
+    api_config: { tableName: '', year: '2569', variables: { A: 'result', B: 'target' } },
     ...overrides,
   };
 }
@@ -149,7 +180,8 @@ export default function TemplateManagerPage() {
         target_operator: dict?.target_operator || '>=',
         work_group: wg,
         eval_criteria: evalCriteria, tags,
-        api_enabled: dict?.api_enabled || false, api_config: apiConfig,
+        api_enabled: dict?.api_enabled || false,
+        api_config: normalizeApiConfig(apiConfig),
       });
     });
 
@@ -162,15 +194,15 @@ export default function TemplateManagerPage() {
         
       if (!dataItems || dataItems.length === 0) {
         dataItems = [
-          { id: 'A', label: dict?.numerator || '' }, 
-          { id: 'B', label: dict?.denominator || '' }
+          { id: 'A', label: dict?.numerator || 'ตัวตั้ง' }, 
+          { id: 'B', label: dict?.denominator || 'ตัวหาร' }
         ];
       } else {
         if (dataItems.length > 0 && (dataItems[0].label === 'ตัวตั้ง' || !dataItems[0].label)) {
-          dataItems[0].label = dict?.numerator || '';
+          dataItems[0].label = dict?.numerator || 'ตัวตั้ง';
         }
         if (dataItems.length > 1 && (dataItems[1].label === 'ตัวหาร' || !dataItems[1].label)) {
-          dataItems[1].label = dict?.denominator || '';
+          dataItems[1].label = dict?.denominator || 'ตัวหาร';
         }
       }
 
@@ -192,7 +224,8 @@ export default function TemplateManagerPage() {
         target_operator: dict.target_operator || '>=',
         work_group: dict.work_group || dict.responsible_person || '',
         eval_criteria: evalCriteria, tags: [],
-        api_enabled: dict.api_enabled || false, api_config: apiConfig,
+        api_enabled: dict.api_enabled || false,
+        api_config: normalizeApiConfig(apiConfig),
       });
     });
 
@@ -202,19 +235,118 @@ export default function TemplateManagerPage() {
 
   useEffect(() => { fetchKPIs(); }, [fetchKPIs]);
 
+  const [inspectingHdc, setInspectingHdc] = useState(false);
+  const [inspectedSchema, setInspectedSchema] = useState<{
+    tableName: string;
+    year: string;
+    sampleRow: any;
+    availableCols: string[];
+    suggestedResult: string;
+    suggestedTarget: string;
+    totalRows?: number;
+  } | null>(null);
+
+  const [testingHdc, setTestingHdc] = useState(false);
+  const [testResults, setTestResults] = useState<AggregationItemResult[] | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+
   const openNewKpi = () => {
     setIsNewKpi(true);
     setEditingKpi(emptyRow());
+    setInspectedSchema(null);
+    setTestResults(null);
+    setTestError(null);
   };
 
   const openEdit = (kpi: KpiRow) => {
     setIsNewKpi(false);
-    setEditingKpi({ ...kpi });
+    setEditingKpi({ ...kpi, api_config: normalizeApiConfig(kpi.api_config) });
+    setInspectedSchema(null);
+    setTestResults(null);
+    setTestError(null);
+  };
+
+  const handleInspectTable = async () => {
+    if (!editingKpi) return;
+    const tbl = (editingKpi.api_config.tableName || '').trim();
+    const yr = (editingKpi.api_config.year || '2569').trim();
+    if (!tbl) {
+      alert('กรุณากรอกชื่อตาราง HDC ก่อนทำการตรวจสอบ');
+      return;
+    }
+    setInspectingHdc(true);
+    setInspectedSchema(null);
+    setTestError(null);
+    try {
+      const schema = await inspectHdcColumns(tbl, yr);
+      setInspectedSchema(schema);
+      // Auto-assign suggested result and target to Variable A and B if unset or generic
+      const curVars = { ...(editingKpi.api_config.variables || {}) };
+      if ((!curVars['A'] || curVars['A'] === 'result') && schema.suggestedResult) {
+        curVars['A'] = schema.suggestedResult;
+      }
+      if ((!curVars['B'] || curVars['B'] === 'target') && schema.suggestedTarget) {
+        curVars['B'] = schema.suggestedTarget;
+      }
+      setEditingKpi({
+        ...editingKpi,
+        api_config: { ...editingKpi.api_config, variables: curVars }
+      });
+    } catch (err: any) {
+      alert(`ไม่สามารถตรวจสอบคอลัมน์ได้: ${err.message || err}`);
+    } finally {
+      setInspectingHdc(false);
+    }
+  };
+
+  const handleTestHdc = async () => {
+    if (!editingKpi) return;
+    const tbl = (editingKpi.api_config.tableName || '').trim();
+    const yr = (editingKpi.api_config.year || '2569').trim();
+    if (!tbl) {
+      alert('กรุณากรอกชื่อตาราง HDC ก่อน');
+      return;
+    }
+    setTestingHdc(true);
+    setTestResults(null);
+    setTestError(null);
+    try {
+      const raw = await fetchHdcTableData(tbl, yr);
+      const level = (editingKpi.measurement_level || 'province') as 'province' | 'district' | 'hospital';
+      const results = aggregateHdcByLevel(
+        raw,
+        level,
+        editingKpi.api_config.variables || { A: 'result', B: 'target' },
+        editingKpi.calc_formula
+      );
+      setTestResults(results);
+    } catch (err: any) {
+      setTestError(err.message || String(err));
+    } finally {
+      setTestingHdc(false);
+    }
   };
 
   const handleSave = async () => {
     if (!editingKpi) return;
     setSaving(true);
+
+    const apiConfigToSave = {
+      tableName: editingKpi.api_config.tableName || '',
+      year: editingKpi.api_config.year || '2569',
+      variables: editingKpi.api_config.variables || {},
+      level: editingKpi.measurement_level,
+      A: {
+        tableName: editingKpi.api_config.tableName || '',
+        field: editingKpi.api_config.variables?.['A'] || '',
+        filter: '',
+      },
+      B: {
+        tableName: editingKpi.api_config.tableName || '',
+        field: editingKpi.api_config.variables?.['B'] || '',
+        filter: '',
+      },
+    };
 
     const payload: any = {
       calculation_type: editingKpi.calc_type,
@@ -226,7 +358,7 @@ export default function TemplateManagerPage() {
       responsible_person: editingKpi.work_group, // Sync with Dictionary
       evaluation_criteria_json: editingKpi.eval_criteria,
       api_enabled: editingKpi.api_enabled,
-      api_config_json: editingKpi.api_config,
+      api_config_json: apiConfigToSave,
       kpi_type: editingKpi.kpi_type,
     };
 
@@ -308,10 +440,24 @@ export default function TemplateManagerPage() {
     setEditingKpi({ ...editingKpi, tags });
   };
 
-  const updateApiConfig = (itemId: string, field: string, value: string) => {
+  const updateApiConfigField = (field: 'tableName' | 'year', value: string) => {
     if (!editingKpi) return;
-    const cfg = { ...editingKpi.api_config, [itemId]: { ...editingKpi.api_config[itemId], [field]: value } };
-    setEditingKpi({ ...editingKpi, api_config: cfg });
+    setEditingKpi({
+      ...editingKpi,
+      api_config: { ...editingKpi.api_config, [field]: value }
+    });
+    setTestResults(null);
+  };
+
+  const updateApiConfigVar = (varId: string, colName: string) => {
+    if (!editingKpi) return;
+    const curVars = { ...(editingKpi.api_config.variables || {}) };
+    curVars[varId] = colName;
+    setEditingKpi({
+      ...editingKpi,
+      api_config: { ...editingKpi.api_config, variables: curVars }
+    });
+    setTestResults(null);
   };
 
   const setEvalVal = (key: string, value: string) => {
@@ -470,10 +616,13 @@ export default function TemplateManagerPage() {
                   <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>ระดับพื้นที่ประเมิน</label>
                   <select className="input-field" value={editingKpi.measurement_level}
                     disabled={editingKpi.calc_type === 'process_status'}
-                    onChange={e => setEditingKpi({ ...editingKpi, measurement_level: e.target.value })}>
-                    <option value="province">ภาพรวมจังหวัด</option>
-                    <option value="district">ระดับอำเภอ (9 อำเภอ)</option>
-                    <option value="hospital">ระดับโรงพยาบาล</option>
+                    onChange={e => {
+                      setEditingKpi({ ...editingKpi, measurement_level: e.target.value });
+                      setTestResults(null);
+                    }}>
+                    <option value="province">ภาพรวมจังหวัด (ทุกสถานบริการ)</option>
+                    <option value="district">ระดับอำเภอ (9 อำเภอ: areacode 2701 - 2709)</option>
+                    <option value="hospital">ระดับโรงพยาบาล (9 รพ. ในสระแก้ว)</option>
                   </select>
                 </div>
               </div>
@@ -590,8 +739,10 @@ export default function TemplateManagerPage() {
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 'var(--radius-md)', padding: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: editingKpi.api_enabled ? '1rem' : '0' }}>
                       <div>
-                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>⚙️ เชื่อมต่อ HDC API (สำหรับ IT)</span>
-                        <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>ดึงข้อมูลจาก opendata.moph.go.th อัตโนมัติ</p>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>⚙️ เชื่อมต่อ HDC Open Data API (ระบบดึงผลงานอัตโนมัติ)</span>
+                        <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>
+                          ดึงข้อมูลสดจาก opendata.moph.go.th รองรับการคำนวณระดับภาพรวมจังหวัด, 9 อำเภอ (2701-2709) และ 9 โรงพยาบาล
+                        </p>
                       </div>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}>
                         <input type="checkbox" checked={editingKpi.api_enabled}
@@ -599,23 +750,282 @@ export default function TemplateManagerPage() {
                         เปิดใช้งาน
                       </label>
                     </div>
-                    {editingKpi.api_enabled && editingKpi.data_items.map(item => (
-                      <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.875rem', backgroundColor: 'white', marginBottom: '0.5rem' }}>
-                        <h5 style={{ margin: '0 0 0.75rem 0', color: '#334155', fontSize: '0.88rem' }}>
-                          ตัวแปร <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{item.id}</span> · {item.label}
-                        </h5>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-                          {[['tableName', 'Table Name', 's_cmi_summary'], ['field', 'JSON Field', 'total_cases'], ['filter', 'Filter (JSON)', '{"type":"IPD"}']].map(([fk, label, ph]) => (
-                            <div key={fk}>
-                              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>{label}</label>
-                              <input type="text" className="input-field" placeholder={ph}
-                                value={(editingKpi.api_config[item.id] as any)?.[fk] || ''}
-                                onChange={e => updateApiConfig(item.id, fk, e.target.value)} />
+
+                    {editingKpi.api_enabled && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                        {/* Area mode banner */}
+                        <div style={{
+                          padding: '0.5rem 0.75rem',
+                          backgroundColor: '#eff6ff',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid #bfdbfe',
+                          fontSize: '0.82rem',
+                          color: '#1e40af',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
+                        }}>
+                          <span style={{ fontSize: '1.1rem' }}>
+                            {editingKpi.measurement_level === 'hospital' ? '🏥' : editingKpi.measurement_level === 'district' ? '🏘️' : '🏛️'}
+                          </span>
+                          <div>
+                            <b>รูปแบบประมวลผลตามระดับพื้นที่:</b>{' '}
+                            {editingKpi.measurement_level === 'hospital' ? (
+                              <span><b>ระดับโรงพยาบาล</b> — กรองเฉพาะผลงานของ <b>9 โรงพยาบาลในสังกัด สธ. จังหวัดสระแก้ว</b> (รพร.สระแก้ว, วังสมบูรณ์, โคกสูง, วัฒนานคร, ตาพระยา, คลองหาด, เขาฉกรรจ์, วังน้ำเย็น, อรัญประเทศ)</span>
+                            ) : editingKpi.measurement_level === 'district' ? (
+                              <span><b>ระดับอำเภอ (9 อำเภอ)</b> — รวมผลงานตามรหัส <b>areacode 2701 - 2709</b> หรือรหัสหน่วยบริการในสังกัดของแต่ละอำเภอ</span>
+                            ) : (
+                              <span><b>ภาพรวมจังหวัด</b> — รวบรวมผลงานทุกสถานบริการในจังหวัดสระแก้ว (รหัสจังหวัด 27)</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Table Name & Year Inputs + Inspect Button */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.75rem', alignItems: 'end' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                              ชื่อตาราง HDC (tableName) <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <input
+                              type="text"
+                              className="input-field"
+                              placeholder="เช่น s_ttm27, s_anc5, s_labor_hct, s_cmi_summary"
+                              value={editingKpi.api_config.tableName || ''}
+                              onChange={e => updateApiConfigField('tableName', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                              ปีงบประมาณ
+                            </label>
+                            <input
+                              type="text"
+                              className="input-field"
+                              placeholder="2569"
+                              value={editingKpi.api_config.year || '2569'}
+                              onChange={e => updateApiConfigField('year', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={handleInspectTable}
+                              disabled={inspectingHdc || !editingKpi.api_config.tableName}
+                              className="btn-secondary"
+                              style={{
+                                padding: '0.5rem 0.85rem',
+                                fontSize: '0.82rem',
+                                fontWeight: 600,
+                                backgroundColor: '#f0f9ff',
+                                borderColor: '#0284c7',
+                                color: '#0284c7',
+                                whiteSpace: 'nowrap',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.35rem'
+                              }}
+                            >
+                              {inspectingHdc ? '⏳ กำลังตรวจ...' : '🔍 ตรวจสอบคอลัมน์จาก HDC'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Inspected schema pills preview */}
+                        {inspectedSchema && inspectedSchema.tableName === editingKpi.api_config.tableName && (
+                          <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
+                            <div style={{ fontWeight: 700, color: '#166534', fontSize: '0.8rem', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>📊 คอลัมน์ที่พบในตาราง HDC ({inspectedSchema.availableCols.length} คอลัมน์ · พบข้อมูล {inspectedSchema.totalRows} แถว):</span>
+                              <span style={{ fontSize: '0.72rem', color: '#15803d' }}>คลิก [ตั้ง] หรือ [หาร] เพื่อกำหนดตัวแปรด่วน</span>
                             </div>
-                          ))}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', maxHeight: '120px', overflowY: 'auto', padding: '0.2rem 0' }}>
+                              {inspectedSchema.availableCols.map(col => {
+                                const val = inspectedSchema.sampleRow[col];
+                                const isA = editingKpi.api_config.variables?.['A'] === col;
+                                const isB = editingKpi.api_config.variables?.['B'] === col;
+                                return (
+                                  <div
+                                    key={col}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      border: isA ? '1.5px solid #2563eb' : isB ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                                      borderRadius: '4px',
+                                      backgroundColor: isA ? '#eff6ff' : isB ? '#f0fdf4' : '#fff',
+                                      padding: '0.15rem 0.4rem',
+                                      fontSize: '0.72rem'
+                                    }}
+                                  >
+                                    <span><b>{col}</b>: {val != null ? String(val) : '-'}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateApiConfigVar('A', col)}
+                                      title="กำหนดเป็นตัวแปร A (ตัวตั้ง)"
+                                      style={{
+                                        marginLeft: '0.35rem',
+                                        padding: '0.05rem 0.25rem',
+                                        borderRadius: '3px',
+                                        border: 'none',
+                                        backgroundColor: isA ? '#2563eb' : '#e2e8f0',
+                                        color: isA ? '#fff' : '#334155',
+                                        cursor: 'pointer',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 700
+                                      }}
+                                    >
+                                      ตั้ง (A)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateApiConfigVar('B', col)}
+                                      title="กำหนดเป็นตัวแปร B (ตัวหาร)"
+                                      style={{
+                                        marginLeft: '0.15rem',
+                                        padding: '0.05rem 0.25rem',
+                                        borderRadius: '3px',
+                                        border: 'none',
+                                        backgroundColor: isB ? '#16a34a' : '#e2e8f0',
+                                        color: isB ? '#fff' : '#334155',
+                                        cursor: 'pointer',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 700
+                                      }}
+                                    >
+                                      หาร (B)
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Variables to HDC Columns Mapping */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                            ⚙️ จับคู่ตัวแปรในสูตรคำนวณกับคอลัมน์ HDC:
+                          </label>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
+                            {editingKpi.data_items.map(item => {
+                              const curCol = editingKpi.api_config.variables?.[item.id] || '';
+                              return (
+                                <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.65rem', backgroundColor: 'white' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                      ตัวแปร {item.id} · {item.label || (item.id === 'A' ? 'ตัวตั้ง' : item.id === 'B' ? 'ตัวหาร' : '')}
+                                    </span>
+                                  </div>
+                                  {inspectedSchema && inspectedSchema.availableCols.length > 0 ? (
+                                    <select
+                                      className="input-field"
+                                      style={{ fontSize: '0.82rem', padding: '0.35rem 0.5rem' }}
+                                      value={curCol}
+                                      onChange={e => updateApiConfigVar(item.id, e.target.value)}
+                                    >
+                                      <option value="">-- เลือกคอลัมน์ --</option>
+                                      {inspectedSchema.availableCols.map(c => (
+                                        <option key={c} value={c}>
+                                          {c} (ตัวอย่าง: {inspectedSchema.sampleRow[c] ?? '-'})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      className="input-field"
+                                      placeholder={item.id === 'A' ? 'เช่น result, result1' : 'เช่น target, b_target'}
+                                      value={curCol}
+                                      onChange={e => updateApiConfigVar(item.id, e.target.value)}
+                                      style={{ fontSize: '0.82rem', padding: '0.35rem 0.5rem' }}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Test Fetch Button and Live Output */}
+                        <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>
+                              🧪 ทดสอบคำนวณผลงานสดจาก HDC:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleTestHdc}
+                              disabled={testingHdc || !editingKpi.api_config.tableName}
+                              style={{
+                                padding: '0.35rem 0.85rem',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid #16a34a',
+                                backgroundColor: '#f0fdf4',
+                                color: '#16a34a',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
+                              }}
+                            >
+                              {testingHdc ? '⏳ กำลังดึงและคำนวณผลงาน...' : `🔄 ทดสอบดึงผลงานสด (${editingKpi.measurement_level === 'hospital' ? '9 โรงพยาบาล' : editingKpi.measurement_level === 'district' ? '9 อำเภอ' : 'ภาพรวมจังหวัด'})`}
+                            </button>
+                          </div>
+
+                          {testError && (
+                            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '0.5rem 0.75rem', borderRadius: '4px', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+                              ⚠️ {testError}
+                            </div>
+                          )}
+
+                          {testResults && (
+                            <div style={{ backgroundColor: '#fff', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)', padding: '0.65rem', overflowX: 'auto' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#166534', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>✓ ผลการทดสอบดึงข้อมูลสด (สูตรคำนวณ: {editingKpi.calc_formula}):</span>
+                                <span>{testResults.length} รายการ</span>
+                              </div>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                                <thead>
+                                  <tr style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
+                                    <th style={{ padding: '0.3rem 0.5rem', textAlign: 'left' }}>พื้นที่ / หน่วยบริการ</th>
+                                    {editingKpi.data_items.map(item => (
+                                      <th key={item.id} style={{ padding: '0.3rem 0.5rem', textAlign: 'right' }}>
+                                        ตัวแปร {item.id} ({editingKpi.api_config.variables?.[item.id] || '-'})
+                                      </th>
+                                    ))}
+                                    <th style={{ padding: '0.3rem 0.5rem', textAlign: 'right', fontWeight: 700, color: '#15803d' }}>
+                                      ผลลัพธ์คำนวณ
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {testResults.map((r, idx) => (
+                                    <tr key={r.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                      <td style={{ padding: '0.3rem 0.5rem', fontWeight: 600 }}>
+                                        {r.name}
+                                        {r.secondaryLabel && (
+                                          <span style={{ marginLeft: '0.3rem', fontSize: '0.68rem', color: '#64748b' }}>
+                                            ({r.secondaryLabel})
+                                          </span>
+                                        )}
+                                      </td>
+                                      {editingKpi.data_items.map(item => (
+                                        <td key={item.id} style={{ padding: '0.3rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                                          {(r.variables[item.id] || 0).toLocaleString()}
+                                        </td>
+                                      ))}
+                                      <td style={{ padding: '0.3rem 0.5rem', textAlign: 'right', fontWeight: 700, color: '#166534', fontFamily: 'monospace' }}>
+                                        {r.computedValue}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </>
               )}

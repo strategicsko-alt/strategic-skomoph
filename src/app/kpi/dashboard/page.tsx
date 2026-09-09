@@ -7,6 +7,7 @@ import healthFacilitiesData from '@/data/sa_kaeo_health_facilities.json';
 import realAnc5Data from '@/data/real_anc5_2569.json';
 import realAnc12Data from '@/data/real_anc12_2569.json';
 import PopulationVitalDashboard from '@/components/vital-stats/PopulationVitalDashboard';
+import { SA_KAEO_HOSPITALS } from '@/lib/hdc';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,6 +109,7 @@ export default function DashboardPage() {
   const [kpis, setKpis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKpiId, setSelectedKpiId] = useState<string>('');
+  const [heatmapAreaMode, setHeatmapAreaMode] = useState<'district' | 'hospital'>('district');
 
   // Subdistrict & HDC States
   const [subdistrictDistrict, setSubdistrictDistrict] = useState<string>('ALL');
@@ -860,6 +862,14 @@ export default function DashboardPage() {
             const m = (kr.measurements || []).find((x: any) => x.area_id === d && x.period === 'Q4'); // simplifying to Q4 or latest
             return { name: d, result: m ? Number(m.result_value) || 0 : 0 };
           });
+
+          const hospital_results = SA_KAEO_HOSPITALS.map(h => {
+            const m = (kr.measurements || []).find((x: any) =>
+              (x.area_id === h.name || x.area_id === h.fullName || x.area_id === h.code5) &&
+              (x.period === 'Q4' || x.period === 'Q3' || x.period === 'Q2' || x.period === 'Q1')
+            );
+            return { name: h.name, code5: h.code5, districtName: h.districtName, result: m ? Number(m.result_value) || 0 : 0 };
+          });
           
           const prov_m = (kr.measurements || []).find((x: any) => x.area_id === 'province');
           const provResult = prov_m ? Number(prov_m.result_value) || 0 : 0;
@@ -885,7 +895,8 @@ export default function DashboardPage() {
             frequency: 'รายไตรมาส',
             status: defaultStatus,
             provincial_result: provResult || (dict.calculation_type === 'process_status' ? (prov_m?.values_json?.description || 'รอดำเนินการ') : 0),
-            district_results
+            district_results,
+            hospital_results
           };
         });
         
@@ -1027,9 +1038,57 @@ export default function DashboardPage() {
 
       {activeTab === 'executive' && (
         <div className="card" style={{ flex: 1, overflow: 'auto', padding: '0', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>ตารางสถานะตัวชี้วัดแยกตามพื้นที่ (Heatmap)</h2>
-            <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)' }}>แสดงผล: {filteredKpis.length} ตัวชี้วัด</div>
+          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>ตารางสถานะตัวชี้วัดแยกตามพื้นที่ (Heatmap)</h2>
+              <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>
+                แสดงผล: {filteredKpis.length} ตัวชี้วัด | โหมดพื้นที่: {heatmapAreaMode === 'district' ? '9 อำเภอ (2701 - 2709)' : '9 โรงพยาบาลใน จ.สระแก้ว'}
+              </div>
+            </div>
+
+            {/* Toggle Area Mode: District vs Hospital */}
+            <div style={{ display: 'inline-flex', backgroundColor: 'var(--secondary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                onClick={() => setHeatmapAreaMode('district')}
+                style={{
+                  padding: '0.4rem 0.9rem',
+                  fontSize: '0.85rem',
+                  fontWeight: heatmapAreaMode === 'district' ? 600 : 400,
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: heatmapAreaMode === 'district' ? 'var(--card)' : 'transparent',
+                  color: heatmapAreaMode === 'district' ? 'var(--primary)' : 'var(--foreground)',
+                  boxShadow: heatmapAreaMode === 'district' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
+              >
+                <span>🏘️</span> ระดับอำเภอ (9 อำเภอ)
+              </button>
+              <button
+                type="button"
+                onClick={() => setHeatmapAreaMode('hospital')}
+                style={{
+                  padding: '0.4rem 0.9rem',
+                  fontSize: '0.85rem',
+                  fontWeight: heatmapAreaMode === 'hospital' ? 600 : 400,
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: heatmapAreaMode === 'hospital' ? 'var(--card)' : 'transparent',
+                  color: heatmapAreaMode === 'hospital' ? 'var(--primary)' : 'var(--foreground)',
+                  boxShadow: heatmapAreaMode === 'hospital' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
+              >
+                <span>🏥</span> ระดับโรงพยาบาล (9 รพ.)
+              </button>
+            </div>
           </div>
           
           <div style={{ flex: 1, overflow: 'auto' }}>
@@ -1037,12 +1096,20 @@ export default function DashboardPage() {
               <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
                 <tr>
                   <th style={{ padding: '0.75rem', textAlign: 'left', width: '300px', borderRight: '1px solid var(--border)' }}>ชื่อตัวชี้วัด</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'center', borderRight: '2px solid var(--border)', backgroundColor: '#f8fafc' }}>รวมจังหวัด</th>
-                  {DISTRICTS.map(d => (
-                    <th key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '120px' }}>
-                      {d}
-                    </th>
-                  ))}
+                  <th style={{ padding: '0.75rem', textAlign: 'center', borderRight: '2px solid var(--border)', backgroundColor: '#f8fafc', width: '80px' }}>รวมจังหวัด</th>
+                  {heatmapAreaMode === 'district' ? (
+                    DISTRICTS.map(d => (
+                      <th key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '120px' }}>
+                        {d}
+                      </th>
+                    ))
+                  ) : (
+                    SA_KAEO_HOSPITALS.map(h => (
+                      <th key={h.code5} title={`${h.fullName} (อ.${h.districtName})`} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '140px', fontSize: '0.8rem' }}>
+                        {h.name}
+                      </th>
+                    ))
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -1074,20 +1141,39 @@ export default function DashboardPage() {
                       <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '2px solid var(--border)', backgroundColor: getBgColor(provStatus), color: getTextColor(provStatus), fontWeight: 700 }}>
                         {kpi.calculation_type === 'process_status' ? (kpi.status === 'success' ? 'ผ่าน' : kpi.status === 'pending' ? 'รอดำเนินการ' : 'ไม่ผ่าน') : kpi.provincial_result}
                       </td>
-                      {DISTRICTS.map(d => {
-                        if (kpi.measurement_level === 'province') {
-                           return <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9' }}>-</td>;
-                        }
-                        const dist = kpi.district_results.find((res: any) => res.name === d);
-                        if (!dist) return <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9' }}>-</td>;
-                        
-                        const dStatus = evaluateStatus(dist.result, kpi);
-                        return (
-                          <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: getBgColor(dStatus), color: getTextColor(dStatus), fontWeight: 600 }}>
-                            {dist.result}
-                          </td>
-                        );
-                      })}
+                      {heatmapAreaMode === 'district' ? (
+                        DISTRICTS.map(d => {
+                          if (kpi.measurement_level === 'province' || kpi.measurement_level === 'hospital') {
+                             return <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9', color: '#94a3b8' }}>-</td>;
+                          }
+                          const dist = (kpi.district_results || []).find((res: any) => res.name === d);
+                          if (!dist) return <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9', color: '#94a3b8' }}>-</td>;
+                          
+                          const dStatus = evaluateStatus(dist.result, kpi);
+                          return (
+                            <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: getBgColor(dStatus), color: getTextColor(dStatus), fontWeight: 600 }}>
+                              {dist.result}
+                            </td>
+                          );
+                        })
+                      ) : (
+                        SA_KAEO_HOSPITALS.map(h => {
+                          if (kpi.measurement_level === 'province') {
+                             return <td key={h.code5} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9', color: '#94a3b8' }}>-</td>;
+                          }
+                          const hosp = (kpi.hospital_results || []).find((res: any) => res.name === h.name || res.code5 === h.code5);
+                          if (!hosp || hosp.result === undefined || hosp.result === null) {
+                            return <td key={h.code5} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9', color: '#94a3b8' }}>-</td>;
+                          }
+                          
+                          const hStatus = evaluateStatus(hosp.result, kpi);
+                          return (
+                            <td key={h.code5} title={`${h.name}: ${hosp.result}`} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: getBgColor(hStatus), color: getTextColor(hStatus), fontWeight: 600 }}>
+                              {hosp.result}
+                            </td>
+                          );
+                        })
+                      )}
                     </tr>
                   )
                 })}
@@ -2709,46 +2795,69 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <>
-                  {selectedKpi.district_results.length > 0 && selectedKpi.target_val !== null && (
-                    <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1.5rem', marginBottom: '1.5rem', height: '350px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h4 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--primary)', margin: 0 }}>แผนภูมิผลงานรายพื้นที่เทียบกับเป้าหมาย</h4>
-                      </div>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={selectedKpi.district_results} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                          <YAxis />
-                          <Tooltip />
-                          <ReferenceLine y={selectedKpi.target_val} label={{ position: 'top', value: `เป้าหมาย: ${selectedKpi.target_operator} ${selectedKpi.target_val}`, fill: '#166534', fontSize: 12, fontWeight: 'bold' }} stroke="#166534" strokeWidth={2} strokeDasharray="5 5" />
-                          {selectedKpi.target_warning_val !== null && (
-                             <ReferenceLine y={selectedKpi.target_warning_val} label={{ position: 'top', value: `เฝ้าระวัง: ${selectedKpi.target_operator} ${selectedKpi.target_warning_val}`, fill: '#854d0e', fontSize: 11 }} stroke="#eab308" strokeWidth={1} strokeDasharray="3 3" />
-                          )}
-                          <Bar dataKey="result" radius={[4, 4, 0, 0]}>
-                            {selectedKpi.district_results.map((entry: any, index: number) => {
-                              const dStatus = evaluateStatus(entry.result, selectedKpi);
-                              return <Cell key={`cell-${index}`} fill={getStatusColor(dStatus)} />
-                            })}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                  {selectedKpi.district_results.length > 0 && (
-                    <div style={{ marginBottom: '1.5rem' }}>
-                      <h4 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '1rem' }}>ผลงานรายพื้นที่ (9 แห่ง)</h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-                        {selectedKpi.district_results.map((d: any) => {
-                          const dStatus = evaluateStatus(d.result, selectedKpi);
-                          return (
-                          <div key={d.name} style={{ border: '1px solid', borderColor: dStatus === 'success' ? '#bbf7d0' : dStatus === 'warning' ? '#fde047' : '#fecaca', backgroundColor: dStatus === 'success' ? '#f0fdf4' : dStatus === 'warning' ? '#fefce8' : '#fef2f2', padding: '0.75rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{d.name}</span>
-                            <span style={{ fontSize: '1.1rem', fontWeight: 700, color: getStatusColor(dStatus) }}>{d.result}</span>
+                  {(() => {
+                    const isHospitalLevel = selectedKpi.measurement_level === 'hospital';
+                    const activeAreaResults = isHospitalLevel 
+                      ? (selectedKpi.hospital_results || []) 
+                      : (selectedKpi.district_results || []);
+                    const areaLabel = isHospitalLevel ? 'โรงพยาบาล (9 แห่ง)' : 'อำเภอ (9 แห่ง)';
+
+                    return (
+                      <>
+                        {activeAreaResults.length > 0 && selectedKpi.target_val !== null && (
+                          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1.5rem', marginBottom: '1.5rem', height: isHospitalLevel ? '380px' : '350px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                              <h4 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--primary)', margin: 0 }}>
+                                แผนภูมิผลงานราย{areaLabel}เทียบกับเป้าหมาย
+                              </h4>
+                            </div>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={activeAreaResults} margin={{ top: 20, right: 30, left: 0, bottom: isHospitalLevel ? 40 : 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis 
+                                  dataKey="name" 
+                                  tick={{ fontSize: isHospitalLevel ? 10 : 12 }} 
+                                  interval={0} 
+                                  angle={isHospitalLevel ? -25 : 0} 
+                                  textAnchor={isHospitalLevel ? 'end' : 'middle'} 
+                                  height={isHospitalLevel ? 70 : 30} 
+                                />
+                                <YAxis />
+                                <Tooltip />
+                                <ReferenceLine y={selectedKpi.target_val} label={{ position: 'top', value: `เป้าหมาย: ${selectedKpi.target_operator} ${selectedKpi.target_val}`, fill: '#166534', fontSize: 12, fontWeight: 'bold' }} stroke="#166534" strokeWidth={2} strokeDasharray="5 5" />
+                                {selectedKpi.target_warning_val !== null && (
+                                   <ReferenceLine y={selectedKpi.target_warning_val} label={{ position: 'top', value: `เฝ้าระวัง: ${selectedKpi.target_operator} ${selectedKpi.target_warning_val}`, fill: '#854d0e', fontSize: 11 }} stroke="#eab308" strokeWidth={1} strokeDasharray="3 3" />
+                                )}
+                                <Bar dataKey="result" radius={[4, 4, 0, 0]}>
+                                  {activeAreaResults.map((entry: any, index: number) => {
+                                    const dStatus = evaluateStatus(entry.result, selectedKpi);
+                                    return <Cell key={`cell-${index}`} fill={getStatusColor(dStatus)} />
+                                  })}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
                           </div>
-                        )})}
-                      </div>
-                    </div>
-                  )}
+                        )}
+                        {activeAreaResults.length > 0 && (
+                          <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '1rem' }}>
+                              ผลงานราย{areaLabel}
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                              {activeAreaResults.map((d: any) => {
+                                const dStatus = evaluateStatus(d.result, selectedKpi);
+                                return (
+                                <div key={d.name} style={{ border: '1px solid', borderColor: dStatus === 'success' ? '#bbf7d0' : dStatus === 'warning' ? '#fde047' : '#fecaca', backgroundColor: dStatus === 'success' ? '#f0fdf4' : dStatus === 'warning' ? '#fefce8' : '#fef2f2', padding: '0.75rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: isHospitalLevel ? '0.82rem' : '0.9rem', fontWeight: 500 }}>{d.name}</span>
+                                  <span style={{ fontSize: '1.1rem', fontWeight: 700, color: getStatusColor(dStatus) }}>{d.result}</span>
+                                </div>
+                              )})}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   {selectedKpi.data_items?.length > 0 && (
                     <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1rem' }}>
                       <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--primary)' }}>สูตรและการคำนวณ</h4>

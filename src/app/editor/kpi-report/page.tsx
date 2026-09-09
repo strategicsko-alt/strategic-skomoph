@@ -1,6 +1,12 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import {
+  SA_KAEO_DISTRICTS,
+  SA_KAEO_HOSPITALS,
+  fetchHdcTableData,
+  aggregateHdcByLevel,
+} from '@/lib/hdc';
 
 const DISTRICTS = [
   "เมืองสระแก้ว","คลองหาด","ตาพระยา","วังน้ำเย็น",
@@ -22,6 +28,8 @@ interface KpiOption {
   data_items: DataItem[];
   target_operator: string;
   eval_criteria: Record<string, number>;
+  api_enabled?: boolean;
+  api_config_json?: any;
 }
 
 function computeResult(formula: string, vals: Record<string, string>): string {
@@ -47,6 +55,8 @@ export default function ReportPage() {
   const [selectedKpiDictId, setSelectedKpiDictId] = useState('');
   const [selectedQuarter, setSelectedQuarter] = useState('Q4');
   const [saving, setSaving] = useState(false);
+  const [syncingHdc, setSyncingHdc] = useState(false);
+  const [hdcSyncMsg, setHdcSyncMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [values, setValues] = useState<Record<string, Record<string, string>>>({});
   const [processStatus, setProcessStatus] = useState('pending');
@@ -61,7 +71,7 @@ export default function ReportPage() {
     // ดึง kpi_dictionaries ทั้งหมด
     const { data: dicts } = await supabase
       .from('kpi_dictionaries')
-      .select('id, key_result_id, kpi_name, calculation_type, calculation_formula, data_items_json, measurement_level, target_operator, work_group, evaluation_criteria_json')
+      .select('id, key_result_id, kpi_name, calculation_type, calculation_formula, data_items_json, measurement_level, target_operator, work_group, evaluation_criteria_json, api_enabled, api_config_json')
       .order('created_at', { ascending: true });
 
     if (!dicts || dicts.length === 0) {
@@ -103,6 +113,8 @@ export default function ReportPage() {
         data_items: dataItems,
         target_operator: d.target_operator || '>=',
         eval_criteria: evalCriteria,
+        api_enabled: d.api_enabled || false,
+        api_config_json: d.api_config_json,
       };
     });
 
@@ -153,7 +165,49 @@ export default function ReportPage() {
   const getAreas = () => {
     if (!currentKpi) return [];
     if (currentKpi.measurement_level === 'province') return ['province'];
+    if (currentKpi.measurement_level === 'hospital') return SA_KAEO_HOSPITALS.map(h => h.name);
     return DISTRICTS;
+  };
+
+  const handleSyncHdc = async () => {
+    if (!currentKpi || !currentKpi.api_enabled) return;
+    const cfg = currentKpi.api_config_json || {};
+    const tbl = (cfg.tableName || cfg.A?.tableName || '').trim();
+    const yr = String(cfg.year || '2569').trim();
+    const varMapping: Record<string, string> = cfg.variables || {
+      A: cfg.A?.field || 'result',
+      B: cfg.B?.field || 'target',
+    };
+
+    if (!tbl) {
+      alert('ตัวชี้วัดนี้ยังไม่ได้ระบุชื่อตาราง HDC ในหน้าตั้งค่า Template');
+      return;
+    }
+
+    setSyncingHdc(true);
+    setHdcSyncMsg('');
+    try {
+      const raw = await fetchHdcTableData(tbl, yr);
+      const level = (currentKpi.measurement_level || 'province') as 'province' | 'district' | 'hospital';
+      const results = aggregateHdcByLevel(raw, level, varMapping, currentKpi.calc_formula);
+
+      const newVals: Record<string, Record<string, string>> = { ...values };
+      results.forEach(item => {
+        newVals[item.id] = { ...(newVals[item.id] || {}) };
+        Object.entries(item.variables).forEach(([k, v]) => {
+          newVals[item.id][k] = String(v);
+        });
+      });
+
+      setValues(newVals);
+      const levelName = level === 'hospital' ? '9 โรงพยาบาล' : level === 'district' ? '9 อำเภอ' : 'ภาพรวมจังหวัด';
+      setHdcSyncMsg(`✓ ดึงข้อมูลสดจาก HDC (${tbl} / ${yr}) สำหรับ ${levelName} สำเร็จแล้ว (${results.length} รายการ) กรุณาตรวจสอบแล้วกดบันทึก`);
+      setTimeout(() => setHdcSyncMsg(''), 8000);
+    } catch (err: any) {
+      alert(`ไม่สามารถดึงข้อมูลจาก HDC ได้: ${err.message || err}`);
+    } finally {
+      setSyncingHdc(false);
+    }
   };
 
   const handleSave = async () => {
@@ -315,10 +369,67 @@ export default function ReportPage() {
             </button>
           </div>
 
+          {/* HDC Auto Sync Banner */}
+          {currentKpi.api_enabled && currentKpi.calc_type !== 'process_status' && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #86efac',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              flexWrap: 'wrap',
+              gap: '0.5rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>🌐</span>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#166534' }}>
+                    ตัวชี้วัดนี้เชื่อมต่อกับ HDC Open Data (ตาราง: <code>{currentKpi.api_config_json?.tableName || currentKpi.api_config_json?.A?.tableName || 's_ttm27'}</code>)
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#15803d' }}>
+                    ระดับ: {currentKpi.measurement_level === 'hospital' ? '9 โรงพยาบาล' : currentKpi.measurement_level === 'district' ? '9 อำเภอ (areacode 2701-2709)' : 'ภาพรวมจังหวัด'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {hdcSyncMsg && (
+                  <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 600 }}>
+                    {hdcSyncMsg}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSyncHdc}
+                  disabled={syncingHdc}
+                  style={{
+                    backgroundColor: '#16a34a',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.4rem 0.85rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  {syncingHdc ? '⏳ กำลังดึง HDC...' : '🔄 ดึงผลงานจาก HDC อัตโนมัติ'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-md)', padding: '0.625rem 0.875rem', marginBottom: '1.25rem', fontSize: '0.83rem', color: '#854d0e' }}>
             💡 {currentKpi.calc_type === 'process_status'
               ? 'เลือกสถานะความคืบหน้า แล้วกรอกรายละเอียดผลการดำเนินงาน'
-              : 'กรอกยอดสะสมตั้งแต่ 1 ต.ค. — ปัจจุบัน ระบบจะคำนวณผลลัพธ์อัตโนมัติ'}
+              : 'กรอกยอดสะสมตั้งแต่ 1 ต.ค. — ปัจจุบัน หรือกดปุ่ม "ดึงผลงานจาก HDC อัตโนมัติ" ด้านบน ระบบจะคำนวณผลลัพธ์ให้อัตโนมัติ'}
           </div>
 
           {currentKpi.calc_type === 'process_status' ? (
@@ -344,7 +455,7 @@ export default function ReportPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border)', backgroundColor: 'var(--secondary)' }}>
-                    <th style={{ padding: '0.625rem 0.875rem', textAlign: 'left', width: '180px', fontSize: '0.85rem' }}>พื้นที่</th>
+                    <th style={{ padding: '0.625rem 0.875rem', textAlign: 'left', width: '220px', fontSize: '0.85rem' }}>พื้นที่ / หน่วยบริการ</th>
                     {currentKpi.data_items.map(item => (
                       <th key={item.id} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.85rem' }}>
                         ตัวแปร {item.id}<br />
@@ -363,11 +474,20 @@ export default function ReportPage() {
                     return (
                       <tr key={areaId} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.5rem 0.875rem', fontWeight: 500, fontSize: '0.88rem' }}>
-                          {area === 'province' ? 'ภาพรวมจังหวัดสระแก้ว' : (
+                          {area === 'province' ? (
+                            <span style={{ fontWeight: 700, color: 'var(--primary)' }}>🏛️ ภาพรวมจังหวัดสระแก้ว</span>
+                          ) : currentKpi.measurement_level === 'hospital' ? (
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              {area}
-                              <span style={{ fontSize: '0.65rem', backgroundColor: '#f3f4f6', color: '#4b5563', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>
-                                {currentKpi.measurement_level === 'hospital' ? 'รพ.' : 'อ.'}
+                              <span>{area}</span>
+                              <span style={{ fontSize: '0.68rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.1rem 0.35rem', borderRadius: '3px', fontWeight: 600 }}>
+                                🏥 รพ.
+                              </span>
+                            </span>
+                          ) : (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <span>{area}</span>
+                              <span style={{ fontSize: '0.68rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '0.1rem 0.35rem', borderRadius: '3px', fontWeight: 600 }}>
+                                🏘️ อ.
                               </span>
                             </span>
                           )}
