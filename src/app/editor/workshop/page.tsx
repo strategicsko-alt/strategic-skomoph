@@ -7,7 +7,7 @@ import { Modal } from '@/components/Modal';
 import { useEditor } from '@/components/EditorContext';
 
 export const RESPONSIBLE_GROUPS = [
-  "กลุ่มงานบริหารทั่วไป",
+  "กลุ่มงานคุ้มครองผู้บริโภคและเภสัชสาธารณสุข",
   "กลุ่มงานบริหารทรัพยากรบุคคล",
   "กลุ่มกฎหมาย",
   "กลุ่มงานพัฒนายุทธศาสตร์สาธารณสุข",
@@ -18,6 +18,7 @@ export const RESPONSIBLE_GROUPS = [
   "กลุ่มงานประกันสุขภาพ",
   "กลุ่มงานส่งเสริมสุขภาพ",
   "กลุ่มงานทันตสาธารณสุข",
+  "กลุ่มงานบริหารทั่วไป",
   "กลุ่มงานอนามัยสิ่งแวดล้อมและอาชีวอนามัย",
   "กลุ่มงานควบคุมโรคไม่ติดต่อ",
   "กลุ่มงานปฐมภูมิและเครือข่ายสุขภาพ",
@@ -26,7 +27,8 @@ export const RESPONSIBLE_GROUPS = [
 ];
 
 export default function WorkshopPage() {
-  const { districtId, loading: ctxLoading } = useEditor();
+  const { districtId, profile, loading: ctxLoading } = useEditor();
+  const isDistrictUser = profile?.role?.startsWith('district');
   const [strategicIssues, setStrategicIssues] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1255,11 +1257,23 @@ export default function WorkshopPage() {
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>กลุ่มงานรับผิดชอบ</label>
-              <select className="input-field" value={formData.responsible_group || ''} onChange={e => setFormData({ ...formData, responsible_group: e.target.value })}>
-                <option value="">-- เลือกกลุ่มงาน --</option>
-                {RESPONSIBLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                {isDistrictUser ? 'หน่วยงานรับผิดชอบในอำเภอ' : 'กลุ่มงานรับผิดชอบ'}
+              </label>
+              {!isDistrictUser ? (
+                <select className="input-field" value={formData.responsible_group || ''} onChange={e => setFormData({ ...formData, responsible_group: e.target.value })}>
+                  <option value="">-- เลือกกลุ่มงาน --</option>
+                  {RESPONSIBLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  className="input-field"
+                  value={formData.responsible_group || ''}
+                  onChange={e => setFormData({ ...formData, responsible_group: e.target.value })}
+                  placeholder="เช่น สสอ./รพ./รพ.สต. (ไม่บังคับ)"
+                />
+              )}
             </div>
           </div>
           <div>
@@ -1294,11 +1308,23 @@ export default function WorkshopPage() {
             <textarea className="input-field" rows={2} value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="รายละเอียด..." />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>กลุ่มงานรับผิดชอบ</label>
-            <select className="input-field" value={formData.responsible_group || ''} onChange={e => setFormData({ ...formData, responsible_group: e.target.value })}>
-              <option value="">-- เลือกกลุ่มงาน --</option>
-              {RESPONSIBLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+              {isDistrictUser ? 'หน่วยงานรับผิดชอบในอำเภอ' : 'กลุ่มงานรับผิดชอบ'}
+            </label>
+            {!isDistrictUser ? (
+              <select className="input-field" value={formData.responsible_group || ''} onChange={e => setFormData({ ...formData, responsible_group: e.target.value })}>
+                <option value="">-- เลือกกลุ่มงาน --</option>
+                {RESPONSIBLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            ) : (
+              <input
+                type="text"
+                className="input-field"
+                value={formData.responsible_group || ''}
+                onChange={e => setFormData({ ...formData, responsible_group: e.target.value })}
+                placeholder="เช่น สสอ./รพ. (ไม่บังคับ)"
+              />
+            )}
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 500 }}>

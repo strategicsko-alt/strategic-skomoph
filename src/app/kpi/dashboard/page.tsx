@@ -33,7 +33,8 @@ const WORK_GROUPS = [
   "อนามัยสิ่งแวดล้อมและอาชีวอนามัย",
   "ควบคุมโรคไม่ติดต่อ",
   "ปฐมภูมิและเครือข่ายสุขภาพ",
-  "การแพทย์แผนไทยและการแพทย์ทางเลือก"
+  "การแพทย์แผนไทยและการแพทย์ทางเลือก",
+  "พัฒนาทรัพยากรบุคคล"
 ];
 
 // HDC Taxonomy (Major Category & Subcategory)
@@ -832,8 +833,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchKPIs() {
-      // ดึง Key Results ที่เชื่อมกับ KPI Dictionary
-      const { data, error } = await supabase
+      // ดึงเฉพาะ Key Results ของระดับจังหวัด (สสจ.) ไม่ดึงของอำเภออื่นมารวม
+      const { data: provDist } = await supabase
+        .from('districts')
+        .select('id')
+        .eq('type', 'province')
+        .maybeSingle();
+
+      let query = supabase
         .from('key_results')
         .select(`
           id, name, auto_id, target_2570, measurement_status, responsible_group,
@@ -843,6 +850,12 @@ export default function DashboardPage() {
           measurements:kpi_measurements(*)
         `)
         .order('order_index', { ascending: true });
+
+      if (provDist?.id) {
+        query = query.eq('district_id', provDist.id);
+      }
+
+      const { data, error } = await query;
         
       if (data) {
         // Transform Supabase data to our UI format
@@ -910,11 +923,19 @@ export default function DashboardPage() {
 
   const CATEGORIES = Array.from(new Set(kpis.flatMap(k => k.tags)));
   
-  const filteredKpis = kpis.filter(k => 
-    (filterGroup === '' || k.responsible_group === filterGroup) &&
-    (filterCategory === '' || k.tags.includes(filterCategory)) &&
-    (search === '' || k.name.includes(search))
-  );
+  const filteredKpis = kpis.filter(k => {
+    let groupMatch = true;
+    if (filterGroup !== '') {
+      const cleanFilter = filterGroup.replace(/^กลุ่มงาน/, '').trim();
+      const cleanKr = (k.responsible_group || '').replace(/^กลุ่มงาน/, '').trim();
+      groupMatch = k.responsible_group === filterGroup || cleanKr === cleanFilter;
+    }
+    return (
+      groupMatch &&
+      (filterCategory === '' || k.tags.includes(filterCategory)) &&
+      (search === '' || k.name.includes(search))
+    );
+  });
 
   const selectedKpi = kpis.find(k => k.id === selectedKpiId) || filteredKpis[0];
 
