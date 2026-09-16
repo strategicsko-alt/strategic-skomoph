@@ -111,7 +111,7 @@ graph TD
 | `kpi_tags` | ป้ายกำกับตัวชี้วัด (Tag) | `id`, `name` |
 | `key_result_tags` | ความสัมพันธ์ Many-to-Many ระหว่าง KR กับ Tag | `key_result_id`, `tag_id` |
 | `kpi_measurements` | ข้อมูลผลการวัดผลตัวชี้วัดรายไตรมาส/พื้นที่ | `id`, `key_result_id` (FK), `period` (`Q1`-`Q4`), `area_id` (`province` หรือ ชื่ออำเภอ), `values_json`, `result_value`, `updated_by` |
-| `action_plan_measurements` | แผนปฏิบัติการรายไตรมาสภายใต้ KR | `id`, `district_id`, `key_result_id`, `quarter` (1-4), `auto_id`, `kpi_name`, `target_value`, `order_index` |
+| `action_plan_measurements` | แผนปฏิบัติการรายไตรมาสภายใต้ KR | `id`, `district_id`, `key_result_id`, `quarter` (1-4), `auto_id`, `kpi_name`, `target_value`, `order_index`, `result_value`, `status`, `reported_at`, `reported_by` |
 | `dopa_populations` | ข้อมูลสถิติประชากรรายอายุและสำนักทะเบียน (DOPA) | `id`, `year`, `office_name`, `district_name`, `age_label`, `age_num`, `male_thai`, `female_thai`, `male_foreign`, `female_foreign`, `male_total`, `female_total`, `grand_total` |
 | `dopa_deaths` | ข้อมูลสถิติสาเหตุการตายรายบุคคล (MOPH & DOPA) | `id`, `gender`, `age`, `age_group`, `death_date`, `death_month`, `death_year`, `district_id`, `district_name`, `ncause`, `is_cancer`, `death_group_code`, `cause_name` |
 | `dopa_births` | ข้อมูลสถิติการเกิดมีชีพรายบุคคล (DOPA) | `id`, `prov_code`, `district_code`, `district_name`, `gender`, `birth_year`, `birth_month`, `birth_date`, `nationality`, `birth_order`, `birth_weight`, `is_low_weight`, `mother_age`, `mother_age_group` |
@@ -143,6 +143,16 @@ graph TD
   - 🟢 **เขียว (ผ่านเกณฑ์):** ผลงานผ่านเกณฑ์เป้าหมาย
   - 🟡 **เหลือง (เฝ้าระวัง):** ผลงานยังไม่ถึงเป้า แต่สูงกว่าเกณฑ์เตือนภัย
   - 🔴 **แดง (ตกเกณฑ์):** ผลงานต่ำกว่าเกณฑ์เตือนภัย
+
+### 5. โครงสร้างหน้าบันทึกผลการดำเนินงาน (`/editor/kpi-report`)
+- **ส่วนที่ 1: เลือกตัวชี้วัดและไตรมาส (Filtering & Permission Scoping)**
+  - คัดกรองตามประเภทตัวชี้วัด (ยุทธศาสตร์, กระทรวงฯ, ตรวจราชการ, อื่นๆ)
+  - จำกัดสิทธิ์การมองเห็นตามกลุ่มงาน (`work_group`): ผู้ใช้ระดับจังหวัด (`province_user`) จะเห็นเฉพาะตัวชี้วัดที่กลุ่มงานตนเองรับผิดชอบ ป้องกันการบันทึกข้ามกลุ่มงาน ส่วน Super Admin สามารถเลือกสลับดูกลุ่มงานใดก็ได้
+- **ส่วนที่ 2: บันทึกผลตัวชี้วัดย่อยรายไตรมาส (แผนปฏิบัติการ 1 ปี)**
+  - **มีเฉพาะตัวชี้วัดประเภท "ยุทธศาสตร์สุขภาพ สระแก้ว"** ที่ผูกกับ KR
+  - ดึงรายการ KR ย่อยจาก `action_plan_measurements` รายงานผลได้ทั้งตัวเลขและข้อความ พร้อมเลือกสถานะ (`ผ่าน`, `กำลังดำเนินการ`, `ไม่ผ่าน`) เชื่อมโยง 100% กับหน้าแผนปฏิบัติการ 1 ปี
+- **ส่วนที่ 3 (หรือส่วนที่ 2 สำหรับตัวชี้วัดประเภทอื่น): กรอกข้อมูลยอดสะสม / ภาพรวม**
+  - คงระบบการคำนวณเดิมไว้ครบถ้วน ทั้งตารางรายพื้นที่ (9 อำเภอ / 9 รพ. / ภาพรวมจังหวัด) คำนวณสูตรอัตโนมัติ, ระบบดึงผลงานจาก HDC อัตโนมัติ, และฟอร์มเชิงกระบวนการ
 
 ---
 

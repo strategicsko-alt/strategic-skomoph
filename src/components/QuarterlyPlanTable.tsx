@@ -106,6 +106,24 @@ export function QuarterlyPlanTable({ keyResult, themeColor, measurements, onUpda
               </div>
               <div style={{ marginBottom: '0.25rem' }}><strong>KPI:</strong> {item.kpi_name}</div>
               <div><strong>เป้าหมาย:</strong> <span style={{ color: 'var(--primary)', fontWeight: 500 }}>{item.target_value}</span></div>
+              {item.status && (
+                <div style={{ marginTop: '0.35rem', paddingTop: '0.35rem', borderTop: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{
+                    padding: '0.1rem 0.4rem',
+                    borderRadius: '4px',
+                    fontWeight: 600,
+                    backgroundColor: item.status === 'ผ่าน' ? '#dcfce7' : item.status === 'ไม่ผ่าน' ? '#fee2e2' : '#fef3c7',
+                    color: item.status === 'ผ่าน' ? '#166534' : item.status === 'ไม่ผ่าน' ? '#991b1b' : '#854d0e',
+                  }}>
+                    {item.status === 'ผ่าน' ? '✅' : item.status === 'ไม่ผ่าน' ? '❌' : '🔄'} {item.status}
+                  </span>
+                  {item.result_value && (
+                    <span style={{ color: 'var(--foreground)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }} title={item.result_value}>
+                      ผล: {item.result_value}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           
