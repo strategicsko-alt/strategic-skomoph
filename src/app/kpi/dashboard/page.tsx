@@ -40,8 +40,8 @@ const WORK_GROUPS = [
 const UNIQUE_WORK_GROUPS = Array.from(new Set(WORK_GROUPS));
 
 const KPI_TYPE_OPTIONS = [
-  { id: 'all', label: 'ทุกประเภทตัวชี้วัด' },
   { id: 'strategic', label: 'ยุทธศาสตร์สุขภาพ สระแก้ว (5 ปี)' },
+  { id: 'all', label: 'ทุกประเภทตัวชี้วัด' },
   { id: 'ministry', label: 'ตัวชี้วัดกระทรวงสาธารณสุข' },
   { id: 'inspection', label: 'ตัวชี้วัดตรวจราชการ' },
   { id: 'standalone', label: 'ตัวชี้วัดอื่นๆ / นโยบายเร่งด่วน' },
@@ -115,7 +115,7 @@ export const HDC_CATEGORIES: Record<string, string[]> = {
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'detail' | 'executive' | 'subdistrict' | 'vital'>('executive');
   const [selectedQuarter, setSelectedQuarter] = useState<'Q1' | 'Q2' | 'Q3' | 'Q4'>('Q4');
-  const [filterKpiType, setFilterKpiType] = useState<string>('all');
+  const [filterKpiType, setFilterKpiType] = useState<string>('strategic');
   const [statusQuickFilter, setStatusQuickFilter] = useState<'all' | 'success' | 'warning' | 'error' | 'pending'>('all');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -1098,6 +1098,10 @@ export default function DashboardPage() {
 
     return issues.map(issue => {
       const issueKpis = evaluatedKpis.filter(k => {
+        // ต้องเป็นตัวชี้วัดประเภท "ยุทธศาสตร์สุขภาพ สระแก้ว" เท่านั้น
+        const isStrategicType = k.kpi_type === 'strategic' || (k.tags && k.tags.some((t: string) => t.includes('ยุทธศาสตร์สุขภาพ สระแก้ว')));
+        if (!isStrategicType) return false;
+
         const i = k.strategic_issue;
         if (i && (i.id === issue.id || i.auto_id === issue.auto_id)) return true;
         const auto = k.auto_id || '';
@@ -1338,11 +1342,11 @@ export default function DashboardPage() {
             </div>
 
             {/* Clear Filters Button */}
-            {(filterKpiType !== 'all' || filterGroup !== '' || filterCategory !== '' || search !== '' || statusQuickFilter !== 'all') && (
+            {(filterKpiType !== 'strategic' || filterGroup !== '' || filterCategory !== '' || search !== '' || statusQuickFilter !== 'all') && (
               <button
                 type="button"
                 onClick={() => {
-                  setFilterKpiType('all');
+                  setFilterKpiType('strategic');
                   setFilterGroup('');
                   setFilterCategory('');
                   setSearch('');
@@ -1542,90 +1546,132 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Section 1: Strategic Breakdown (S1 - S4) */}
-          <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span>📊</span> ความก้าวหน้ารายประเด็นยุทธศาสตร์สุขภาพ (S1 - S4)
-                </h2>
-                <div style={{ fontSize: '0.82rem', color: 'var(--secondary-foreground)', marginTop: '0.2rem' }}>
-                  ภาพรวมผลการดำเนินงานแบ่งตาม 4 ยุทธศาสตร์หลัก ในรอบ {selectedQuarter}
+          {/* Section 1: Strategic Breakdown (S1 - S4) - แสดงเฉพาะประเภท ยุทธศาสตร์สุขภาพ สระแก้ว เท่านั้น */}
+          {filterKpiType === 'strategic' ? (
+            <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>📊</span> ความก้าวหน้ารายประเด็นยุทธศาสตร์สุขภาพ (S1 - S4)
+                    </h2>
+                    <span style={{ fontSize: '0.72rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                      เฉพาะประเภท: ยุทธศาสตร์สุขภาพ สระแก้ว (5 ปี)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--secondary-foreground)', marginTop: '0.2rem' }}>
+                    ภาพรวมผลการดำเนินงานแบ่งตาม 4 ยุทธศาสตร์หลัก ในรอบ {selectedQuarter}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-              {strategicBreakdown.map(s => (
-                <div
-                  key={s.code}
-                  style={{
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '1rem',
-                    backgroundColor: 'var(--card)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    borderTop: `4px solid ${s.color || 'var(--primary)'}`,
-                    boxShadow: 'var(--shadow-sm)'
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                      <span style={{
-                        fontWeight: 800,
-                        fontSize: '0.85rem',
-                        color: s.color || 'var(--primary)',
-                        backgroundColor: '#f8fafc',
-                        padding: '0.2rem 0.5rem',
-                        borderRadius: '4px',
-                        border: '1px solid var(--border)'
-                      }}>
-                        {s.code}
-                      </span>
-                      <span style={{
-                        fontSize: '0.85rem',
-                        fontWeight: 700,
-                        color: s.passPct >= 80 ? '#166534' : s.passPct >= 50 ? '#854d0e' : '#991b1b',
-                        backgroundColor: s.passPct >= 80 ? '#dcfce7' : s.passPct >= 50 ? '#fef08a' : '#fee2e2',
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: '4px'
-                      }}>
-                        {s.passPct}% ผ่าน
-                      </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                {strategicBreakdown.map(s => (
+                  <div
+                    key={s.code}
+                    style={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1rem',
+                      backgroundColor: 'var(--card)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      borderTop: `4px solid ${s.color || 'var(--primary)'}`,
+                      boxShadow: 'var(--shadow-sm)'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <span style={{
+                          fontWeight: 800,
+                          fontSize: '0.85rem',
+                          color: s.color || 'var(--primary)',
+                          backgroundColor: '#f8fafc',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border)'
+                        }}>
+                          {s.code}
+                        </span>
+                        <span style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          color: s.passPct >= 80 ? '#166534' : s.passPct >= 50 ? '#854d0e' : '#991b1b',
+                          backgroundColor: s.passPct >= 80 ? '#dcfce7' : s.passPct >= 50 ? '#fef08a' : '#fee2e2',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px'
+                        }}>
+                          {s.passPct}% ผ่าน
+                        </span>
+                      </div>
+
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: 600, margin: '0 0 0.5rem 0', lineHeight: 1.4, color: 'var(--foreground)' }}>
+                        {s.name}
+                      </h4>
+
+                      <div style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)', marginBottom: '0.5rem' }}>
+                        ตัวชี้วัดทั้งหมด: <strong>{s.total}</strong> ตัว (บรรลุเป้าหมาย {s.success} ตัว)
+                      </div>
                     </div>
 
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, margin: '0 0 0.5rem 0', lineHeight: 1.4, color: 'var(--foreground)' }}>
-                      {s.name}
-                    </h4>
+                    <div>
+                      {/* Stacked Multi-color Progress Bar */}
+                      <div style={{ height: '10px', width: '100%', borderRadius: '999px', overflow: 'hidden', display: 'flex', backgroundColor: '#e2e8f0', margin: '0.5rem 0' }}>
+                        <div style={{ width: `${s.total ? (s.success / s.total) * 100 : 0}%`, backgroundColor: '#22c55e' }} title={`ผ่าน: ${s.success} ตัว`} />
+                        <div style={{ width: `${s.total ? (s.warning / s.total) * 100 : 0}%`, backgroundColor: '#eab308' }} title={`เฝ้าระวัง: ${s.warning} ตัว`} />
+                        <div style={{ width: `${s.total ? (s.error / s.total) * 100 : 0}%`, backgroundColor: '#ef4444' }} title={`ไม่ผ่าน: ${s.error} ตัว`} />
+                        <div style={{ width: `${s.total ? (s.pending / s.total) * 100 : 0}%`, backgroundColor: '#94a3b8' }} title={`รอดำเนินการ: ${s.pending} ตัว`} />
+                      </div>
 
-                    <div style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)', marginBottom: '0.5rem' }}>
-                      ตัวชี้วัดทั้งหมด: <strong>{s.total}</strong> ตัว (บรรลุเป้าหมาย {s.success} ตัว)
+                      {/* Breakdown Badges */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.4rem', color: 'var(--secondary-foreground)' }}>
+                        <span title="ผ่านเกณฑ์">🟢 {s.success}</span>
+                        <span title="เฝ้าระวัง">🟡 {s.warning}</span>
+                        <span title="ไม่ผ่านเกณฑ์">🔴 {s.error}</span>
+                        <span title="รอประเมิน/ผล">🔄 {s.pending}</span>
+                      </div>
                     </div>
                   </div>
-
-                  <div>
-                    {/* Stacked Multi-color Progress Bar */}
-                    <div style={{ height: '10px', width: '100%', borderRadius: '999px', overflow: 'hidden', display: 'flex', backgroundColor: '#e2e8f0', margin: '0.5rem 0' }}>
-                      <div style={{ width: `${s.total ? (s.success / s.total) * 100 : 0}%`, backgroundColor: '#22c55e' }} title={`ผ่าน: ${s.success} ตัว`} />
-                      <div style={{ width: `${s.total ? (s.warning / s.total) * 100 : 0}%`, backgroundColor: '#eab308' }} title={`เฝ้าระวัง: ${s.warning} ตัว`} />
-                      <div style={{ width: `${s.total ? (s.error / s.total) * 100 : 0}%`, backgroundColor: '#ef4444' }} title={`ไม่ผ่าน: ${s.error} ตัว`} />
-                      <div style={{ width: `${s.total ? (s.pending / s.total) * 100 : 0}%`, backgroundColor: '#94a3b8' }} title={`รอดำเนินการ: ${s.pending} ตัว`} />
-                    </div>
-
-                    {/* Breakdown Badges */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.4rem', color: 'var(--secondary-foreground)' }}>
-                      <span title="ผ่านเกณฑ์">🟢 {s.success}</span>
-                      <span title="เฝ้าระวัง">🟡 {s.warning}</span>
-                      <span title="ไม่ผ่านเกณฑ์">🔴 {s.error}</span>
-                      <span title="รอประเมิน/ผล">🔄 {s.pending}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#f8fafc',
+              border: '1px dashed var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.75rem 1.25rem',
+              fontSize: '0.85rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--secondary-foreground)' }}>
+                <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
+                <span>
+                  ความก้าวหน้ารายประเด็นยุทธศาสตร์ (S1 - S4) จะแสดงเฉพาะตัวชี้วัดประเภท <strong>ยุทธศาสตร์สุขภาพ สระแก้ว (5 ปี)</strong> เท่านั้น (ปัจจุบันเลือก: <em>{KPI_TYPE_OPTIONS.find(o => o.id === filterKpiType)?.label || filterKpiType}</em>)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFilterKpiType('strategic')}
+                style={{
+                  backgroundColor: 'var(--primary)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                สลับดูประเภทยุทธศาสตร์สุขภาพ สระแก้ว
+              </button>
+            </div>
+          )}
 
           {/* Section 2: Department Performance Scorecard (17 Work Groups) */}
           <div className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
