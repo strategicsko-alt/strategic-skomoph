@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
@@ -35,6 +35,16 @@ const WORK_GROUPS = [
   "ปฐมภูมิและเครือข่ายสุขภาพ",
   "การแพทย์แผนไทยและการแพทย์ทางเลือก",
   "พัฒนาทรัพยากรบุคคล"
+];
+
+const UNIQUE_WORK_GROUPS = Array.from(new Set(WORK_GROUPS));
+
+const KPI_TYPE_OPTIONS = [
+  { id: 'all', label: 'ทุกประเภทตัวชี้วัด' },
+  { id: 'strategic', label: 'ยุทธศาสตร์สุขภาพ สระแก้ว (5 ปี)' },
+  { id: 'ministry', label: 'ตัวชี้วัดกระทรวงสาธารณสุข' },
+  { id: 'inspection', label: 'ตัวชี้วัดตรวจราชการ' },
+  { id: 'standalone', label: 'ตัวชี้วัดอื่นๆ / นโยบายเร่งด่วน' },
 ];
 
 // HDC Taxonomy (Major Category & Subcategory)
@@ -103,11 +113,16 @@ export const HDC_CATEGORIES: Record<string, string[]> = {
 };
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<'detail' | 'executive' | 'subdistrict' | 'vital'>('detail');
+  const [activeTab, setActiveTab] = useState<'detail' | 'executive' | 'subdistrict' | 'vital'>('executive');
+  const [selectedQuarter, setSelectedQuarter] = useState<'Q1' | 'Q2' | 'Q3' | 'Q4'>('Q4');
+  const [filterKpiType, setFilterKpiType] = useState<string>('all');
+  const [statusQuickFilter, setStatusQuickFilter] = useState<'all' | 'success' | 'warning' | 'error' | 'pending'>('all');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [search, setSearch] = useState('');
   const [kpis, setKpis] = useState<any[]>([]);
+  const [strategicIssues, setStrategicIssues] = useState<any[]>([]);
+  const [actionPlanMeasurements, setActionPlanMeasurements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKpiId, setSelectedKpiId] = useState<string>('');
   const [heatmapAreaMode, setHeatmapAreaMode] = useState<'district' | 'hospital'>('district');
@@ -840,55 +855,59 @@ export default function DashboardPage() {
         .eq('type', 'province')
         .maybeSingle();
 
-      let query = supabase
-        .from('key_results')
-        .select(`
-          id, name, auto_id, target_2570, measurement_status, responsible_group,
-          objective:objectives(name, strategy:strategies(issue:strategic_issues(name))),
-          kpi_dict:kpi_dictionaries(*),
-          tags:key_result_tags(tag:kpi_tags(name)),
-          measurements:kpi_measurements(*)
-        `)
-        .order('order_index', { ascending: true });
+      const [krsRes, issuesRes, apmRes] = await Promise.all([
+        supabase
+          .from('key_results')
+          .select(`
+            id, name, auto_id, target_2570, measurement_status, responsible_group, strategic_issue_id,
+            objective:objectives(name, strategy:strategies(issue:strategic_issues(id, auto_id, name, theme_color))),
+            kpi_dict:kpi_dictionaries(*),
+            tags:key_result_tags(tag:kpi_tags(name)),
+            measurements:kpi_measurements(*)
+          `)
+          .eq('district_id', provDist?.id || '')
+          .order('order_index', { ascending: true }),
+        supabase
+          .from('strategic_issues')
+          .select('id, auto_id, name, theme_color, order_index')
+          .eq('district_id', provDist?.id || '')
+          .order('auto_id', { ascending: true }),
+        supabase
+          .from('action_plan_measurements')
+          .select('id, key_result_id, quarter, auto_id, kpi_name, target_value, result_value, status, order_index')
+          .order('order_index', { ascending: true })
+      ]);
 
-      if (provDist?.id) {
-        query = query.eq('district_id', provDist.id);
-      }
+      const issues = issuesRes.data || [];
+      const apmData = apmRes.data || [];
+      setStrategicIssues(issues);
+      setActionPlanMeasurements(apmData);
 
-      const { data, error } = await query;
-        
-      if (data) {
-        // Transform Supabase data to our UI format
-        const transformed = data.map(kr => {
+      const issueMap: Record<string, any> = {};
+      issues.forEach(iss => { issueMap[iss.id] = iss; });
+
+      if (krsRes.data) {
+        const transformed = krsRes.data.map(kr => {
           const dict = kr.kpi_dict?.[0] || {};
           const tags = kr.tags?.map((t: any) => t.tag.name) || ['ยุทธศาสตร์สุขภาพ สระแก้ว'];
           
-          let targetVal = null;
-          let targetWarning = null;
+          let evalCriteria: any = {};
           if (dict.evaluation_criteria_json) {
-            const ev = typeof dict.evaluation_criteria_json === 'string' ? JSON.parse(dict.evaluation_criteria_json) : dict.evaluation_criteria_json;
-            targetVal = ev.q4 || ev.green_target || null;
-            targetWarning = ev.q4_warning || ev.yellow_target || null;
+            evalCriteria = typeof dict.evaluation_criteria_json === 'string'
+              ? JSON.parse(dict.evaluation_criteria_json)
+              : dict.evaluation_criteria_json;
           }
-          
-          const district_results = DISTRICTS.map(d => {
-            const m = (kr.measurements || []).find((x: any) => x.area_id === d && x.period === 'Q4'); // simplifying to Q4 or latest
-            return { name: d, result: m ? Number(m.result_value) || 0 : 0 };
-          });
 
-          const hospital_results = SA_KAEO_HOSPITALS.map(h => {
-            const m = (kr.measurements || []).find((x: any) =>
-              (x.area_id === h.name || x.area_id === h.fullName || x.area_id === h.code5) &&
-              (x.period === 'Q4' || x.period === 'Q3' || x.period === 'Q2' || x.period === 'Q1')
-            );
-            return { name: h.name, code5: h.code5, districtName: h.districtName, result: m ? Number(m.result_value) || 0 : 0 };
-          });
-          
-          const prov_m = (kr.measurements || []).find((x: any) => x.area_id === 'province');
-          const provResult = prov_m ? Number(prov_m.result_value) || 0 : 0;
+          // Resolve Strategic Issue
+          let matchedIssue = kr.strategic_issue_id ? issueMap[kr.strategic_issue_id] : kr.objective?.strategy?.issue;
+          if (!matchedIssue) {
+            const auto = kr.auto_id || '';
+            const code = auto.includes('1') ? 'S1' : auto.includes('2') ? 'S2' : auto.includes('3') ? 'S3' : auto.includes('4') ? 'S4' : 'S1';
+            matchedIssue = issues.find(i => i.auto_id === code) || { auto_id: code, name: 'ยุทธศาสตร์ ' + code, theme_color: '#0284c7' };
+          }
 
-          // Process status fallback
-          const defaultStatus = kr.measurement_status === 'completed' ? 'success' : kr.measurement_status === 'failed' ? 'error' : 'pending';
+          const kpiSubKrs = apmData.filter((a: any) => a.key_result_id === kr.id);
+          const effectiveKpiType = dict.kpi_type || (kr.id ? 'strategic' : 'standalone');
 
           return {
             id: kr.id,
@@ -902,14 +921,13 @@ export default function DashboardPage() {
             calculation_type: dict.calculation_type || 'process_status',
             data_items: dict.data_items_json ? (typeof dict.data_items_json === 'string' ? JSON.parse(dict.data_items_json) : dict.data_items_json) : [],
             target: kr.target_2570,
-            target_val: targetVal,
-            target_warning_val: targetWarning,
             target_operator: dict.target_operator || '>=',
             frequency: 'รายไตรมาส',
-            status: defaultStatus,
-            provincial_result: provResult || (dict.calculation_type === 'process_status' ? (prov_m?.values_json?.description || 'รอดำเนินการ') : 0),
-            district_results,
-            hospital_results
+            kpi_type: effectiveKpiType,
+            strategic_issue: matchedIssue,
+            evalCriteria,
+            rawMeasurements: kr.measurements || [],
+            sub_krs: kpiSubKrs,
           };
         });
         
@@ -921,23 +939,217 @@ export default function DashboardPage() {
     fetchKPIs();
   }, []);
 
-  const CATEGORIES = Array.from(new Set(kpis.flatMap(k => k.tags)));
-  
-  const filteredKpis = kpis.filter(k => {
-    let groupMatch = true;
-    if (filterGroup !== '') {
-      const cleanFilter = filterGroup.replace(/^กลุ่มงาน/, '').trim();
-      const cleanKr = (k.responsible_group || '').replace(/^กลุ่มงาน/, '').trim();
-      groupMatch = k.responsible_group === filterGroup || cleanKr === cleanFilter;
-    }
-    return (
-      groupMatch &&
-      (filterCategory === '' || k.tags.includes(filterCategory)) &&
-      (search === '' || k.name.includes(search))
-    );
-  });
+  const quarterNum = useMemo(() => {
+    return parseInt(selectedQuarter.replace('Q', ''), 10) || 1;
+  }, [selectedQuarter]);
 
-  const selectedKpi = kpis.find(k => k.id === selectedKpiId) || filteredKpis[0];
+  // Evaluates a KPI's performance for a given quarter
+  const evaluateKpiStatus = useCallback((kpi: any, qStr: string): 'success' | 'warning' | 'error' | 'pending' => {
+    const qKey = qStr.toLowerCase();
+    const ev = kpi.evalCriteria || {};
+    const target = ev[qKey] ?? ev.green_target ?? null;
+    const warning = ev[`${qKey}_warning`] ?? ev.yellow_target ?? null;
+
+    const prov_m = (kpi.rawMeasurements || []).find((x: any) => x.period === qStr && x.area_id === 'province');
+
+    if (kpi.calculation_type === 'process_status') {
+      if (!prov_m) return 'pending';
+      const res = String(prov_m.result_value || '').toLowerCase();
+      if (res === 'success' || res === 'ผ่าน') return 'success';
+      if (res === 'warning' || res === 'ไม่ผ่าน' || res === 'error') return 'error';
+      return 'pending';
+    }
+
+    if (!prov_m || prov_m.result_value === null || prov_m.result_value === undefined || target === null || target === undefined) {
+      return 'pending';
+    }
+
+    const val = Number(prov_m.result_value);
+    if (isNaN(val)) return 'pending';
+    const targetNum = Number(target);
+    const warningNum = warning !== null && warning !== undefined ? Number(warning) : null;
+    const op = kpi.target_operator || '>=';
+
+    if (op === '>=') {
+      if (val >= targetNum) return 'success';
+      if (warningNum !== null && val >= warningNum) return 'warning';
+      return 'error';
+    }
+    if (op === '<=') {
+      if (val <= targetNum) return 'success';
+      if (warningNum !== null && val <= warningNum) return 'warning';
+      return 'error';
+    }
+    if (op === '>') {
+      if (val > targetNum) return 'success';
+      if (warningNum !== null && val > warningNum) return 'warning';
+      return 'error';
+    }
+    if (op === '<') {
+      if (val < targetNum) return 'success';
+      if (warningNum !== null && val < warningNum) return 'warning';
+      return 'error';
+    }
+    return val === targetNum ? 'success' : 'error';
+  }, []);
+
+  // Dynamically evaluate each KPI for the active selectedQuarter
+  const evaluatedKpis = useMemo(() => {
+    const qKey = selectedQuarter.toLowerCase();
+    return kpis.map(k => {
+      const ev = k.evalCriteria || {};
+      const targetVal = ev[qKey] ?? ev.green_target ?? null;
+      const targetWarning = ev[`${qKey}_warning`] ?? ev.yellow_target ?? null;
+
+      const prov_m = (k.rawMeasurements || []).find((x: any) => x.period === selectedQuarter && x.area_id === 'province');
+      const provResult = prov_m 
+        ? (k.calculation_type === 'process_status' ? (prov_m.values_json?.description || prov_m.result_value || 'รอดำเนินการ') : Number(prov_m.result_value) || 0)
+        : (k.calculation_type === 'process_status' ? 'รอดำเนินการ' : 0);
+
+      const district_results = DISTRICTS.map(d => {
+        const m = (k.rawMeasurements || []).find((x: any) => x.area_id === d && x.period === selectedQuarter);
+        return { name: d, result: m ? Number(m.result_value) || 0 : 0, hasData: !!m };
+      });
+
+      const hospital_results = SA_KAEO_HOSPITALS.map(h => {
+        const m = (k.rawMeasurements || []).find((x: any) =>
+          (x.area_id === h.name || x.area_id === h.fullName || x.area_id === h.code5) &&
+          x.period === selectedQuarter
+        );
+        return { name: h.name, code5: h.code5, districtName: h.districtName, result: m ? Number(m.result_value) || 0 : 0, hasData: !!m };
+      });
+
+      const currentSubKrs = (k.sub_krs || []).filter((s: any) => s.quarter === quarterNum);
+      const currentStatus = evaluateKpiStatus(k, selectedQuarter);
+
+      return {
+        ...k,
+        target_val: targetVal,
+        target_warning_val: targetWarning,
+        provincial_result: provResult,
+        hasProvData: !!prov_m,
+        status: currentStatus,
+        district_results,
+        hospital_results,
+        currentSubKrs,
+      };
+    });
+  }, [kpis, selectedQuarter, quarterNum, evaluateKpiStatus]);
+
+  const CATEGORIES = useMemo(() => Array.from(new Set(kpis.flatMap(k => k.tags))), [kpis]);
+
+  // Base KPIs filtered by group, category, kpi_type, search (used to compute Scorecard stats)
+  const baseKpis = useMemo(() => {
+    return evaluatedKpis.filter(k => {
+      let groupMatch = true;
+      if (filterGroup !== '') {
+        const cleanFilter = filterGroup.replace(/^กลุ่มงาน/, '').trim();
+        const cleanKr = (k.responsible_group || '').replace(/^กลุ่มงาน/, '').trim();
+        groupMatch = k.responsible_group === filterGroup || cleanKr === cleanFilter;
+      }
+      const categoryMatch = filterCategory === '' || k.tags.includes(filterCategory);
+      const typeMatch = filterKpiType === 'all' || k.kpi_type === filterKpiType;
+      const searchMatch = search === '' || k.name.toLowerCase().includes(search.toLowerCase()) || (k.auto_id && k.auto_id.toLowerCase().includes(search.toLowerCase()));
+
+      return groupMatch && categoryMatch && typeMatch && searchMatch;
+    });
+  }, [evaluatedKpis, filterGroup, filterCategory, filterKpiType, search]);
+
+  // Scorecard Stats
+  const scorecardStats = useMemo(() => {
+    const total = baseKpis.length;
+    const success = baseKpis.filter(k => k.status === 'success').length;
+    const warning = baseKpis.filter(k => k.status === 'warning').length;
+    const error = baseKpis.filter(k => k.status === 'error').length;
+    const pending = baseKpis.filter(k => k.status === 'pending').length;
+
+    return {
+      total,
+      success,
+      warning,
+      error,
+      pending,
+      successPct: total > 0 ? ((success / total) * 100).toFixed(1) : '0',
+      warningPct: total > 0 ? ((warning / total) * 100).toFixed(1) : '0',
+      errorPct: total > 0 ? ((error / total) * 100).toFixed(1) : '0',
+      pendingPct: total > 0 ? ((pending / total) * 100).toFixed(1) : '0',
+    };
+  }, [baseKpis]);
+
+  // Filtered KPIs: Apply statusQuickFilter on baseKpis
+  const filteredKpis = useMemo(() => {
+    if (statusQuickFilter === 'all') return baseKpis;
+    return baseKpis.filter(k => k.status === statusQuickFilter);
+  }, [baseKpis, statusQuickFilter]);
+
+  const selectedKpi = useMemo(() => {
+    return filteredKpis.find(k => k.id === selectedKpiId) || filteredKpis[0] || baseKpis[0];
+  }, [filteredKpis, baseKpis, selectedKpiId]);
+
+  // Strategic Issue Breakdown (S1 - S4)
+  const strategicBreakdown = useMemo(() => {
+    const defaultIssues = [
+      { id: '1', auto_id: 'S1', name: 'การสร้างระบบสุขภาพเพื่อประชาชนที่ทุกคนเป็นเจ้าของ', theme_color: '#02c570' },
+      { id: '2', auto_id: 'S2', name: 'การจัดบริการสุขภาพที่มีคุณภาพและเป็นเลิศ', theme_color: '#0284c7' },
+      { id: '3', auto_id: 'S3', name: 'ยกระดับสู่องค์กรอัจฉริยะ พัฒนากำลังคน และบริหารจัดการฯ', theme_color: '#c53302' },
+      { id: '4', auto_id: 'S4', name: 'การบริหารจัดการการสาธารณสุขชายแดนและความมั่นคงทางสุขภาพ', theme_color: '#0502c5' },
+    ];
+    const issues = strategicIssues.length > 0 ? strategicIssues : defaultIssues;
+
+    return issues.map(issue => {
+      const issueKpis = evaluatedKpis.filter(k => {
+        const i = k.strategic_issue;
+        if (i && (i.id === issue.id || i.auto_id === issue.auto_id)) return true;
+        const auto = k.auto_id || '';
+        return auto.startsWith(`KR${issue.auto_id?.replace('S', '')}`) || auto.startsWith(`IND${issue.auto_id?.replace('S', '')}`);
+      });
+
+      const total = issueKpis.length;
+      const success = issueKpis.filter(k => k.status === 'success').length;
+      const warning = issueKpis.filter(k => k.status === 'warning').length;
+      const error = issueKpis.filter(k => k.status === 'error').length;
+      const pending = issueKpis.filter(k => k.status === 'pending').length;
+      const passPct = total > 0 ? Math.round((success / total) * 100) : 0;
+
+      return {
+        ...issue,
+        total,
+        success,
+        warning,
+        error,
+        pending,
+        passPct,
+      };
+    });
+  }, [strategicIssues, evaluatedKpis]);
+
+  // Department Performance Breakdown (17 SSJ Work Groups)
+  const departmentBreakdown = useMemo(() => {
+    return UNIQUE_WORK_GROUPS.map(groupName => {
+      const cleanGroup = groupName.replace(/^กลุ่มงาน/, '').trim();
+      const groupKpis = evaluatedKpis.filter(k => {
+        const cleanKr = (k.responsible_group || '').replace(/^กลุ่มงาน/, '').trim();
+        return cleanKr === cleanGroup || k.responsible_group === groupName;
+      });
+
+      const total = groupKpis.length;
+      const success = groupKpis.filter(k => k.status === 'success').length;
+      const warning = groupKpis.filter(k => k.status === 'warning').length;
+      const error = groupKpis.filter(k => k.status === 'error').length;
+      const pending = groupKpis.filter(k => k.status === 'pending').length;
+      const passPct = total > 0 ? Math.round((success / total) * 100) : 0;
+
+      return {
+        name: groupName,
+        total,
+        success,
+        warning,
+        error,
+        pending,
+        passPct,
+      };
+    }).sort((a, b) => b.total - a.total || b.passPct - a.passPct);
+  }, [evaluatedKpis]);
 
   const getStatusColor = (status: string) => {
     if (status === 'success') return '#22c55e'; // Green
@@ -947,24 +1159,7 @@ export default function DashboardPage() {
   };
 
   const evaluateStatus = (result: number, kpi: any) => {
-    if (kpi.calculation_type === 'process_status') return kpi.status;
-    if (kpi.target_val === null || kpi.target_val === undefined) return 'pending';
-    
-    const val = Number(result);
-    const target = Number(kpi.target_val);
-    const warning = Number(kpi.target_warning_val);
-
-    if (kpi.target_operator === '>=') {
-      if (val >= target) return 'success';
-      if (warning && val >= warning) return 'warning';
-      return 'error';
-    }
-    if (kpi.target_operator === '<=') {
-      if (val <= target) return 'success';
-      if (warning && val <= warning) return 'warning';
-      return 'error';
-    }
-    return 'pending';
+    return evaluateKpiStatus(kpi, selectedQuarter);
   };
 
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center' }}>กำลังโหลดข้อมูลตัวชี้วัด...</div>;
@@ -978,15 +1173,20 @@ export default function DashboardPage() {
       minHeight: (activeTab === 'subdistrict' || activeTab === 'vital') && !isSubdistrictFullscreen ? 'calc(100vh - 80px)' : undefined
     }}>
       {/* Top Header & Tabs */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>Dashboard ตัวชี้วัด (KPIs) สสจ.สระแก้ว</h1>
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
-            <button onClick={() => setActiveTab('detail')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'detail' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'detail' ? 700 : 500, color: activeTab === 'detail' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
-              มุมมองรายตัวชี้วัด (Master-Detail)
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--foreground)' }}>Dashboard ตัวชี้วัด (KPIs) สสจ.สระแก้ว</h1>
+            <span style={{ fontSize: '0.75rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.2rem 0.6rem', borderRadius: '999px', fontWeight: 700 }}>
+              ปีงบประมาณ 2568
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
             <button onClick={() => setActiveTab('executive')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'executive' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'executive' ? 700 : 500, color: activeTab === 'executive' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
               สรุปสำหรับผู้บริหาร (Executive Summary)
+            </button>
+            <button onClick={() => setActiveTab('detail')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'detail' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'detail' ? 700 : 500, color: activeTab === 'detail' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+              มุมมองรายตัวชี้วัด (Master-Detail)
             </button>
             <button onClick={() => setActiveTab('subdistrict')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'subdistrict' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'subdistrict' ? 700 : 500, color: activeTab === 'subdistrict' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
               ระดับ รพ.สต. (HDC Open Data)
@@ -998,15 +1198,31 @@ export default function DashboardPage() {
         </div>
         
         {activeTab !== 'subdistrict' && activeTab !== 'vital' ? (
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <select className="input-field" style={{ width: '220px' }} value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-              <option value="">-- ทุกหมวดหมู่ --</option>
-              {CATEGORIES.map(c => <option key={c as string} value={c as string}>{c as string}</option>)}
-            </select>
-            <select className="input-field" style={{ width: '220px' }} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
-              <option value="">-- ทุกกลุ่มงาน --</option>
-              {WORK_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--secondary-foreground)', padding: '0 0.5rem' }}>รอบประเมิน:</span>
+              {(['Q1', 'Q2', 'Q3', 'Q4'] as const).map(q => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setSelectedQuarter(q)}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.8rem',
+                    fontWeight: selectedQuarter === q ? 700 : 500,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: selectedQuarter === q ? 'var(--primary)' : 'transparent',
+                    color: selectedQuarter === q ? '#fff' : 'var(--foreground)',
+                    boxShadow: selectedQuarter === q ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {q === 'Q1' ? 'Q1 (ต.ค.-ธ.ค.)' : q === 'Q2' ? 'Q2 (ม.ค.-มี.ค.)' : q === 'Q3' ? 'Q3 (เม.ย.-มิ.ย.)' : 'Q4 (สะสม/สิ้นปี)'}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -1057,15 +1273,470 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {activeTab === 'executive' && (
-        <div className="card" style={{ flex: 1, overflow: 'auto', padding: '0', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>ตารางสถานะตัวชี้วัดแยกตามพื้นที่ (Heatmap)</h2>
-              <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>
-                แสดงผล: {filteredKpis.length} ตัวชี้วัด | โหมดพื้นที่: {heatmapAreaMode === 'district' ? '9 อำเภอ (2701 - 2709)' : '9 โรงพยาบาลใน จ.สระแก้ว'}
+      {/* KPI Controls Bar & Scorecards for Executive & Detail views */}
+      {(activeTab === 'executive' || activeTab === 'detail') && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          {/* Global Filter Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+            backgroundColor: 'var(--card)',
+            padding: '0.75rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', flex: 1 }}>
+              {/* KPI Type Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--secondary-foreground)' }}>ประเภท:</span>
+                <select
+                  className="input-field"
+                  style={{ width: '220px', fontSize: '0.82rem', padding: '0.35rem 0.6rem' }}
+                  value={filterKpiType}
+                  onChange={(e) => setFilterKpiType(e.target.value)}
+                >
+                  {KPI_TYPE_OPTIONS.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Work Group Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--secondary-foreground)' }}>กลุ่มงาน:</span>
+                <select
+                  className="input-field"
+                  style={{ width: '220px', fontSize: '0.82rem', padding: '0.35rem 0.6rem' }}
+                  value={filterGroup}
+                  onChange={(e) => setFilterGroup(e.target.value)}
+                >
+                  <option value="">-- ทุกกลุ่มงาน (17 กลุ่มงาน) --</option>
+                  {UNIQUE_WORK_GROUPS.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tag / Category Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--secondary-foreground)' }}>หมวดหมู่:</span>
+                <select
+                  className="input-field"
+                  style={{ width: '180px', fontSize: '0.82rem', padding: '0.35rem 0.6rem' }}
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                >
+                  <option value="">-- ทุกหมวดหมู่ --</option>
+                  {CATEGORIES.map(c => (
+                    <option key={c as string} value={c as string}>{c as string}</option>
+                  ))}
+                </select>
               </div>
             </div>
+
+            {/* Clear Filters Button */}
+            {(filterKpiType !== 'all' || filterGroup !== '' || filterCategory !== '' || search !== '' || statusQuickFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterKpiType('all');
+                  setFilterGroup('');
+                  setFilterCategory('');
+                  setSearch('');
+                  setStatusQuickFilter('all');
+                }}
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#dc2626',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                ✕ รีเซ็ตตัวกรองทั้งหมด
+              </button>
+            )}
+          </div>
+
+          {/* 5 Executive Scorecards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+            {/* Card 1: ทั้งหมด */}
+            <div
+              onClick={() => setStatusQuickFilter('all')}
+              style={{
+                padding: '0.9rem 1.1rem',
+                borderRadius: 'var(--radius-md)',
+                border: statusQuickFilter === 'all' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                backgroundColor: statusQuickFilter === 'all' ? '#eff6ff' : 'var(--card)',
+                cursor: 'pointer',
+                boxShadow: statusQuickFilter === 'all' ? '0 4px 12px rgba(2, 132, 199, 0.15)' : 'var(--shadow-sm)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--secondary-foreground)' }}>📋 ตัวชี้วัดทั้งหมด</span>
+                {statusQuickFilter === 'all' && (
+                  <span style={{ fontSize: '0.65rem', backgroundColor: 'var(--primary)', color: '#fff', padding: '0.1rem 0.4rem', borderRadius: '999px', fontWeight: 700 }}>เลือกอยู่</span>
+                )}
+              </div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--foreground)', lineHeight: 1.2 }}>
+                {scorecardStats.total} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--secondary-foreground)' }}>ตัว</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--secondary-foreground)', marginTop: '0.35rem' }}>
+                รอบ {selectedQuarter} • คลิกเพื่อดูทั้งหมด
+              </div>
+            </div>
+
+            {/* Card 2: ผ่านเกณฑ์ */}
+            <div
+              onClick={() => setStatusQuickFilter(statusQuickFilter === 'success' ? 'all' : 'success')}
+              style={{
+                padding: '0.9rem 1.1rem',
+                borderRadius: 'var(--radius-md)',
+                border: statusQuickFilter === 'success' ? '2px solid #22c55e' : '1px solid var(--border)',
+                backgroundColor: statusQuickFilter === 'success' ? '#f0fdf4' : 'var(--card)',
+                cursor: 'pointer',
+                boxShadow: statusQuickFilter === 'success' ? '0 4px 12px rgba(34, 197, 94, 0.2)' : 'var(--shadow-sm)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#166534' }}>🟢 ผ่านเกณฑ์</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#166534', backgroundColor: '#dcfce7', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                  {scorecardStats.successPct}%
+                </span>
+              </div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#166534', lineHeight: 1.2 }}>
+                {scorecardStats.success} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--secondary-foreground)' }}>ตัว</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#166534', marginTop: '0.35rem' }}>
+                {statusQuickFilter === 'success' ? '✓ กำลังกรองเฉพาะที่ผ่าน (คลิกเพื่อยกเลิก)' : 'คลิกเพื่อกรองเฉพาะที่ผ่าน'}
+              </div>
+            </div>
+
+            {/* Card 3: เฝ้าระวัง */}
+            <div
+              onClick={() => setStatusQuickFilter(statusQuickFilter === 'warning' ? 'all' : 'warning')}
+              style={{
+                padding: '0.9rem 1.1rem',
+                borderRadius: 'var(--radius-md)',
+                border: statusQuickFilter === 'warning' ? '2px solid #eab308' : '1px solid var(--border)',
+                backgroundColor: statusQuickFilter === 'warning' ? '#fefce8' : 'var(--card)',
+                cursor: 'pointer',
+                boxShadow: statusQuickFilter === 'warning' ? '0 4px 12px rgba(234, 179, 8, 0.2)' : 'var(--shadow-sm)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#854d0e' }}>🟡 เฝ้าระวัง</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#854d0e', backgroundColor: '#fef08a', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                  {scorecardStats.warningPct}%
+                </span>
+              </div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#854d0e', lineHeight: 1.2 }}>
+                {scorecardStats.warning} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--secondary-foreground)' }}>ตัว</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#854d0e', marginTop: '0.35rem' }}>
+                {statusQuickFilter === 'warning' ? '✓ กำลังกรองเฝ้าระวัง (คลิกเพื่อยกเลิก)' : 'คลิกเพื่อกรองตัวชี้วัดเฝ้าระวัง'}
+              </div>
+            </div>
+
+            {/* Card 4: ไม่ผ่านเกณฑ์ */}
+            <div
+              onClick={() => setStatusQuickFilter(statusQuickFilter === 'error' ? 'all' : 'error')}
+              style={{
+                padding: '0.9rem 1.1rem',
+                borderRadius: 'var(--radius-md)',
+                border: statusQuickFilter === 'error' ? '2px solid #ef4444' : '1px solid var(--border)',
+                backgroundColor: statusQuickFilter === 'error' ? '#fef2f2' : 'var(--card)',
+                cursor: 'pointer',
+                boxShadow: statusQuickFilter === 'error' ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'var(--shadow-sm)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#991b1b' }}>🔴 ไม่ผ่านเกณฑ์</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#991b1b', backgroundColor: '#fee2e2', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                  {scorecardStats.errorPct}%
+                </span>
+              </div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#991b1b', lineHeight: 1.2 }}>
+                {scorecardStats.error} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--secondary-foreground)' }}>ตัว</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#991b1b', marginTop: '0.35rem' }}>
+                {statusQuickFilter === 'error' ? '✓ กำลังกรองที่ไม่ผ่าน (คลิกเพื่อยกเลิก)' : 'คลิกเพื่อกรองที่ไม่ผ่าน'}
+              </div>
+            </div>
+
+            {/* Card 5: รอดำเนินการ / รอประเมิน */}
+            <div
+              onClick={() => setStatusQuickFilter(statusQuickFilter === 'pending' ? 'all' : 'pending')}
+              style={{
+                padding: '0.9rem 1.1rem',
+                borderRadius: 'var(--radius-md)',
+                border: statusQuickFilter === 'pending' ? '2px solid #64748b' : '1px solid var(--border)',
+                backgroundColor: statusQuickFilter === 'pending' ? '#f8fafc' : 'var(--card)',
+                cursor: 'pointer',
+                boxShadow: statusQuickFilter === 'pending' ? '0 4px 12px rgba(100, 116, 139, 0.15)' : 'var(--shadow-sm)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569' }}>🔄 รอผล / รอดำเนินการ</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569', backgroundColor: '#e2e8f0', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                  {scorecardStats.pendingPct}%
+                </span>
+              </div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#475569', lineHeight: 1.2 }}>
+                {scorecardStats.pending} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--secondary-foreground)' }}>ตัว</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: '0.35rem' }}>
+                {statusQuickFilter === 'pending' ? '✓ กำลังกรองที่รอผล (คลิกเพื่อยกเลิก)' : 'ตัวชี้วัดที่รอรอบประเมิน/บันทึก'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'executive' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '0.25rem' }}>
+          {/* Active Quick Filter Alert Bar */}
+          {statusQuickFilter !== 'all' && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: statusQuickFilter === 'success' ? '#f0fdf4' : statusQuickFilter === 'warning' ? '#fefce8' : statusQuickFilter === 'error' ? '#fef2f2' : '#f8fafc',
+              border: `1px solid ${statusQuickFilter === 'success' ? '#86efac' : statusQuickFilter === 'warning' ? '#fde047' : statusQuickFilter === 'error' ? '#fca5a5' : '#cbd5e1'}`,
+              borderRadius: 'var(--radius-md)',
+              padding: '0.6rem 1rem',
+              fontSize: '0.85rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>🔍</span>
+                <span>
+                  กำลังแสดงเฉพาะตัวชี้วัดสถานะ: <strong>{statusQuickFilter === 'success' ? '🟢 ผ่านเกณฑ์' : statusQuickFilter === 'warning' ? '🟡 เฝ้าระวัง' : statusQuickFilter === 'error' ? '🔴 ไม่ผ่านเกณฑ์' : '🔄 รอดำเนินการ'}</strong> (พบ {filteredKpis.length} จาก {baseKpis.length} ตัวชี้วัด)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatusQuickFilter('all')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontWeight: 600,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                ล้างตัวกรองสถานะ (แสดงทั้งหมด)
+              </button>
+            </div>
+          )}
+
+          {/* Section 1: Strategic Breakdown (S1 - S4) */}
+          <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>📊</span> ความก้าวหน้ารายประเด็นยุทธศาสตร์สุขภาพ (S1 - S4)
+                </h2>
+                <div style={{ fontSize: '0.82rem', color: 'var(--secondary-foreground)', marginTop: '0.2rem' }}>
+                  ภาพรวมผลการดำเนินงานแบ่งตาม 4 ยุทธศาสตร์หลัก ในรอบ {selectedQuarter}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+              {strategicBreakdown.map(s => (
+                <div
+                  key={s.code}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem',
+                    backgroundColor: 'var(--card)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    borderTop: `4px solid ${s.color || 'var(--primary)'}`,
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <span style={{
+                        fontWeight: 800,
+                        fontSize: '0.85rem',
+                        color: s.color || 'var(--primary)',
+                        backgroundColor: '#f8fafc',
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid var(--border)'
+                      }}>
+                        {s.code}
+                      </span>
+                      <span style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        color: s.passPct >= 80 ? '#166534' : s.passPct >= 50 ? '#854d0e' : '#991b1b',
+                        backgroundColor: s.passPct >= 80 ? '#dcfce7' : s.passPct >= 50 ? '#fef08a' : '#fee2e2',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '4px'
+                      }}>
+                        {s.passPct}% ผ่าน
+                      </span>
+                    </div>
+
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, margin: '0 0 0.5rem 0', lineHeight: 1.4, color: 'var(--foreground)' }}>
+                      {s.name}
+                    </h4>
+
+                    <div style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)', marginBottom: '0.5rem' }}>
+                      ตัวชี้วัดทั้งหมด: <strong>{s.total}</strong> ตัว (บรรลุเป้าหมาย {s.success} ตัว)
+                    </div>
+                  </div>
+
+                  <div>
+                    {/* Stacked Multi-color Progress Bar */}
+                    <div style={{ height: '10px', width: '100%', borderRadius: '999px', overflow: 'hidden', display: 'flex', backgroundColor: '#e2e8f0', margin: '0.5rem 0' }}>
+                      <div style={{ width: `${s.total ? (s.success / s.total) * 100 : 0}%`, backgroundColor: '#22c55e' }} title={`ผ่าน: ${s.success} ตัว`} />
+                      <div style={{ width: `${s.total ? (s.warning / s.total) * 100 : 0}%`, backgroundColor: '#eab308' }} title={`เฝ้าระวัง: ${s.warning} ตัว`} />
+                      <div style={{ width: `${s.total ? (s.error / s.total) * 100 : 0}%`, backgroundColor: '#ef4444' }} title={`ไม่ผ่าน: ${s.error} ตัว`} />
+                      <div style={{ width: `${s.total ? (s.pending / s.total) * 100 : 0}%`, backgroundColor: '#94a3b8' }} title={`รอดำเนินการ: ${s.pending} ตัว`} />
+                    </div>
+
+                    {/* Breakdown Badges */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.4rem', color: 'var(--secondary-foreground)' }}>
+                      <span title="ผ่านเกณฑ์">🟢 {s.success}</span>
+                      <span title="เฝ้าระวัง">🟡 {s.warning}</span>
+                      <span title="ไม่ผ่านเกณฑ์">🔴 {s.error}</span>
+                      <span title="รอประเมิน/ผล">🔄 {s.pending}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 2: Department Performance Scorecard (17 Work Groups) */}
+          <div className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>🏛️</span> ผลการดำเนินงานรายกลุ่มงาน สสจ.สระแก้ว (17 กลุ่มงาน)
+                </h2>
+                <div style={{ fontSize: '0.82rem', color: 'var(--secondary-foreground)', marginTop: '0.2rem' }}>
+                  สรุปความสำเร็จของตัวชี้วัดที่แต่ละกลุ่มงานรับผิดชอบในรอบ {selectedQuarter} (คลิกที่ชื่อกลุ่มงานเพื่อกรองตาราง)
+                </div>
+              </div>
+              {filterGroup && (
+                <button
+                  type="button"
+                  onClick={() => setFilterGroup('')}
+                  style={{
+                    backgroundColor: '#f1f5f9',
+                    border: '1px solid var(--border)',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    color: 'var(--secondary-foreground)'
+                  }}
+                >
+                  ✕ ยกเลิกการกรองกลุ่มงาน ({filterGroup})
+                </button>
+              )}
+            </div>
+
+            <div style={{ overflowX: 'auto', maxHeight: '380px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 5, boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
+                  <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '50px' }}>ลำดับ</th>
+                    <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>กลุ่มงาน</th>
+                    <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', width: '90px' }}>ทั้งหมด</th>
+                    <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', width: '80px', color: '#166534' }}>🟢 ผ่าน</th>
+                    <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', width: '80px', color: '#854d0e' }}>🟡 ระวัง</th>
+                    <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', width: '80px', color: '#991b1b' }}>🔴 ไม่ผ่าน</th>
+                    <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center', width: '80px', color: '#64748b' }}>🔄 รอผล</th>
+                    <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '160px' }}>อัตราความสำเร็จ (% ผ่าน)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {departmentBreakdown.map((dept, index) => {
+                    const isSelected = filterGroup === dept.name || filterGroup === `กลุ่มงาน${dept.name}`;
+                    return (
+                      <tr
+                        key={dept.name}
+                        onClick={() => setFilterGroup(isSelected ? '' : dept.name)}
+                        style={{
+                          borderBottom: '1px solid var(--border)',
+                          backgroundColor: isSelected ? '#eff6ff' : index % 2 === 0 ? 'transparent' : '#fcfcfd',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.15s'
+                        }}
+                      >
+                        <td style={{ padding: '0.65rem 1rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>{index + 1}</td>
+                        <td style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>
+                          <span style={{ color: isSelected ? 'var(--primary)' : 'var(--foreground)' }}>{dept.name}</span>
+                          {isSelected && <span style={{ fontSize: '0.7rem', color: 'var(--primary)', marginLeft: '0.4rem' }}>(เลือกอยู่)</span>}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.5rem', textAlign: 'center', fontWeight: 700 }}>{dept.total}</td>
+                        <td style={{ padding: '0.65rem 0.5rem', textAlign: 'center', color: '#166534', fontWeight: dept.success > 0 ? 700 : 400, backgroundColor: dept.success > 0 ? '#f0fdf4' : 'transparent' }}>
+                          {dept.success}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.5rem', textAlign: 'center', color: '#854d0e', fontWeight: dept.warning > 0 ? 700 : 400, backgroundColor: dept.warning > 0 ? '#fefce8' : 'transparent' }}>
+                          {dept.warning}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.5rem', textAlign: 'center', color: '#991b1b', fontWeight: dept.error > 0 ? 700 : 400, backgroundColor: dept.error > 0 ? '#fef2f2' : 'transparent' }}>
+                          {dept.error}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.5rem', textAlign: 'center', color: '#64748b' }}>
+                          {dept.pending}
+                        </td>
+                        <td style={{ padding: '0.65rem 1rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ flex: 1, height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  width: `${dept.passPct}%`,
+                                  height: '100%',
+                                  backgroundColor: dept.passPct >= 80 ? '#22c55e' : dept.passPct >= 50 ? '#eab308' : dept.total === 0 ? '#94a3b8' : '#ef4444',
+                                  borderRadius: '4px'
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, width: '38px', textAlign: 'right', color: dept.passPct >= 80 ? '#166534' : dept.passPct >= 50 ? '#854d0e' : 'inherit' }}>
+                              {dept.total > 0 ? `${dept.passPct}%` : '-'}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Section 3: Heatmap Table (9 Districts / 9 Hospitals) */}
+          <div className="card" style={{ padding: '0', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>ตารางสถานะตัวชี้วัดแยกตามพื้นที่ (Heatmap)</h2>
+                <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>
+                  แสดงผล: {filteredKpis.length} ตัวชี้วัด | โหมดพื้นที่: {heatmapAreaMode === 'district' ? '9 อำเภอ (2701 - 2709)' : '9 โรงพยาบาลใน จ.สระแก้ว'} | รอบ {selectedQuarter}
+                </div>
+              </div>
 
             {/* Toggle Area Mode: District vs Hospital */}
             <div style={{ display: 'inline-flex', backgroundColor: 'var(--secondary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border)' }}>
@@ -1201,6 +1872,7 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       )}
 
@@ -2736,8 +3408,24 @@ export default function DashboardPage() {
               placeholder="ค้นหาตัวชี้วัด..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ marginBottom: '1rem' }}
+              style={{ marginBottom: '0.75rem' }}
             />
+            {statusQuickFilter !== 'all' && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: statusQuickFilter === 'success' ? '#f0fdf4' : statusQuickFilter === 'warning' ? '#fefce8' : statusQuickFilter === 'error' ? '#fef2f2' : '#f8fafc',
+                border: `1px solid ${statusQuickFilter === 'success' ? '#86efac' : statusQuickFilter === 'warning' ? '#fde047' : statusQuickFilter === 'error' ? '#fca5a5' : '#cbd5e1'}`,
+                padding: '0.35rem 0.6rem',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                marginBottom: '0.75rem'
+              }}>
+                <span>กรอง: <strong>{statusQuickFilter === 'success' ? '🟢 ผ่าน' : statusQuickFilter === 'warning' ? '🟡 เฝ้าระวัง' : statusQuickFilter === 'error' ? '🔴 ไม่ผ่าน' : '🔄 รอผล'}</strong> ({filteredKpis.length})</span>
+                <button type="button" onClick={() => setStatusQuickFilter('all')} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>✕ ล้าง</button>
+              </div>
+            )}
             <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.5rem' }}>
               {filteredKpis.length === 0 && (
                 <div style={{ textAlign: 'center', color: 'var(--secondary-foreground)', marginTop: '2rem' }}>ไม่พบตัวชี้วัด</div>
@@ -2758,8 +3446,15 @@ export default function DashboardPage() {
                   }}
                 >
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', backgroundColor: kpi.status === 'success' ? '#dcfce7' : kpi.status === 'pending' ? '#e2e8f0' : '#fee2e2', color: kpi.status === 'success' ? '#166534' : kpi.status === 'pending' ? '#475569' : '#991b1b', borderRadius: '4px' }}>
-                      {kpi.status === 'success' ? 'ผ่าน' : kpi.status === 'pending' ? 'รอดำเนินการ' : 'ไม่ผ่าน'}
+                    <span style={{
+                      fontSize: '0.7rem',
+                      padding: '0.1rem 0.4rem',
+                      backgroundColor: kpi.status === 'success' ? '#dcfce7' : kpi.status === 'warning' ? '#fef08a' : kpi.status === 'pending' ? '#e2e8f0' : '#fee2e2',
+                      color: kpi.status === 'success' ? '#166534' : kpi.status === 'warning' ? '#854d0e' : kpi.status === 'pending' ? '#475569' : '#991b1b',
+                      borderRadius: '4px',
+                      fontWeight: 600
+                    }}>
+                      {kpi.status === 'success' ? 'ผ่าน' : kpi.status === 'warning' ? 'เฝ้าระวัง' : kpi.status === 'pending' ? 'รอดำเนินการ' : 'ไม่ผ่าน'}
                     </span>
                     <span style={{ fontSize: '0.7rem', color: 'var(--secondary-foreground)' }}>{kpi.responsible_group}</span>
                   </div>
@@ -2806,6 +3501,81 @@ export default function DashboardPage() {
                   <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{selectedKpi.frequency}</div>
                 </div>
               </div>
+
+              {/* Action Plan Sub-KRs Section (แผนปฏิบัติการ 1 ปี) */}
+              {selectedKpi.sub_krs && selectedKpi.sub_krs.length > 0 && (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1.25rem', marginBottom: '1.5rem', backgroundColor: '#fafafa' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span>📋</span> แผนปฏิบัติการ 1 ปี: ตัวชี้วัดย่อย / กิจกรรมสำคัญ (Sub-Key Results)
+                      </h4>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--secondary-foreground)', marginTop: '0.2rem' }}>
+                        เป้าหมายและผลการดำเนินงานรอบ {selectedQuarter} (มี {selectedKpi.currentSubKrs?.length || 0} รายการในรอบนี้ จากทั้งหมด {selectedKpi.sub_krs.length} รายการในแผน 1 ปี)
+                      </div>
+                    </div>
+                  </div>
+
+                  {(!selectedKpi.currentSubKrs || selectedKpi.currentSubKrs.length === 0) ? (
+                    <div style={{ padding: '1rem', textAlign: 'center', backgroundColor: '#f1f5f9', borderRadius: '6px', color: 'var(--secondary-foreground)', fontSize: '0.85rem' }}>
+                      ไม่มีแผนตัวชี้วัดย่อยที่ต้องรายงานในรอบ {selectedQuarter} (สามารถเลือกไตรมาสอื่นที่เมนูด้านบนเพื่อตรวจสอบ)
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
+                            <th style={{ padding: '0.6rem 0.75rem', textAlign: 'left', width: '110px' }}>รหัสย่อย</th>
+                            <th style={{ padding: '0.6rem 0.75rem', textAlign: 'left' }}>ชื่อตัวชี้วัดย่อย / กิจกรรมสำคัญ</th>
+                            <th style={{ padding: '0.6rem 0.75rem', textAlign: 'center', width: '120px' }}>เป้าหมาย</th>
+                            <th style={{ padding: '0.6rem 0.75rem', textAlign: 'center', width: '140px' }}>ผลการรายงาน</th>
+                            <th style={{ padding: '0.6rem 0.75rem', textAlign: 'center', width: '120px' }}>สถานะ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedKpi.currentSubKrs.map((sub: any, sIdx: number) => {
+                            const isPass = sub.status === 'success' || sub.status === 'ผ่าน';
+                            const isProgress = sub.status === 'in_progress' || sub.status === 'กำลังดำเนินการ';
+                            const isFailed = sub.status === 'failed' || sub.status === 'ไม่ผ่าน';
+                            const statusBg = isPass ? '#dcfce7' : isProgress ? '#fef08a' : isFailed ? '#fee2e2' : '#f1f5f9';
+                            const statusColor = isPass ? '#166534' : isProgress ? '#854d0e' : isFailed ? '#991b1b' : '#64748b';
+                            const statusLabel = isPass ? '🟢 ผ่าน' : isProgress ? '🟡 กำลังดำเนินการ' : isFailed ? '🔴 ไม่ผ่าน' : '⚪ รอดำเนินการ';
+
+                            return (
+                              <tr key={sub.id || sIdx} style={{ borderBottom: '1px solid var(--border)', backgroundColor: '#fff' }}>
+                                <td style={{ padding: '0.6rem 0.75rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                  {sub.auto_id || `KR.${sIdx + 1}`}
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem', fontWeight: 500 }}>
+                                  {sub.kpi_name}
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center', color: '#166534', fontWeight: 600 }}>
+                                  {sub.target_value || '-'}
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center', fontWeight: 600 }}>
+                                  {sub.result_value !== null && sub.result_value !== undefined && sub.result_value !== '' ? sub.result_value : '-'}
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
+                                  <span style={{
+                                    fontSize: '0.75rem',
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: '4px',
+                                    fontWeight: 700,
+                                    backgroundColor: statusBg,
+                                    color: statusColor
+                                  }}>
+                                    {statusLabel}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedKpi.calculation_type === 'process_status' ? (
                 <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1.5rem', marginBottom: '1.5rem', backgroundColor: '#f8fafc' }}>
