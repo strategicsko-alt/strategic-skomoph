@@ -141,6 +141,7 @@ export default function DashboardPage() {
   const [isAddHdcModalOpen, setIsAddHdcModalOpen] = useState<boolean>(false);
   const [fetchingHdcId, setFetchingHdcId] = useState<string | null>(null);
   const [isSubdistrictFullscreen, setIsSubdistrictFullscreen] = useState<boolean>(false);
+  const [isPresentationMode, setIsPresentationMode] = useState<boolean>(false);
 
   // Category filters for HDC KPIs
   const [hdcFilterMainCategory, setHdcFilterMainCategory] = useState<string>('ALL');
@@ -990,6 +991,41 @@ export default function DashboardPage() {
     }
   }, [isAddHdcModalOpen, isEditHdcModalOpen]);
 
+  // Handle Presentation / Fullscreen Mode keyboard shortcuts and change events
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsPresentationMode(false);
+        setIsSubdistrictFullscreen(false);
+      }
+    };
+    const handleFullscreenChange = () => {
+      if (typeof document !== 'undefined' && !document.fullscreenElement) {
+        setIsPresentationMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const togglePresentationMode = () => {
+    if (!isPresentationMode) {
+      setIsPresentationMode(true);
+      if (typeof document !== 'undefined' && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } else {
+      setIsPresentationMode(false);
+      if (typeof document !== 'undefined' && document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
+
   const handleSyncMainHdc = async () => {
     setSyncingAllHdc(true);
     setSyncMsg('');
@@ -1268,142 +1304,357 @@ export default function DashboardPage() {
   if (loading) return <div style={{ padding: '3rem', textAlign: 'center' }}>กำลังโหลดข้อมูลตัวชี้วัด...</div>;
 
   return (
-    <div style={{ 
+    <div style={isPresentationMode ? {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100vw',
+      height: '100vh',
+      zIndex: 99999,
+      backgroundColor: 'var(--background)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflowY: 'auto',
+      padding: '1.25rem 2rem 3rem 2rem',
+      boxSizing: 'border-box'
+    } : { 
       display: 'flex', 
       flexDirection: 'column', 
       gap: (activeTab === 'subdistrict' || activeTab === 'vital') ? '0.75rem' : '1.5rem', 
-      height: isSubdistrictFullscreen ? '100vh' : (activeTab === 'subdistrict' || activeTab === 'vital' ? 'auto' : 'calc(100vh - 100px)'),
-      minHeight: (activeTab === 'subdistrict' || activeTab === 'vital') && !isSubdistrictFullscreen ? 'calc(100vh - 80px)' : undefined
+      minHeight: 'calc(100vh - 80px)',
+      width: '100%',
+      paddingBottom: '2.5rem'
     }}>
-      {/* Top Header & Tabs */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--foreground)' }}>Dashboard ตัวชี้วัด (KPIs) สสจ.สระแก้ว</h1>
-            <span style={{ fontSize: '0.75rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.2rem 0.6rem', borderRadius: '999px', fontWeight: 700 }}>
-              ปีงบประมาณ 2568
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-            <button onClick={() => setActiveTab('executive')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'executive' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'executive' ? 700 : 500, color: activeTab === 'executive' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
-              สรุปสำหรับผู้บริหาร (Executive Summary)
-            </button>
-            <button onClick={() => setActiveTab('detail')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'detail' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'detail' ? 700 : 500, color: activeTab === 'detail' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
-              มุมมองรายตัวชี้วัด (Master-Detail)
-            </button>
-            <button onClick={() => setActiveTab('subdistrict')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'subdistrict' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'subdistrict' ? 700 : 500, color: activeTab === 'subdistrict' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
-              ระดับ รพ.สต. (HDC Open Data)
-            </button>
-            <button onClick={() => setActiveTab('vital')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'vital' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'vital' ? 700 : 500, color: activeTab === 'vital' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
-              สถิติประชากร เกิด ตาย (Vital Statistics)
-            </button>
-          </div>
-        </div>
-        
-        {activeTab !== 'subdistrict' && activeTab !== 'vital' ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--secondary-foreground)', padding: '0 0.5rem' }}>รอบประเมิน:</span>
-              {(['Q1', 'Q2', 'Q3', 'Q4'] as const).map(q => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => setSelectedQuarter(q)}
-                  style={{
-                    padding: '0.35rem 0.75rem',
-                    fontSize: '0.8rem',
-                    fontWeight: selectedQuarter === q ? 700 : 500,
-                    borderRadius: '6px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: selectedQuarter === q ? 'var(--primary)' : 'transparent',
-                    color: selectedQuarter === q ? '#fff' : 'var(--foreground)',
-                    boxShadow: selectedQuarter === q ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {q === 'Q1' ? 'Q1 (ต.ค.-ธ.ค.)' : q === 'Q2' ? 'Q2 (ม.ค.-มี.ค.)' : q === 'Q3' ? 'Q3 (เม.ย.-มิ.ย.)' : 'Q4 (สะสม/สิ้นปี)'}
-                </button>
-              ))}
+      {/* Top Presentation Bar when in Fullscreen Presentation Mode */}
+      {isPresentationMode && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#0f172a',
+          color: '#fff',
+          padding: '0.75rem 1.25rem',
+          borderRadius: 'var(--radius-md)',
+          marginBottom: '0.75rem',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 1000,
+          flexWrap: 'wrap',
+          gap: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>🖥️</span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', letterSpacing: '0.02em' }}>
+                  โหมดนำเสนอในที่ประชุม (Presentation Mode)
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                  Dashboard ตัวชี้วัด สสจ.สระแก้ว • ปีงบประมาณ 2568
+                </div>
+              </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleSyncMainHdc}
-              disabled={syncingAllHdc}
-              title="ดึงข้อมูลจาก HDC Open Data สำหรับทุกตัวชี้วัดที่เชื่อมต่อไว้ (ระบบตั้งค่าดึงให้อัตโนมัติทุกวันเวลา 08.00 น.)"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                backgroundColor: '#16a34a',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '0.45rem 0.85rem',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: syncingAllHdc ? 'not-allowed' : 'pointer',
-                opacity: syncingAllHdc ? 0.7 : 1,
-                boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
-              }}
-            >
-              {syncingAllHdc ? '⏳ กำลังซิงค์ HDC...' : '🔄 ดึงข้อมูล HDC สด'}
-            </button>
-            {syncMsg && (
-              <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 600, backgroundColor: '#dcfce7', padding: '0.3rem 0.6rem', borderRadius: '6px' }}>
-                {syncMsg}
-              </span>
+            {/* In-presentation Tab Switcher */}
+            <div style={{ display: 'flex', backgroundColor: '#1e293b', padding: '0.2rem', borderRadius: '8px', gap: '0.2rem' }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('executive')}
+                style={{
+                  padding: '0.35rem 0.8rem',
+                  fontSize: '0.8rem',
+                  fontWeight: activeTab === 'executive' ? 700 : 500,
+                  backgroundColor: activeTab === 'executive' ? 'var(--primary)' : 'transparent',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                สรุปผู้บริหาร
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('detail')}
+                style={{
+                  padding: '0.35rem 0.8rem',
+                  fontSize: '0.8rem',
+                  fontWeight: activeTab === 'detail' ? 700 : 500,
+                  backgroundColor: activeTab === 'detail' ? 'var(--primary)' : 'transparent',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                รายตัวชี้วัด
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('subdistrict')}
+                style={{
+                  padding: '0.35rem 0.8rem',
+                  fontSize: '0.8rem',
+                  fontWeight: activeTab === 'subdistrict' ? 700 : 500,
+                  backgroundColor: activeTab === 'subdistrict' ? 'var(--primary)' : 'transparent',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                รพ.สต. (HDC)
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('vital')}
+                style={{
+                  padding: '0.35rem 0.8rem',
+                  fontSize: '0.8rem',
+                  fontWeight: activeTab === 'vital' ? 700 : 500,
+                  backgroundColor: activeTab === 'vital' ? 'var(--primary)' : 'transparent',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                สถิติประชากร เกิด ตาย
+              </button>
+            </div>
+
+            {/* Quarter switcher if on executive or detail */}
+            {(activeTab === 'executive' || activeTab === 'detail') && (
+              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', padding: '0.2rem', borderRadius: '8px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', padding: '0 0.4rem', fontWeight: 600 }}>รอบ:</span>
+                {(['Q1', 'Q2', 'Q3', 'Q4'] as const).map(q => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setSelectedQuarter(q)}
+                    style={{
+                      padding: '0.3rem 0.6rem',
+                      fontSize: '0.78rem',
+                      fontWeight: selectedQuarter === q ? 700 : 500,
+                      backgroundColor: selectedQuarter === q ? '#0284c7' : 'transparent',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            {/* Outermost Quick Add HDC Button - บนสุดของจอ ในกล่องนอกสุด */}
-            <button
-              onClick={() => setIsAddHdcModalOpen(true)}
-              title="เพิ่มตัวชี้วัด HDC Open Data ตัวใหม่"
-              style={{
-                backgroundColor: 'var(--primary)',
-                color: '#fff',
-                border: 'none',
-                padding: '0.45rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}
-            >
-              <span style={{ fontSize: '1rem' }}>➕</span> เพิ่มตัวชี้วัด HDC
-            </button>
 
-            {/* Outermost Fullscreen Toggle */}
-            <button
-              onClick={() => setIsSubdistrictFullscreen(!isSubdistrictFullscreen)}
-              title={isSubdistrictFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายตารางเต็มจอ'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                padding: '0.45rem 0.85rem',
-                borderRadius: 'var(--radius-md)',
-                border: isSubdistrictFullscreen ? '1px solid #ef4444' : '1px solid #0284c7',
-                backgroundColor: isSubdistrictFullscreen ? '#dc2626' : '#f0f9ff',
-                color: isSubdistrictFullscreen ? '#fff' : '#0284c7',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-              }}
-            >
-              <span>{isSubdistrictFullscreen ? '✖ ย่อกลับ' : '⛶ เต็มจอ'}</span>
-            </button>
+          <button
+            type="button"
+            onClick={togglePresentationMode}
+            title="ออกจากโหมดเต็มจอ (สามารถกดปุ่ม Escape บนแป้นพิมพ์ได้)"
+            style={{
+              backgroundColor: '#dc2626',
+              color: '#fff',
+              border: 'none',
+              padding: '0.45rem 1.1rem',
+              borderRadius: '6px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 6px rgba(220, 38, 38, 0.4)'
+            }}
+          >
+            <span>✖ ออกจากโหมดเต็มจอ (Esc)</span>
+          </button>
+        </div>
+      )}
+
+      {/* Top Header & Tabs (when not in presentation mode) */}
+      {!isPresentationMode && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--foreground)' }}>Dashboard ตัวชี้วัด (KPIs) สสจ.สระแก้ว</h1>
+              <span style={{ fontSize: '0.75rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.2rem 0.6rem', borderRadius: '999px', fontWeight: 700 }}>
+                ปีงบประมาณ 2568
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+              <button onClick={() => setActiveTab('executive')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'executive' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'executive' ? 700 : 500, color: activeTab === 'executive' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+                สรุปสำหรับผู้บริหาร (Executive Summary)
+              </button>
+              <button onClick={() => setActiveTab('detail')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'detail' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'detail' ? 700 : 500, color: activeTab === 'detail' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+                มุมมองรายตัวชี้วัด (Master-Detail)
+              </button>
+              <button onClick={() => setActiveTab('subdistrict')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'subdistrict' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'subdistrict' ? 700 : 500, color: activeTab === 'subdistrict' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+                ระดับ รพ.สต. (HDC Open Data)
+              </button>
+              <button onClick={() => setActiveTab('vital')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'vital' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'vital' ? 700 : 500, color: activeTab === 'vital' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+                สถิติประชากร เกิด ตาย (Vital Statistics)
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+          
+          {/* Top Actions based on Active Tab */}
+          {activeTab === 'executive' || activeTab === 'detail' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--secondary-foreground)', padding: '0 0.5rem' }}>รอบประเมิน:</span>
+                {(['Q1', 'Q2', 'Q3', 'Q4'] as const).map(q => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setSelectedQuarter(q)}
+                    style={{
+                      padding: '0.35rem 0.75rem',
+                      fontSize: '0.8rem',
+                      fontWeight: selectedQuarter === q ? 700 : 500,
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      backgroundColor: selectedQuarter === q ? 'var(--primary)' : 'transparent',
+                      color: selectedQuarter === q ? '#fff' : 'var(--foreground)',
+                      boxShadow: selectedQuarter === q ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {q === 'Q1' ? 'Q1 (ต.ค.-ธ.ค.)' : q === 'Q2' ? 'Q2 (ม.ค.-มี.ค.)' : q === 'Q3' ? 'Q3 (เม.ย.-มิ.ย.)' : 'Q4 (สะสม/สิ้นปี)'}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSyncMainHdc}
+                disabled={syncingAllHdc}
+                title="ดึงข้อมูลจาก HDC Open Data สำหรับทุกตัวชี้วัดที่เชื่อมต่อไว้ (ระบบตั้งค่าดึงให้อัตโนมัติทุกวันเวลา 08.00 น.)"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  backgroundColor: '#16a34a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0.45rem 0.85rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: syncingAllHdc ? 'not-allowed' : 'pointer',
+                  opacity: syncingAllHdc ? 0.7 : 1,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+                }}
+              >
+                {syncingAllHdc ? '⏳ กำลังซิงค์ HDC...' : '🔄 ดึงข้อมูล HDC สด'}
+              </button>
+              {syncMsg && (
+                <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 600, backgroundColor: '#dcfce7', padding: '0.3rem 0.6rem', borderRadius: '6px' }}>
+                  {syncMsg}
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={togglePresentationMode}
+                title="เข้าสู่โหมดเต็มจอเพื่อนำเสนอในการประชุม (Presentation Mode)"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.45rem 0.95rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid #0284c7',
+                  backgroundColor: '#f0f9ff',
+                  color: '#0284c7',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>⛶ นำเสนอเต็มจอ</span>
+              </button>
+            </div>
+          ) : activeTab === 'subdistrict' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              {/* Quick Add HDC Button - Only on subdistrict tab */}
+              <button
+                onClick={() => setIsAddHdcModalOpen(true)}
+                title="เพิ่มตัวชี้วัด HDC Open Data ตัวใหม่"
+                style={{
+                  backgroundColor: 'var(--primary)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '0.45rem 1rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              >
+                <span style={{ fontSize: '1rem' }}>➕</span> เพิ่มตัวชี้วัด HDC
+              </button>
+
+              <button
+                onClick={togglePresentationMode}
+                title="เข้าสู่โหมดเต็มจอเพื่อนำเสนอในการประชุม"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.45rem 0.85rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid #0284c7',
+                  backgroundColor: '#f0f9ff',
+                  color: '#0284c7',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                <span>⛶ นำเสนอเต็มจอ</span>
+              </button>
+            </div>
+          ) : (
+            /* activeTab === 'vital' */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <button
+                onClick={togglePresentationMode}
+                title="เข้าสู่โหมดเต็มจอเพื่อนำเสนอในการประชุม"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.45rem 0.85rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid #0284c7',
+                  backgroundColor: '#f0f9ff',
+                  color: '#0284c7',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                <span>⛶ นำเสนอเต็มจอ</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* KPI Controls Bar & Scorecards for Executive & Detail views */}
       {(activeTab === 'executive' || activeTab === 'detail') && (
@@ -1637,7 +1888,7 @@ export default function DashboardPage() {
       )}
 
       {activeTab === 'executive' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '0.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
           {/* Active Quick Filter Alert Bar */}
           {statusQuickFilter !== 'all' && (
             <div style={{
@@ -3642,8 +3893,8 @@ export default function DashboardPage() {
       )}
 
       {activeTab === 'detail' && (
-        <div style={{ display: 'flex', gap: '1.5rem', flex: 1, minHeight: 0 }}>
-          <div className="card" style={{ width: '350px', display: 'flex', flexDirection: 'column', padding: '1rem', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', width: '100%', minHeight: 'calc(100vh - 200px)' }}>
+          <div className="card" style={{ width: '360px', flexShrink: 0, position: 'sticky', top: isPresentationMode ? '85px' : '1.5rem', maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', padding: '1rem', overflow: 'hidden' }}>
             <input 
               type="text" 
               className="input-field" 
@@ -3707,7 +3958,7 @@ export default function DashboardPage() {
           </div>
 
           {selectedKpi && (
-            <div className="card" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+            <div className="card" style={{ flex: 1, minWidth: 0, padding: '1.5rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '4px' }}>
                   {selectedKpi.measurement_level.toUpperCase()}

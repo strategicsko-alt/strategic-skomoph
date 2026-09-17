@@ -12,7 +12,7 @@ export default function KpiPrototypeLayout({ children }: { children: React.React
           </Link>
         </div>
       </nav>
-      <main style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+      <main style={{ padding: '1.5rem 2rem', maxWidth: '1800px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
         {children}
       </main>
     </div>
