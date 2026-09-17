@@ -8,15 +8,37 @@ import healthFacilitiesData from '@/data/sa_kaeo_health_facilities.json';
 import realAnc5Data from '@/data/real_anc5_2569.json';
 import realAnc12Data from '@/data/real_anc12_2569.json';
 import PopulationVitalDashboard from '@/components/vital-stats/PopulationVitalDashboard';
-import { SA_KAEO_HOSPITALS } from '@/lib/hdc';
+import { SA_KAEO_HOSPITALS, HDC_CATEGORIES } from '@/lib/hdc';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { HdcAddModal, HdcEditModal } from '@/components/kpi/HdcModals';
 
 export const dynamic = 'force-dynamic';
 
 const DISTRICTS = [
   "เมืองสระแก้ว", "คลองหาด", "ตาพระยา", "วังน้ำเย็น", 
   "วัฒนานคร", "อรัญประเทศ", "เขาฉกรรจ์", "โคกสูง", "วังสมบูรณ์"
+];
+
+export interface SaKaeoAreaMappingItem {
+  code: string;
+  district: string;
+  districtFullName: string;
+  hospitalCode5: string;
+  hospitalName: string;
+  shortHospitalName: string;
+}
+
+export const SA_KAEO_AREA_MAPPING: SaKaeoAreaMappingItem[] = [
+  { code: '2701', district: 'เมืองสระแก้ว', districtFullName: 'อำเภอเมืองสระแก้ว', hospitalCode5: '10699', hospitalName: 'รพ.สมเด็จพระยุพราชสระแก้ว', shortHospitalName: 'รพร.สระแก้ว' },
+  { code: '2702', district: 'คลองหาด', districtFullName: 'อำเภอคลองหาด', hospitalCode5: '10866', hospitalName: 'รพ.คลองหาด', shortHospitalName: 'รพ.คลองหาด' },
+  { code: '2703', district: 'ตาพระยา', districtFullName: 'อำเภอตาพระยา', hospitalCode5: '10867', hospitalName: 'รพ.ตาพระยา', shortHospitalName: 'รพ.ตาพระยา' },
+  { code: '2704', district: 'วังน้ำเย็น', districtFullName: 'อำเภอวังน้ำเย็น', hospitalCode5: '10868', hospitalName: 'รพ.วังน้ำเย็น', shortHospitalName: 'รพ.วังน้ำเย็น' },
+  { code: '2705', district: 'วัฒนานคร', districtFullName: 'อำเภอวัฒนานคร', hospitalCode5: '10869', hospitalName: 'รพ.วัฒนานคร', shortHospitalName: 'รพ.วัฒนานคร' },
+  { code: '2706', district: 'อรัญประเทศ', districtFullName: 'อำเภออรัญประเทศ', hospitalCode5: '10870', hospitalName: 'รพ.อรัญประเทศ', shortHospitalName: 'รพ.อรัญประเทศ' },
+  { code: '2707', district: 'เขาฉกรรจ์', districtFullName: 'อำเภอเขาฉกรรจ์', hospitalCode5: '13817', hospitalName: 'รพ.เขาฉกรรจ์', shortHospitalName: 'รพ.เขาฉกรรจ์' },
+  { code: '2708', district: 'โคกสูง', districtFullName: 'อำเภอโคกสูง', hospitalCode5: '28850', hospitalName: 'รพ.โคกสูง', shortHospitalName: 'รพ.โคกสูง' },
+  { code: '2709', district: 'วังสมบูรณ์', districtFullName: 'อำเภอวังสมบูรณ์', hospitalCode5: '28849', hospitalName: 'รพ.วังสมบูรณ์', shortHospitalName: 'รพ.วังสมบูรณ์' },
 ];
 
 // Reusing WORK_GROUPS from mock or defining them
@@ -50,70 +72,7 @@ const KPI_TYPE_OPTIONS = [
   { id: 'standalone', label: 'ตัวชี้วัดอื่นๆ / นโยบายเร่งด่วน' },
 ];
 
-// HDC Taxonomy (Major Category & Subcategory)
-export const HDC_CATEGORIES: Record<string, string[]> = {
-  "การเข้าถึงบริการ": [
-    "CMI",
-    "การบำบัดรักษาและฟื้นฟูผู้ติดยาเสพติด จากระบบ(บสต.)",
-    "การเข้าถึงระบบบริการสุขภาพจิต",
-    "การใช้บริการสาธารณสุข",
-    "ต่างด้าว",
-    "ทันตกรรม(บริการ)",
-    "สุขภาพประชากรข้ามชาติ",
-    "เภสัชกรรม",
-    "แพทย์แผนจีน",
-    "แพทย์แผนไทย",
-    "โรคจากการประกอบอาชีพและสิ่งแวดล้อมแรงงานต่างด้าว",
-    "โรคมาลาเรีย"
-  ],
-  "ข้อมูลตอบสนอง service plan": [
-    "ข้อมูลเพื่อตอบสนอง Service Plan 4 สาขาหลัก",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขา Intermediate & Palliative Care",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขา RDU",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขากัญชา",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาตา",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาทารกแรกเกิด",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขามะเร็ง",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขายาเสพติด",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาสุขภาพจิตและจิตเวช",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาสุขภาพช่องปาก",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาออร์โธปิดิกส์",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาอายุรกรรม",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาแม่และเด็ก",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาโรคปอดอุดกั้นเรื้อรัง(COPD)",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาโรคหัวใจ และหลอดเลือด",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาโรคไม่ติดต่อ (NCD DM,HT,CVD)",
-    "ข้อมูลเพื่อตอบสนอง Service Plan สาขาไต"
-  ],
-  "ข้อมูลทั่วไป": [
-    "ข้อมูลพื้นฐานและสรุปผู้รับบริการ",
-    "ความครอบคลุมการมีหลักประกันสุขภาพโดยรัฐ",
-    "จำนวนหน่วยงานสาธารณสุข",
-    "บุคลากรสาธารณสุข",
-    "ประชากร",
-    "โรงเรียนและนักเรียน"
-  ],
-  "ส่งเสริมป้องกัน": [
-    "การคัดกรอง",
-    "การสร้างเสริมภูมิคุ้มกันโรค",
-    "การเฝ้าระวัง",
-    "การเฝ้าระวังด้านส่งเสริมสุขภาพและอนามัยสิ่งแวดล้อม",
-    "งานโภชนาการ",
-    "ส่งเสริมและป้องกันปัญหาสุขภาพจิต",
-    "อนามัยแม่และเด็ก",
-    "อนามัยโรงเรียน"
-  ],
-  "สถานะสุขภาพ": [
-    "กลุ่มพระภิกษุ-สามเณร",
-    "การป่วยด้วยโรคจากมลพิษทางอากาศ",
-    "การป่วยด้วยโรคติดต่อที่สำคัญ",
-    "การป่วยด้วยโรคไม่ติดต่อที่สำคัญ",
-    "การรายงานโรคตามพรบ.โรคติดต่อ พ.ศ. 2558",
-    "งานวัณโรค",
-    "สาเหตุการป่วย/ตาย",
-    "โรคจากการประกอบอาชีพและสิ่งแวดล้อม"
-  ]
-};
+export { HDC_CATEGORIES };
 
 export default function DashboardPage() {
   const { toast } = useToast();
@@ -980,17 +939,6 @@ export default function DashboardPage() {
     fetchKPIs();
   }, [fetchKPIs]);
 
-  // Lock body scroll when HDC modals are open to prevent jitter / background scroll
-  useEffect(() => {
-    if (isAddHdcModalOpen || isEditHdcModalOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [isAddHdcModalOpen, isEditHdcModalOpen]);
-
   // Handle Presentation / Fullscreen Mode keyboard shortcuts and change events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1126,12 +1074,23 @@ export default function DashboardPage() {
         return { name: d, result: m ? Number(m.result_value) || 0 : 0, hasData: !!m };
       });
 
-      const hospital_results = SA_KAEO_HOSPITALS.map(h => {
-        const m = (k.rawMeasurements || []).find((x: any) =>
-          (x.area_id === h.name || x.area_id === h.fullName || x.area_id === h.code5) &&
+      const hospital_results = SA_KAEO_AREA_MAPPING.map(h => {
+        let m = (k.rawMeasurements || []).find((x: any) =>
+          (x.area_id === h.hospitalName || x.area_id === h.shortHospitalName || x.area_id === h.hospitalCode5) &&
           x.period === selectedQuarter
         );
-        return { name: h.name, code5: h.code5, districtName: h.districtName, result: m ? Number(m.result_value) || 0 : 0, hasData: !!m };
+        // Fallback to corresponding district measurement for uniform awareness
+        if (!m) {
+          m = (k.rawMeasurements || []).find((x: any) => x.area_id === h.district && x.period === selectedQuarter);
+        }
+        return {
+          name: h.hospitalName,
+          shortName: h.shortHospitalName,
+          code5: h.hospitalCode5,
+          districtName: h.district,
+          result: m ? Number(m.result_value) || 0 : 0,
+          hasData: !!m
+        };
       });
 
       const isHospitalLevel = k.measurement_level === 'hospital';
@@ -1503,156 +1462,90 @@ export default function DashboardPage() {
             </div>
           </div>
           
-          {/* Top Actions based on Active Tab */}
-          {activeTab === 'executive' || activeTab === 'detail' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--secondary-foreground)', padding: '0 0.5rem' }}>รอบประเมิน:</span>
-                {(['Q1', 'Q2', 'Q3', 'Q4'] as const).map(q => (
-                  <button
-                    key={q}
-                    type="button"
-                    onClick={() => setSelectedQuarter(q)}
-                    style={{
-                      padding: '0.35rem 0.75rem',
-                      fontSize: '0.8rem',
-                      fontWeight: selectedQuarter === q ? 700 : 500,
-                      borderRadius: '6px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      backgroundColor: selectedQuarter === q ? 'var(--primary)' : 'transparent',
-                      color: selectedQuarter === q ? '#fff' : 'var(--foreground)',
-                      boxShadow: selectedQuarter === q ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {q === 'Q1' ? 'Q1 (ต.ค.-ธ.ค.)' : q === 'Q2' ? 'Q2 (ม.ค.-มี.ค.)' : q === 'Q3' ? 'Q3 (เม.ย.-มิ.ย.)' : 'Q4 (สะสม/สิ้นปี)'}
-                  </button>
-                ))}
-              </div>
+          {/* Top Actions Area */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            {(activeTab === 'executive' || activeTab === 'detail') && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--secondary-foreground)', padding: '0 0.5rem' }}>รอบประเมิน:</span>
+                  {(['Q1', 'Q2', 'Q3', 'Q4'] as const).map(q => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => setSelectedQuarter(q)}
+                      style={{
+                        padding: '0.35rem 0.75rem',
+                        fontSize: '0.8rem',
+                        fontWeight: selectedQuarter === q ? 700 : 500,
+                        borderRadius: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: selectedQuarter === q ? 'var(--primary)' : 'transparent',
+                        color: selectedQuarter === q ? '#fff' : 'var(--foreground)',
+                        boxShadow: selectedQuarter === q ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {q === 'Q1' ? 'Q1 (ต.ค.-ธ.ค.)' : q === 'Q2' ? 'Q2 (ม.ค.-มี.ค.)' : q === 'Q3' ? 'Q3 (เม.ย.-มิ.ย.)' : 'Q4 (สะสม/สิ้นปี)'}
+                    </button>
+                  ))}
+                </div>
 
-              <button
-                type="button"
-                onClick={handleSyncMainHdc}
-                disabled={syncingAllHdc}
-                title="ดึงข้อมูลจาก HDC Open Data สำหรับทุกตัวชี้วัดที่เชื่อมต่อไว้ (ระบบตั้งค่าดึงให้อัตโนมัติทุกวันเวลา 08.00 น.)"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  backgroundColor: '#16a34a',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '0.45rem 0.85rem',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: syncingAllHdc ? 'not-allowed' : 'pointer',
-                  opacity: syncingAllHdc ? 0.7 : 1,
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
-                }}
-              >
-                {syncingAllHdc ? '⏳ กำลังซิงค์ HDC...' : '🔄 ดึงข้อมูล HDC สด'}
-              </button>
-              {syncMsg && (
-                <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 600, backgroundColor: '#dcfce7', padding: '0.3rem 0.6rem', borderRadius: '6px' }}>
-                  {syncMsg}
-                </span>
-              )}
+                <button
+                  type="button"
+                  onClick={handleSyncMainHdc}
+                  disabled={syncingAllHdc}
+                  title="ดึงข้อมูลจาก HDC Open Data สำหรับทุกตัวชี้วัดที่เชื่อมต่อไว้ (ระบบตั้งค่าดึงให้อัตโนมัติทุกวันเวลา 08.00 น.)"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    backgroundColor: '#16a34a',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.45rem 0.85rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: syncingAllHdc ? 'not-allowed' : 'pointer',
+                    opacity: syncingAllHdc ? 0.7 : 1,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  {syncingAllHdc ? '⏳ กำลังซิงค์ HDC...' : '🔄 ดึงข้อมูล HDC สด'}
+                </button>
+                {syncMsg && (
+                  <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 600, backgroundColor: '#dcfce7', padding: '0.3rem 0.6rem', borderRadius: '6px' }}>
+                    {syncMsg}
+                  </span>
+                )}
+              </>
+            )}
 
-              <button
-                type="button"
-                onClick={togglePresentationMode}
-                title="เข้าสู่โหมดเต็มจอเพื่อนำเสนอในการประชุม (Presentation Mode)"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.95rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid #0284c7',
-                  backgroundColor: '#f0f9ff',
-                  color: '#0284c7',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span>⛶ นำเสนอเต็มจอ</span>
-              </button>
-            </div>
-          ) : activeTab === 'subdistrict' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              {/* Quick Add HDC Button - Only on subdistrict tab */}
-              <button
-                onClick={() => setIsAddHdcModalOpen(true)}
-                title="เพิ่มตัวชี้วัด HDC Open Data ตัวใหม่"
-                style={{
-                  backgroundColor: 'var(--primary)',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '0.45rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-              >
-                <span style={{ fontSize: '1rem' }}>➕</span> เพิ่มตัวชี้วัด HDC
-              </button>
-
-              <button
-                onClick={togglePresentationMode}
-                title="เข้าสู่โหมดเต็มจอเพื่อนำเสนอในการประชุม"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.85rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid #0284c7',
-                  backgroundColor: '#f0f9ff',
-                  color: '#0284c7',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}
-              >
-                <span>⛶ นำเสนอเต็มจอ</span>
-              </button>
-            </div>
-          ) : (
-            /* activeTab === 'vital' */
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <button
-                onClick={togglePresentationMode}
-                title="เข้าสู่โหมดเต็มจอเพื่อนำเสนอในการประชุม"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.85rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid #0284c7',
-                  backgroundColor: '#f0f9ff',
-                  color: '#0284c7',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}
-              >
-                <span>⛶ นำเสนอเต็มจอ</span>
-              </button>
-            </div>
-          )}
+            {/* Universal Presentation Button for all tabs */}
+            <button
+              type="button"
+              onClick={togglePresentationMode}
+              title="เข้าสู่โหมดเต็มจอเพื่อนำเสนอในการประชุม (Presentation Mode)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.45rem 0.95rem',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid #0284c7',
+                backgroundColor: '#f0f9ff',
+                color: '#0284c7',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <span>⛶ นำเสนอเต็มจอ</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -2159,7 +2052,7 @@ export default function DashboardPage() {
               <div>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>ตารางสถานะตัวชี้วัดแยกตามพื้นที่ (Heatmap)</h2>
                 <div style={{ fontSize: '0.85rem', color: 'var(--secondary-foreground)', marginTop: '0.25rem' }}>
-                  แสดงผล: {filteredKpis.length} ตัวชี้วัด | โหมดพื้นที่: {heatmapAreaMode === 'district' ? '9 อำเภอ (2701 - 2709)' : '9 โรงพยาบาลใน จ.สระแก้ว'} | รอบ {selectedQuarter}
+                  แสดงผล: {filteredKpis.length} ตัวชี้วัด | {heatmapAreaMode === 'district' ? 'มุมมอง 9 อำเภอใน จ.สระแก้ว (2701 - 2709)' : 'มุมมอง 9 โรงพยาบาลแม่ข่าย (CUP) ตามพื้นที่'} | รอบ {selectedQuarter}
                 </div>
               </div>
 
@@ -2168,6 +2061,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setHeatmapAreaMode('district')}
+                title="แสดงผลตามชื่อ 9 อำเภอ"
                 style={{
                   padding: '0.4rem 0.9rem',
                   fontSize: '0.85rem',
@@ -2188,6 +2082,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setHeatmapAreaMode('hospital')}
+                title="แสดงผลตามชื่อ 9 โรงพยาบาลแม่ข่าย (CUP) ประจำอำเภอ"
                 style={{
                   padding: '0.4rem 0.9rem',
                   fontSize: '0.85rem',
@@ -2208,25 +2103,71 @@ export default function DashboardPage() {
             </div>
           </div>
           
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-              <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card)', zIndex: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+          <div style={{
+            maxHeight: isPresentationMode ? 'calc(100vh - 210px)' : '72vh',
+            minHeight: '480px',
+            overflow: 'auto',
+            position: 'relative'
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.85rem' }}>
+              <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 30 }}>
                 <tr>
-                  <th style={{ padding: '0.75rem', textAlign: 'left', width: '300px', borderRight: '1px solid var(--border)' }}>ชื่อตัวชี้วัด</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'center', borderRight: '2px solid var(--border)', backgroundColor: '#f8fafc', width: '80px' }}>รวมจังหวัด</th>
-                  {heatmapAreaMode === 'district' ? (
-                    DISTRICTS.map(d => (
-                      <th key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '120px' }}>
-                        {d}
-                      </th>
-                    ))
-                  ) : (
-                    SA_KAEO_HOSPITALS.map(h => (
-                      <th key={h.code5} title={`${h.fullName} (อ.${h.districtName})`} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: '140px', fontSize: '0.8rem' }}>
-                        {h.name}
-                      </th>
-                    ))
-                  )}
+                  <th style={{
+                    position: 'sticky',
+                    top: 0,
+                    left: 0,
+                    zIndex: 35,
+                    backgroundColor: '#f8fafc',
+                    padding: '0.75rem',
+                    textAlign: 'left',
+                    width: '320px',
+                    minWidth: '280px',
+                    borderRight: '1px solid var(--border)',
+                    borderBottom: '2px solid var(--border)',
+                    boxShadow: '1px 2px 3px rgba(0,0,0,0.06)'
+                  }}>
+                    ชื่อตัวชี้วัด
+                  </th>
+                  <th style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 30,
+                    backgroundColor: '#f1f5f9',
+                    padding: '0.75rem',
+                    textAlign: 'center',
+                    borderRight: '2px solid var(--border)',
+                    borderBottom: '2px solid var(--border)',
+                    width: '90px',
+                    minWidth: '80px',
+                    boxShadow: '0 2px 3px rgba(0,0,0,0.06)'
+                  }}>
+                    รวมจังหวัด
+                  </th>
+                  {SA_KAEO_AREA_MAPPING.map(area => (
+                    <th
+                      key={area.code}
+                      title={heatmapAreaMode === 'district' ? `${area.districtFullName} (${area.hospitalName})` : `${area.hospitalName} (${area.districtFullName})`}
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 30,
+                        backgroundColor: '#f8fafc',
+                        padding: '0.65rem 0.35rem',
+                        textAlign: 'center',
+                        borderRight: '1px solid var(--border)',
+                        borderBottom: '2px solid var(--border)',
+                        writingMode: 'vertical-rl',
+                        transform: 'rotate(180deg)',
+                        height: '140px',
+                        minWidth: '48px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        boxShadow: '0 2px 3px rgba(0,0,0,0.06)'
+                      }}
+                    >
+                      {heatmapAreaMode === 'district' ? area.district : area.shortHospitalName}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -2245,8 +2186,18 @@ export default function DashboardPage() {
                   const getTextColor = (status: string) => status === 'success' ? '#166534' : status === 'warning' ? '#854d0e' : status === 'pending' ? '#475569' : '#991b1b';
                   
                   return (
-                    <tr key={kpi.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.75rem', borderRight: '1px solid var(--border)', fontWeight: 500 }}>
+                    <tr key={kpi.id}>
+                      <td style={{
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 10,
+                        backgroundColor: '#fff',
+                        padding: '0.75rem',
+                        borderRight: '1px solid var(--border)',
+                        borderBottom: '1px solid var(--border)',
+                        fontWeight: 500,
+                        boxShadow: '1px 0 3px rgba(0,0,0,0.04)'
+                      }}>
                         <div style={{ marginBottom: '0.25rem' }}><span style={{color:'var(--primary)'}}>[{kpi.auto_id}]</span> {kpi.name}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                           <span style={{ fontSize: '0.65rem', backgroundColor: '#e2e8f0', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>{kpi.responsible_group}</span>
@@ -2255,44 +2206,99 @@ export default function DashboardPage() {
                           ))}
                         </div>
                       </td>
-                      <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '2px solid var(--border)', backgroundColor: getBgColor(provStatus), color: getTextColor(provStatus), fontWeight: 700 }}>
+                      <td style={{
+                        padding: '0.75rem',
+                        textAlign: 'center',
+                        borderRight: '2px solid var(--border)',
+                        borderBottom: '1px solid var(--border)',
+                        backgroundColor: getBgColor(provStatus),
+                        color: getTextColor(provStatus),
+                        fontWeight: 700
+                      }}>
                         {kpi.calculation_type === 'process_status' ? (kpi.status === 'success' ? 'ผ่าน' : kpi.status === 'pending' ? 'รอดำเนินการ' : 'ไม่ผ่าน') : kpi.provincial_result}
                       </td>
-                      {heatmapAreaMode === 'district' ? (
-                        DISTRICTS.map(d => {
-                          if (kpi.measurement_level === 'province' || kpi.measurement_level === 'hospital') {
-                             return <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9', color: '#94a3b8' }}>-</td>;
-                          }
-                          const dist = (kpi.district_results || []).find((res: any) => res.name === d);
-                          if (!dist) return <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9', color: '#94a3b8' }}>-</td>;
-                          
-                          const dStatus = evaluateStatus(dist.result, kpi);
+                      {SA_KAEO_AREA_MAPPING.map(area => {
+                        if (kpi.calculation_type === 'process_status' || kpi.measurement_level === 'province') {
                           return (
-                            <td key={d} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: getBgColor(dStatus), color: getTextColor(dStatus), fontWeight: 600 }}>
-                              {dist.result}
+                            <td
+                              key={area.code}
+                              style={{
+                                padding: '0.75rem 0.5rem',
+                                textAlign: 'center',
+                                borderRight: '1px solid var(--border)',
+                                borderBottom: '1px solid var(--border)',
+                                backgroundColor: '#f1f5f9',
+                                color: '#94a3b8'
+                              }}
+                            >
+                              -
                             </td>
                           );
-                        })
-                      ) : (
-                        SA_KAEO_HOSPITALS.map(h => {
-                          if (kpi.measurement_level === 'province') {
-                             return <td key={h.code5} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9', color: '#94a3b8' }}>-</td>;
-                          }
-                          const hosp = (kpi.hospital_results || []).find((res: any) => res.name === h.name || res.code5 === h.code5);
-                          if (!hosp || hosp.result === undefined || hosp.result === null) {
-                            return <td key={h.code5} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: '#f1f5f9', color: '#94a3b8' }}>-</td>;
-                          }
-                          
-                          const hStatus = evaluateStatus(hosp.result, kpi);
+                        }
+
+                        const dist = (kpi.district_results || []).find((res: any) => res.name === area.district);
+                        const hosp = (kpi.hospital_results || []).find((res: any) => res.name === area.hospitalName || res.code5 === area.hospitalCode5);
+
+                        // Find the appropriate result, prioritizing the selected mode and falling back smoothly
+                        let targetRes = null;
+                        if (heatmapAreaMode === 'hospital') {
+                          if (hosp && hosp.hasData) targetRes = hosp;
+                          else if (dist && dist.hasData) targetRes = dist;
+                          else if (hosp && hosp.result !== undefined && hosp.result !== null) targetRes = hosp;
+                          else if (dist && dist.result !== undefined && dist.result !== null) targetRes = dist;
+                        } else {
+                          if (dist && dist.hasData) targetRes = dist;
+                          else if (hosp && hosp.hasData) targetRes = hosp;
+                          else if (dist && dist.result !== undefined && dist.result !== null) targetRes = dist;
+                          else if (hosp && hosp.result !== undefined && hosp.result !== null) targetRes = hosp;
+                        }
+
+                        const hasRaw = (kpi.rawMeasurements || []).some((x: any) =>
+                          (x.area_id === area.district || x.area_id === area.hospitalName || x.area_id === area.hospitalCode5) &&
+                          x.period === selectedQuarter
+                        );
+
+                        if (!targetRes || (!targetRes.hasData && !hasRaw)) {
                           return (
-                            <td key={h.code5} title={`${h.name}: ${hosp.result}`} style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--border)', backgroundColor: getBgColor(hStatus), color: getTextColor(hStatus), fontWeight: 600 }}>
-                              {hosp.result}
+                            <td
+                              key={area.code}
+                              style={{
+                                padding: '0.75rem 0.5rem',
+                                textAlign: 'center',
+                                borderRight: '1px solid var(--border)',
+                                borderBottom: '1px solid var(--border)',
+                                backgroundColor: '#f1f5f9',
+                                color: '#94a3b8'
+                              }}
+                            >
+                              -
                             </td>
                           );
-                        })
-                      )}
+                        }
+
+                        const resultVal = targetRes.result;
+                        const aStatus = evaluateStatus(resultVal, kpi);
+
+                        return (
+                          <td
+                            key={area.code}
+                            title={`${heatmapAreaMode === 'district' ? area.district : area.hospitalName}: ${resultVal}`}
+                            style={{
+                              padding: '0.75rem 0.5rem',
+                              textAlign: 'center',
+                              borderRight: '1px solid var(--border)',
+                              borderBottom: '1px solid var(--border)',
+                              backgroundColor: getBgColor(aStatus),
+                              color: getTextColor(aStatus),
+                              fontWeight: 600
+                            }}
+                          >
+                            {resultVal}
+                          </td>
+                        );
+                      })}
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
@@ -2648,25 +2654,6 @@ export default function DashboardPage() {
                   }}
                 >
                   รายชื่อ รพ.สต.
-                </button>
-                <button 
-                  onClick={() => setIsSubdistrictFullscreen(!isSubdistrictFullscreen)}
-                  title={isSubdistrictFullscreen ? 'ออกจากโหมดเต็มจอ (Esc)' : 'ขยายเต็มจอเพื่อดูผลงานเต็มตา'}
-                  style={{ 
-                    padding: '0.3rem 0.65rem', 
-                    borderRadius: 'var(--radius-sm)', 
-                    border: isSubdistrictFullscreen ? '1px solid #ef4444' : '1px solid #0284c7',
-                    fontSize: '0.78rem', 
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    backgroundColor: isSubdistrictFullscreen ? '#dc2626' : '#0284c7',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem'
-                  }}
-                >
-                  {isSubdistrictFullscreen ? '✖ ย่อ' : '⛶ เต็มจอ'}
                 </button>
               </div>
             </div>
@@ -3026,864 +3013,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Modal: เพิ่มตัวชี้วัด HDC (ระดับ รพ.สต.) */}
-            {isAddHdcModalOpen && (
-              <div 
-                onClick={(e) => { if (e.target === e.currentTarget) setIsAddHdcModalOpen(false); }}
-                style={{
-                  position: 'fixed',
-                  top: 0, left: 0, right: 0, bottom: 0,
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                  backdropFilter: 'blur(3px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 10000,
-                  padding: '1rem',
-                  overflow: 'hidden'
-                }}
-              >
-                <div style={{
-                  backgroundColor: '#fff',
-                  borderRadius: '16px',
-                  width: '100%',
-                  maxWidth: '580px',
-                  maxHeight: '90vh',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
-                  overflow: 'hidden'
-                }}>
-                  {/* Pinned Header */}
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    padding: '1.15rem 1.5rem', 
-                    borderBottom: '1px solid var(--border)',
-                    backgroundColor: '#fff',
-                    flexShrink: 0
-                  }}>
-                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)' }}>
-                      ➕ เพิ่มตัวชี้วัด HDC Open Data (ระดับ รพ.สต.)
-                    </h3>
-                    <button 
-                      type="button"
-                      onClick={() => setIsAddHdcModalOpen(false)}
-                      style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b', padding: '0.25rem', lineHeight: 1 }}
-                    >
-                      ✕
-                    </button>
-                  </div>
 
-                  {/* Scrollable Body */}
-                  <div style={{ 
-                    flex: 1, 
-                    overflowY: 'auto', 
-                    overscrollBehavior: 'contain',
-                    padding: '1.25rem 1.5rem',
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '1rem' 
-                  }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          รหัสตัวชี้วัด
-                        </label>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={newHdcForm.code}
-                          onChange={(e) => setNewHdcForm({ ...newHdcForm, code: e.target.value })}
-                          placeholder="เช่น HDC-04"
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          ชื่อตัวชี้วัด *
-                        </label>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={newHdcForm.name}
-                          onChange={(e) => setNewHdcForm({ ...newHdcForm, name: e.target.value })}
-                          placeholder="เช่น ร้อยละหญิงตั้งครรภ์ฝากครรภ์ครั้งแรกก่อน 12 สัปดาห์"
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          ชื่อตาราง HDC (tableName) *
-                        </label>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={newHdcForm.tableName}
-                          onChange={(e) => setNewHdcForm({ ...newHdcForm, tableName: e.target.value })}
-                          placeholder="เช่น s_ttm27, s_ncd_dm"
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          ปีงบประมาณ (year)
-                        </label>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={newHdcForm.year}
-                          onChange={(e) => setNewHdcForm({ ...newHdcForm, year: e.target.value })}
-                          placeholder="2569"
-                        />
-                      </div>
-                    </div>
-
-                    {/* หมวดหมู่หลัก และ หมวดหมู่ย่อย */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          หมวดหมู่หลัก *
-                        </label>
-                        <select
-                          className="input-field"
-                          value={newHdcForm.mainCategory}
-                          onChange={(e) => {
-                            const selectedCat = e.target.value;
-                            const firstSub = HDC_CATEGORIES[selectedCat]?.[0] || '';
-                            setNewHdcForm({
-                              ...newHdcForm,
-                              mainCategory: selectedCat,
-                              subCategory: firstSub
-                            });
-                          }}
-                        >
-                          {Object.keys(HDC_CATEGORIES).map((cat) => (
-                            <option key={cat} value={cat}>📁 {cat}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          หมวดหมู่ย่อย *
-                        </label>
-                        <select
-                          className="input-field"
-                          value={newHdcForm.subCategory}
-                          onChange={(e) => setNewHdcForm({ ...newHdcForm, subCategory: e.target.value })}
-                        >
-                          {(HDC_CATEGORIES[newHdcForm.mainCategory] || []).map((sub) => (
-                            <option key={sub} value={sub}>📂 {sub}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          เครื่องหมาย
-                        </label>
-                        <select
-                          className="input-field"
-                          value={newHdcForm.targetOperator}
-                          onChange={(e) => {
-                            const op = e.target.value;
-                            const curTarget = Number(newHdcForm.targetValue) || 0;
-                            const newWarn = op === '<='
-                              ? (Math.round(curTarget * 1.3) || (curTarget + 4))
-                              : Math.round(curTarget * 0.8);
-                            setNewHdcForm({ ...newHdcForm, targetOperator: op, warningValue: newWarn });
-                          }}
-                        >
-                          <option value=">=">&gt;= (มากกว่า ยิ่งมากยิ่งดี)</option>
-                          <option value="<=">&lt;= (น้อยกว่า ยิ่งน้อยยิ่งดี)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: '#16a34a' }}>
-                          {newHdcForm.targetOperator === '<=' ? 'ผ่านเกณฑ์ (<= %) *' : 'ผ่านเกณฑ์ (>= %) *'}
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          className="input-field"
-                          value={newHdcForm.targetValue}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            const newWarn = newHdcForm.targetOperator === '<='
-                              ? (Math.round(val * 1.3) || (val + 4))
-                              : Math.round(val * 0.8);
-                            setNewHdcForm({ ...newHdcForm, targetValue: val, warningValue: newWarn });
-                          }}
-                          placeholder={newHdcForm.targetOperator === '<=' ? "เช่น 11" : "เช่น 75"}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: '#ca8a04' }}>
-                          {newHdcForm.targetOperator === '<=' ? 'เฝ้าระวัง (<= %)' : 'เฝ้าระวัง (>= %)'}
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          className="input-field"
-                          value={newHdcForm.warningValue !== undefined ? newHdcForm.warningValue : (newHdcForm.targetOperator === '<=' ? Math.round(newHdcForm.targetValue * 1.3) : Math.round(newHdcForm.targetValue * 0.8))}
-                          onChange={(e) => setNewHdcForm({ ...newHdcForm, warningValue: Number(e.target.value) })}
-                          placeholder={newHdcForm.targetOperator === '<=' ? "เช่น 15" : "เช่น 60"}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Color guide explanation badge */}
-                    <div style={{
-                      fontSize: '0.75rem',
-                      padding: '0.4rem 0.65rem',
-                      backgroundColor: '#f8fafc',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid #e2e8f0',
-                      marginTop: '-0.25rem',
-                      lineHeight: 1.4
-                    }}>
-                      {newHdcForm.targetOperator === '<=' ? (
-                        <div>
-                          <span style={{ color: '#16a34a', fontWeight: 700 }}>🟢 ผ่านเกณฑ์: ≤ {newHdcForm.targetValue}% (ยิ่งน้อยยิ่งดี)</span>
-                          {' · '}
-                          <span style={{ color: '#ca8a04', fontWeight: 700 }}>🟡 เฝ้าระวัง: &gt; {newHdcForm.targetValue}% ถึง ≤ {newHdcForm.warningValue}%</span>
-                          {' · '}
-                          <span style={{ color: '#dc2626', fontWeight: 700 }}>🔴 ไม่ผ่านเกณฑ์: &gt; {newHdcForm.warningValue}% (เกินเกณฑ์คือแย่)</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <span style={{ color: '#16a34a', fontWeight: 700 }}>🟢 ผ่านเกณฑ์: ≥ {newHdcForm.targetValue}%</span>
-                          {' · '}
-                          <span style={{ color: '#ca8a04', fontWeight: 700 }}>🟡 เฝ้าระวัง: ≥ {newHdcForm.warningValue}% ถึง &lt; {newHdcForm.targetValue}%</span>
-                          {' · '}
-                          <span style={{ color: '#dc2626', fontWeight: 700 }}>🔴 ไม่ผ่านเกณฑ์: &lt; {newHdcForm.warningValue}%</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Column Mapping Section */}
-                    <div style={{ backgroundColor: '#f8fafc', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-                        <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>
-                          ⚙️ ตั้งค่าคอลัมน์ HDC สำหรับคำนวณ (สูตร: ตัวตั้ง ÷ ตัวหาร × 100)
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleInspectHdcTable(newHdcForm.tableName, newHdcForm.year)}
-                          disabled={inspectingHdc}
-                          style={{
-                            padding: '0.2rem 0.6rem',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid #0284c7',
-                            backgroundColor: '#f0f9ff',
-                            color: '#0284c7',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {inspectingHdc ? '⏳ กำลังตรวจ...' : '🔍 ตรวจสอบคอลัมน์จาก HDC'}
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#475569', marginBottom: '0.2rem' }}>
-                            คอลัมน์ผลงาน (ตัวตั้ง / Numerator)
-                          </label>
-                          <input
-                            type="text"
-                            className="input-field"
-                            value={newHdcForm.resultColumn}
-                            onChange={e => setNewHdcForm({ ...newHdcForm, resultColumn: e.target.value })}
-                            placeholder="auto (เช่น result, result1, result2)"
-                            style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#475569', marginBottom: '0.2rem' }}>
-                            คอลัมน์เป้าหมาย (ตัวหาร / Denominator)
-                          </label>
-                          <input
-                            type="text"
-                            className="input-field"
-                            value={newHdcForm.targetColumn}
-                            onChange={e => setNewHdcForm({ ...newHdcForm, targetColumn: e.target.value })}
-                            placeholder="target"
-                            style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Inspected schema pills preview */}
-                      {inspectedSchema && inspectedSchema.tableName === newHdcForm.tableName && (
-                        <div style={{ marginTop: '0.6rem', backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px', padding: '0.6rem' }}>
-                          <div style={{ fontWeight: 700, color: '#166534', fontSize: '0.78rem', marginBottom: '0.25rem' }}>
-                            📊 คอลัมน์ที่พบในตาราง HDC (ตัวอย่าง รพ.สต. {inspectedSchema.sampleRow.hospcode}):
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
-                            {inspectedSchema.availableCols.map(col => {
-                              const val = inspectedSchema.sampleRow[col];
-                              const isRes = newHdcForm.resultColumn === col;
-                              const isTar = newHdcForm.targetColumn === col;
-                              return (
-                                <div key={col} style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  border: isRes ? '1.5px solid #2563eb' : isTar ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
-                                  borderRadius: '4px',
-                                  backgroundColor: isRes ? '#eff6ff' : isTar ? '#f0fdf4' : '#fff',
-                                  padding: '0.1rem 0.35rem',
-                                  fontSize: '0.72rem'
-                                }}>
-                                  <span style={{ fontWeight: 600 }}>{col}: <strong>{val ?? '-'}</strong></span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setNewHdcForm({ ...newHdcForm, resultColumn: col })}
-                                    style={{
-                                      marginLeft: '0.3rem',
-                                      padding: '0.05rem 0.2rem',
-                                      borderRadius: '2px',
-                                      border: 'none',
-                                      backgroundColor: isRes ? '#2563eb' : '#e2e8f0',
-                                      color: isRes ? '#fff' : '#334155',
-                                      cursor: 'pointer',
-                                      fontSize: '0.65rem',
-                                      fontWeight: 600
-                                    }}
-                                  >
-                                    ตั้ง
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setNewHdcForm({ ...newHdcForm, targetColumn: col })}
-                                    style={{
-                                      marginLeft: '0.15rem',
-                                      padding: '0.05rem 0.2rem',
-                                      borderRadius: '2px',
-                                      border: 'none',
-                                      backgroundColor: isTar ? '#16a34a' : '#e2e8f0',
-                                      color: isTar ? '#fff' : '#334155',
-                                      cursor: 'pointer',
-                                      fontSize: '0.65rem',
-                                      fontWeight: 600
-                                    }}
-                                  >
-                                    หาร
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {(() => {
-                            const nCol = newHdcForm.resultColumn || 'result';
-                            const dCol = newHdcForm.targetColumn || 'target';
-                            const nVal = Number(inspectedSchema.sampleRow[nCol]) || 0;
-                            const dVal = Number(inspectedSchema.sampleRow[dCol]) || 0;
-                            const sPct = dVal > 0 ? Math.round((nVal / dVal) * 1000) / 10 : 0;
-                            return (
-                              <div style={{ backgroundColor: '#fff', padding: '0.3rem 0.5rem', borderRadius: '3px', border: '1px solid #bbf7d0', color: '#166534', fontSize: '0.73rem' }}>
-                                💡 <b>ตัวอย่างผลคำนวณ:</b> ({nCol}: {nVal} ÷ {dCol}: {dVal}) × 100 = <b>{sPct}%</b>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* API Code Preview (Collapsible) */}
-                    <details style={{ backgroundColor: '#0f172a', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', color: '#f8fafc', fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                      <summary style={{ color: '#94a3b8', cursor: 'pointer', outline: 'none' }}>
-                        // โครงสร้าง Web Service: <span style={{ color: '#38bdf8' }}>{newHdcForm.tableName || 's_ttm27'} ({newHdcForm.year || '2569'})</span>
-                      </summary>
-                      <pre style={{ margin: '0.4rem 0 0 0', overflowX: 'auto', whiteSpace: 'pre-wrap', color: '#e2e8f0', fontSize: '0.72rem' }}>
-{`{
-  "tableName": "${newHdcForm.tableName || 's_ttm27'}",
-  "year": "${newHdcForm.year || '2569'}",
-  "province": "27",
-  "type": "json"
-}`}
-                      </pre>
-                    </details>
-
-                  </div>
-
-                  {/* Pinned Footer */}
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'flex-end', 
-                    gap: '0.75rem', 
-                    padding: '0.85rem 1.5rem',
-                    borderTop: '1px solid var(--border)',
-                    backgroundColor: '#f8fafc',
-                    flexShrink: 0
-                  }}>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddHdcModalOpen(false)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border)',
-                        backgroundColor: '#fff',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                    >
-                      ยกเลิก
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCreateHdcKpi}
-                      style={{
-                        padding: '0.5rem 1.25rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: 'none',
-                        backgroundColor: 'var(--primary)',
-                        color: '#fff',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                    >
-                      บันทึกตัวชี้วัด
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Modal: แก้ไขตัวชี้วัด HDC (ระดับ รพ.สต.) */}
-            {isEditHdcModalOpen && editingHdcKpi && (
-              <div 
-                onClick={(e) => { if (e.target === e.currentTarget) setIsEditHdcModalOpen(false); }}
-                style={{
-                  position: 'fixed',
-                  top: 0, left: 0, right: 0, bottom: 0,
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                  backdropFilter: 'blur(3px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 10000,
-                  padding: '1rem',
-                  overflow: 'hidden'
-                }}
-              >
-                <div style={{
-                  backgroundColor: '#fff',
-                  borderRadius: '16px',
-                  width: '100%',
-                  maxWidth: '580px',
-                  maxHeight: '90vh',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
-                  overflow: 'hidden'
-                }}>
-                  {/* Pinned Header */}
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    padding: '1.15rem 1.5rem', 
-                    borderBottom: '1px solid var(--border)',
-                    backgroundColor: '#fff',
-                    flexShrink: 0
-                  }}>
-                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)' }}>
-                      ✏️ แก้ไขตัวชี้วัด HDC Open Data ({editingHdcKpi.code})
-                    </h3>
-                    <button 
-                      type="button"
-                      onClick={() => setIsEditHdcModalOpen(false)}
-                      style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b', padding: '0.25rem', lineHeight: 1 }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* Scrollable Body */}
-                  <div style={{ 
-                    flex: 1, 
-                    overflowY: 'auto', 
-                    overscrollBehavior: 'contain',
-                    padding: '1.25rem 1.5rem',
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '1rem' 
-                  }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          รหัสตัวชี้วัด
-                        </label>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={editingHdcKpi.code}
-                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, code: e.target.value })}
-                          placeholder="เช่น HDC-01"
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          ชื่อตัวชี้วัด *
-                        </label>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={editingHdcKpi.name}
-                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, name: e.target.value })}
-                          placeholder="ชื่อตัวชี้วัด"
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          ชื่อตาราง HDC (tableName) *
-                        </label>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={editingHdcKpi.tableName}
-                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, tableName: e.target.value })}
-                          placeholder="เช่น s_kpi_anc12"
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          ปีงบประมาณ (year) *
-                        </label>
-                        <select
-                          className="input-field"
-                          value={editingHdcKpi.year}
-                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, year: e.target.value })}
-                        >
-                          <option value="2570">ปีงบประมาณ 2570</option>
-                          <option value="2569">ปีงบประมาณ 2569</option>
-                          <option value="2568">ปีงบประมาณ 2568</option>
-                          <option value="2567">ปีงบประมาณ 2567</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* หมวดหมู่หลัก และ หมวดหมู่ย่อย */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          หมวดหมู่หลัก *
-                        </label>
-                        <select
-                          className="input-field"
-                          value={editingHdcKpi.mainCategory || 'ส่งเสริมป้องกัน'}
-                          onChange={(e) => {
-                            const selectedCat = e.target.value;
-                            const firstSub = HDC_CATEGORIES[selectedCat]?.[0] || '';
-                            setEditingHdcKpi({
-                              ...editingHdcKpi,
-                              mainCategory: selectedCat,
-                              subCategory: firstSub
-                            });
-                          }}
-                        >
-                          {Object.keys(HDC_CATEGORIES).map((cat) => (
-                            <option key={cat} value={cat}>📁 {cat}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          หมวดหมู่ย่อย *
-                        </label>
-                        <select
-                          className="input-field"
-                          value={editingHdcKpi.subCategory || (HDC_CATEGORIES[editingHdcKpi.mainCategory || 'ส่งเสริมป้องกัน']?.[0] || '')}
-                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, subCategory: e.target.value })}
-                        >
-                          {(HDC_CATEGORIES[editingHdcKpi.mainCategory || 'ส่งเสริมป้องกัน'] || []).map((sub) => (
-                            <option key={sub} value={sub}>📂 {sub}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          เครื่องหมาย
-                        </label>
-                        <select
-                          className="input-field"
-                          value={editingHdcKpi.targetOperator}
-                          onChange={(e) => {
-                            const op = e.target.value;
-                            const curTarget = Number(editingHdcKpi.targetValue) || 0;
-                            const newWarn = op === '<='
-                              ? (Math.round(curTarget * 1.3) || (curTarget + 4))
-                              : Math.round(curTarget * 0.8);
-                            setEditingHdcKpi({ ...editingHdcKpi, targetOperator: op, warningValue: newWarn });
-                          }}
-                        >
-                          <option value=">=">&gt;= (มากกว่า ยิ่งมากยิ่งดี)</option>
-                          <option value="<=">&lt;= (น้อยกว่า ยิ่งน้อยยิ่งดี)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: '#16a34a' }}>
-                          {editingHdcKpi.targetOperator === '<=' ? 'ผ่านเกณฑ์ (<= %) *' : 'ผ่านเกณฑ์ (>= %) *'}
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          className="input-field"
-                          value={editingHdcKpi.targetValue}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            const newWarn = editingHdcKpi.targetOperator === '<='
-                              ? (Math.round(val * 1.3) || (val + 4))
-                              : Math.round(val * 0.8);
-                            setEditingHdcKpi({ ...editingHdcKpi, targetValue: val, warningValue: newWarn });
-                          }}
-                          placeholder={editingHdcKpi.targetOperator === '<=' ? "เช่น 11" : "เช่น 75"}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem', color: '#ca8a04' }}>
-                          {editingHdcKpi.targetOperator === '<=' ? 'เฝ้าระวัง (<= %)' : 'เฝ้าระวัง (>= %)'}
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          className="input-field"
-                          value={editingHdcKpi.warningValue !== undefined ? editingHdcKpi.warningValue : (editingHdcKpi.targetOperator === '<=' ? Math.round(editingHdcKpi.targetValue * 1.3) : Math.round(editingHdcKpi.targetValue * 0.8))}
-                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, warningValue: Number(e.target.value) })}
-                          placeholder={editingHdcKpi.targetOperator === '<=' ? "เช่น 15" : "เช่น 60"}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Color guide explanation badge */}
-                    <div style={{
-                      fontSize: '0.75rem',
-                      padding: '0.4rem 0.65rem',
-                      backgroundColor: '#f8fafc',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid #e2e8f0',
-                      marginTop: '-0.25rem',
-                      lineHeight: 1.4
-                    }}>
-                      {editingHdcKpi.targetOperator === '<=' ? (
-                        <div>
-                          <span style={{ color: '#16a34a', fontWeight: 700 }}>🟢 ผ่านเกณฑ์: ≤ {editingHdcKpi.targetValue}% (ยิ่งน้อยยิ่งดี)</span>
-                          {' · '}
-                          <span style={{ color: '#ca8a04', fontWeight: 700 }}>🟡 เฝ้าระวัง: &gt; {editingHdcKpi.targetValue}% ถึง ≤ {editingHdcKpi.warningValue}%</span>
-                          {' · '}
-                          <span style={{ color: '#dc2626', fontWeight: 700 }}>🔴 ไม่ผ่านเกณฑ์: &gt; {editingHdcKpi.warningValue}% (เกินเกณฑ์คือแย่)</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <span style={{ color: '#16a34a', fontWeight: 700 }}>🟢 ผ่านเกณฑ์: ≥ {editingHdcKpi.targetValue}%</span>
-                          {' · '}
-                          <span style={{ color: '#ca8a04', fontWeight: 700 }}>🟡 เฝ้าระวัง: ≥ {editingHdcKpi.warningValue}% ถึง &lt; {editingHdcKpi.targetValue}%</span>
-                          {' · '}
-                          <span style={{ color: '#dc2626', fontWeight: 700 }}>🔴 ไม่ผ่านเกณฑ์: &lt; {editingHdcKpi.warningValue}%</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Column Mapping Section */}
-                    <div style={{ backgroundColor: '#f8fafc', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-                        <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>
-                          ⚙️ ตั้งค่าคอลัมน์ HDC สำหรับคำนวณ (สูตร: ตัวตั้ง ÷ ตัวหาร × 100)
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleInspectHdcTable(editingHdcKpi.tableName, editingHdcKpi.year)}
-                          disabled={inspectingHdc}
-                          style={{
-                            padding: '0.2rem 0.6rem',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid #0284c7',
-                            backgroundColor: '#f0f9ff',
-                            color: '#0284c7',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {inspectingHdc ? '⏳ กำลังตรวจ...' : '🔍 ตรวจสอบคอลัมน์จาก HDC'}
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#475569', marginBottom: '0.2rem' }}>
-                            คอลัมน์ผลงาน (ตัวตั้ง / Numerator)
-                          </label>
-                          <input
-                            type="text"
-                            className="input-field"
-                            value={editingHdcKpi.resultColumn || ''}
-                            onChange={e => setEditingHdcKpi({ ...editingHdcKpi, resultColumn: e.target.value })}
-                            placeholder="auto (เช่น result, result1, result2)"
-                            style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#475569', marginBottom: '0.2rem' }}>
-                            คอลัมน์เป้าหมาย (ตัวหาร / Denominator)
-                          </label>
-                          <input
-                            type="text"
-                            className="input-field"
-                            value={editingHdcKpi.targetColumn || 'target'}
-                            onChange={e => setEditingHdcKpi({ ...editingHdcKpi, targetColumn: e.target.value })}
-                            placeholder="target"
-                            style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Inspected schema pills preview */}
-                      {inspectedSchema && inspectedSchema.tableName === editingHdcKpi.tableName && (
-                        <div style={{ marginTop: '0.6rem', backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px', padding: '0.6rem' }}>
-                          <div style={{ fontWeight: 700, color: '#166534', fontSize: '0.78rem', marginBottom: '0.25rem' }}>
-                            📊 คอลัมน์ที่พบในตาราง HDC (ตัวอย่าง รพ.สต. {inspectedSchema.sampleRow.hospcode}):
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
-                            {inspectedSchema.availableCols.map(col => {
-                              const val = inspectedSchema.sampleRow[col];
-                              const isRes = editingHdcKpi.resultColumn === col;
-                              const isTar = (editingHdcKpi.targetColumn || 'target') === col;
-                              return (
-                                <div key={col} style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  border: isRes ? '1.5px solid #2563eb' : isTar ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
-                                  borderRadius: '4px',
-                                  backgroundColor: isRes ? '#eff6ff' : isTar ? '#f0fdf4' : '#fff',
-                                  padding: '0.1rem 0.35rem',
-                                  fontSize: '0.72rem'
-                                }}>
-                                  <span style={{ fontWeight: 600 }}>{col}: <strong>{val ?? '-'}</strong></span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingHdcKpi({ ...editingHdcKpi, resultColumn: col })}
-                                    style={{
-                                      marginLeft: '0.3rem',
-                                      padding: '0.05rem 0.2rem',
-                                      borderRadius: '2px',
-                                      border: 'none',
-                                      backgroundColor: isRes ? '#2563eb' : '#e2e8f0',
-                                      color: isRes ? '#fff' : '#334155',
-                                      cursor: 'pointer',
-                                      fontSize: '0.65rem',
-                                      fontWeight: 600
-                                    }}
-                                  >
-                                    ตั้ง
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingHdcKpi({ ...editingHdcKpi, targetColumn: col })}
-                                    style={{
-                                      marginLeft: '0.15rem',
-                                      padding: '0.05rem 0.2rem',
-                                      borderRadius: '2px',
-                                      border: 'none',
-                                      backgroundColor: isTar ? '#16a34a' : '#e2e8f0',
-                                      color: isTar ? '#fff' : '#334155',
-                                      cursor: 'pointer',
-                                      fontSize: '0.65rem',
-                                      fontWeight: 600
-                                    }}
-                                  >
-                                    หาร
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {(() => {
-                            const nCol = editingHdcKpi.resultColumn || 'result';
-                            const dCol = editingHdcKpi.targetColumn || 'target';
-                            const nVal = Number(inspectedSchema.sampleRow[nCol]) || 0;
-                            const dVal = Number(inspectedSchema.sampleRow[dCol]) || 0;
-                            const sPct = dVal > 0 ? Math.round((nVal / dVal) * 1000) / 10 : 0;
-                            return (
-                              <div style={{ backgroundColor: '#fff', padding: '0.3rem 0.5rem', borderRadius: '3px', border: '1px solid #bbf7d0', color: '#166534', fontSize: '0.73rem' }}>
-                                💡 <b>ตัวอย่างผลคำนวณ:</b> ({nCol}: {nVal} ÷ {dCol}: {dVal}) × 100 = <b>{sPct}%</b>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Option Checkbox */}
-                    <div style={{ backgroundColor: '#f0f9ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid #bae6fd' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: '#0369a1', fontWeight: 500 }}>
-                        <input
-                          type="checkbox"
-                          checked={editingHdcKpi.refetchOnSave}
-                          onChange={(e) => setEditingHdcKpi({ ...editingHdcKpi, refetchOnSave: e.target.checked })}
-                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                        />
-                        <span>🔄 ดึงข้อมูลผลงานสดจาก HDC ใหม่ทันทีหลังกดบันทึก (แนะนำเมื่อเปลี่ยนชื่อตารางหรือปีงบประมาณ)</span>
-                      </label>
-                    </div>
-
-                  </div>
-
-                  {/* Pinned Footer */}
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'flex-end', 
-                    gap: '0.75rem', 
-                    padding: '0.85rem 1.5rem',
-                    borderTop: '1px solid var(--border)',
-                    backgroundColor: '#f8fafc',
-                    flexShrink: 0
-                  }}>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditHdcModalOpen(false)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border)',
-                        backgroundColor: '#fff',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                    >
-                      ยกเลิก
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveEditHdcKpi}
-                      style={{
-                        padding: '0.5rem 1.25rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: 'none',
-                        backgroundColor: 'var(--primary)',
-                        color: '#fff',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                    >
-                      บันทึกการแก้ไข
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         );
       })()}
@@ -4232,6 +3362,29 @@ export default function DashboardPage() {
           )}
         </div>
       )}
+
+      {/* HDC Indicator Modals (Portal mounted to document.body) */}
+      <HdcAddModal
+        isOpen={isAddHdcModalOpen}
+        onClose={() => setIsAddHdcModalOpen(false)}
+        newHdcForm={newHdcForm}
+        setNewHdcForm={setNewHdcForm}
+        onSubmit={handleCreateHdcKpi}
+        handleInspectHdcTable={handleInspectHdcTable}
+        inspectingHdc={inspectingHdc}
+        inspectedSchema={inspectedSchema}
+      />
+
+      <HdcEditModal
+        isOpen={isEditHdcModalOpen}
+        onClose={() => setIsEditHdcModalOpen(false)}
+        editingHdcKpi={editingHdcKpi}
+        setEditingHdcKpi={setEditingHdcKpi}
+        onSubmit={handleSaveEditHdcKpi}
+        handleInspectHdcTable={handleInspectHdcTable}
+        inspectingHdc={inspectingHdc}
+        inspectedSchema={inspectedSchema}
+      />
 
       <ConfirmDialog
         isOpen={!!hdcKpiToDelete}
