@@ -968,6 +968,17 @@ export default function DashboardPage() {
     fetchKPIs();
   }, [fetchKPIs]);
 
+  // Lock body scroll when HDC modals are open to prevent jitter / background scroll
+  useEffect(() => {
+    if (isAddHdcModalOpen || isEditHdcModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isAddHdcModalOpen, isEditHdcModalOpen]);
+
   const handleSyncMainHdc = async () => {
     setSyncingAllHdc(true);
     setSyncMsg('');
@@ -2749,43 +2760,66 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Modal: เพิ่มตัวชี้วัด HDC (บนสุดของจอ) */}
+            {/* Modal: เพิ่มตัวชี้วัด HDC (ระดับ รพ.สต.) */}
             {isAddHdcModalOpen && (
-              <div style={{
-                position: 'fixed',
-                top: 0, left: 0, right: 0, bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'center',
-                zIndex: 10000,
-                padding: '1.25rem 1rem',
-                overflowY: 'auto'
-              }}>
+              <div 
+                onClick={(e) => { if (e.target === e.currentTarget) setIsAddHdcModalOpen(false); }}
+                style={{
+                  position: 'fixed',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  backdropFilter: 'blur(3px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10000,
+                  padding: '1rem',
+                  overflow: 'hidden'
+                }}
+              >
                 <div style={{
                   backgroundColor: '#fff',
-                  borderRadius: 'var(--radius-lg)',
+                  borderRadius: '16px',
                   width: '100%',
-                  maxWidth: '560px',
-                  maxHeight: 'calc(100vh - 2.5rem)',
-                  overflowY: 'auto',
-                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                  padding: '1.25rem 1.5rem',
-                  marginTop: '0.5rem'
+                  maxWidth: '580px',
+                  maxHeight: '90vh',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
+                  overflow: 'hidden'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                  {/* Pinned Header */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '1.15rem 1.5rem', 
+                    borderBottom: '1px solid var(--border)',
+                    backgroundColor: '#fff',
+                    flexShrink: 0
+                  }}>
                     <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)' }}>
                       ➕ เพิ่มตัวชี้วัด HDC Open Data (ระดับ รพ.สต.)
                     </h3>
                     <button 
+                      type="button"
                       onClick={() => setIsAddHdcModalOpen(false)}
-                      style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+                      style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b', padding: '0.25rem', lineHeight: 1 }}
                     >
                       ✕
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Scrollable Body */}
+                  <div style={{ 
+                    flex: 1, 
+                    overflowY: 'auto', 
+                    overscrollBehavior: 'contain',
+                    padding: '1.25rem 1.5rem',
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '1rem' 
+                  }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
@@ -3109,80 +3143,112 @@ export default function DashboardPage() {
                       </pre>
                     </details>
 
-                    {/* Buttons */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-                      <button
-                        type="button"
-                        onClick={() => setIsAddHdcModalOpen(false)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border)',
-                          backgroundColor: '#fff',
-                          cursor: 'pointer',
-                          fontWeight: 600
-                        }}
-                      >
-                        ยกเลิก
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCreateHdcKpi}
-                        style={{
-                          padding: '0.5rem 1.25rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: 'none',
-                          backgroundColor: 'var(--primary)',
-                          color: '#fff',
-                          cursor: 'pointer',
-                          fontWeight: 600
-                        }}
-                      >
-                        บันทึกตัวชี้วัด
-                      </button>
-                    </div>
+                  </div>
+
+                  {/* Pinned Footer */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'flex-end', 
+                    gap: '0.75rem', 
+                    padding: '0.85rem 1.5rem',
+                    borderTop: '1px solid var(--border)',
+                    backgroundColor: '#f8fafc',
+                    flexShrink: 0
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddHdcModalOpen(false)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border)',
+                        backgroundColor: '#fff',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateHdcKpi}
+                      style={{
+                        padding: '0.5rem 1.25rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: 'none',
+                        backgroundColor: 'var(--primary)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      บันทึกตัวชี้วัด
+                    </button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Modal: แก้ไขตัวชี้วัด HDC (บนสุดของจอ) */}
+            {/* Modal: แก้ไขตัวชี้วัด HDC (ระดับ รพ.สต.) */}
             {isEditHdcModalOpen && editingHdcKpi && (
-              <div style={{
-                position: 'fixed',
-                top: 0, left: 0, right: 0, bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'center',
-                zIndex: 10000,
-                padding: '1.25rem 1rem',
-                overflowY: 'auto'
-              }}>
+              <div 
+                onClick={(e) => { if (e.target === e.currentTarget) setIsEditHdcModalOpen(false); }}
+                style={{
+                  position: 'fixed',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  backdropFilter: 'blur(3px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10000,
+                  padding: '1rem',
+                  overflow: 'hidden'
+                }}
+              >
                 <div style={{
                   backgroundColor: '#fff',
-                  borderRadius: 'var(--radius-lg)',
+                  borderRadius: '16px',
                   width: '100%',
-                  maxWidth: '560px',
-                  maxHeight: 'calc(100vh - 2.5rem)',
-                  overflowY: 'auto',
-                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                  padding: '1.25rem 1.5rem',
-                  marginTop: '0.5rem'
+                  maxWidth: '580px',
+                  maxHeight: '90vh',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
+                  overflow: 'hidden'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                  {/* Pinned Header */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '1.15rem 1.5rem', 
+                    borderBottom: '1px solid var(--border)',
+                    backgroundColor: '#fff',
+                    flexShrink: 0
+                  }}>
                     <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary)' }}>
                       ✏️ แก้ไขตัวชี้วัด HDC Open Data ({editingHdcKpi.code})
                     </h3>
                     <button 
+                      type="button"
                       onClick={() => setIsEditHdcModalOpen(false)}
-                      style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+                      style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b', padding: '0.25rem', lineHeight: 1 }}
                     >
                       ✕
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Scrollable Body */}
+                  <div style={{ 
+                    flex: 1, 
+                    overflowY: 'auto', 
+                    overscrollBehavior: 'contain',
+                    padding: '1.25rem 1.5rem',
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '1rem' 
+                  }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
@@ -3507,38 +3573,47 @@ export default function DashboardPage() {
                       </label>
                     </div>
 
-                    {/* Buttons */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-                      <button
-                        type="button"
-                        onClick={() => setIsEditHdcModalOpen(false)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border)',
-                          backgroundColor: '#fff',
-                          cursor: 'pointer',
-                          fontWeight: 600
-                        }}
-                      >
-                        ยกเลิก
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveEditHdcKpi}
-                        style={{
-                          padding: '0.5rem 1.25rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: 'none',
-                          backgroundColor: 'var(--primary)',
-                          color: '#fff',
-                          cursor: 'pointer',
-                          fontWeight: 600
-                        }}
-                      >
-                        บันทึกการแก้ไข
-                      </button>
-                    </div>
+                  </div>
+
+                  {/* Pinned Footer */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'flex-end', 
+                    gap: '0.75rem', 
+                    padding: '0.85rem 1.5rem',
+                    borderTop: '1px solid var(--border)',
+                    backgroundColor: '#f8fafc',
+                    flexShrink: 0
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditHdcModalOpen(false)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border)',
+                        backgroundColor: '#fff',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveEditHdcKpi}
+                      style={{
+                        padding: '0.5rem 1.25rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: 'none',
+                        backgroundColor: 'var(--primary)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      บันทึกการแก้ไข
+                    </button>
                   </div>
                 </div>
               </div>
