@@ -127,6 +127,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedKpiId, setSelectedKpiId] = useState<string>('');
   const [heatmapAreaMode, setHeatmapAreaMode] = useState<'district' | 'hospital'>('district');
+  const [syncingAllHdc, setSyncingAllHdc] = useState<boolean>(false);
+  const [syncMsg, setSyncMsg] = useState<string>('');
 
   // Subdistrict & HDC States
   const [subdistrictDistrict, setSubdistrictDistrict] = useState<string>('ALL');
@@ -847,123 +849,145 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => {
-    async function fetchKPIs() {
-      // ดึงเฉพาะ Key Results ของระดับจังหวัด (สสจ.) ไม่ดึงของอำเภออื่นมารวม
-      const { data: provDist } = await supabase
-        .from('districts')
-        .select('id')
-        .eq('type', 'province')
-        .maybeSingle();
+  const fetchKPIs = useCallback(async () => {
+    // ดึงเฉพาะ Key Results ของระดับจังหวัด (สสจ.) ไม่ดึงของอำเภออื่นมารวม
+    const { data: provDist } = await supabase
+      .from('districts')
+      .select('id')
+      .eq('type', 'province')
+      .maybeSingle();
 
-      const [krsRes, dictsRes, measRes, issuesRes, apmRes] = await Promise.all([
-        supabase
-          .from('key_results')
-          .select(`
-            id, name, auto_id, target_2570, measurement_status, responsible_group, strategic_issue_id,
-            objective:objectives(name, strategy:strategies(issue:strategic_issues(id, auto_id, name, theme_color))),
-            tags:key_result_tags(tag:kpi_tags(name))
-          `)
-          .eq('district_id', provDist?.id || '')
-          .order('order_index', { ascending: true }),
-        supabase
-          .from('kpi_dictionaries')
-          .select('*')
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('kpi_measurements')
-          .select('*'),
-        supabase
-          .from('strategic_issues')
-          .select('id, auto_id, name, theme_color, order_index')
-          .eq('district_id', provDist?.id || '')
-          .order('auto_id', { ascending: true }),
-        supabase
-          .from('action_plan_measurements')
-          .select('id, key_result_id, quarter, auto_id, kpi_name, target_value, result_value, status, order_index')
-          .order('order_index', { ascending: true })
-      ]);
+    const [krsRes, dictsRes, measRes, issuesRes, apmRes] = await Promise.all([
+      supabase
+        .from('key_results')
+        .select(`
+          id, name, auto_id, target_2570, measurement_status, responsible_group, strategic_issue_id,
+          objective:objectives(name, strategy:strategies(issue:strategic_issues(id, auto_id, name, theme_color))),
+          tags:key_result_tags(tag:kpi_tags(name))
+        `)
+        .eq('district_id', provDist?.id || '')
+        .order('order_index', { ascending: true }),
+      supabase
+        .from('kpi_dictionaries')
+        .select('*')
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('kpi_measurements')
+        .select('*'),
+      supabase
+        .from('strategic_issues')
+        .select('id, auto_id, name, theme_color, order_index')
+        .eq('district_id', provDist?.id || '')
+        .order('auto_id', { ascending: true }),
+      supabase
+        .from('action_plan_measurements')
+        .select('id, key_result_id, quarter, auto_id, kpi_name, target_value, result_value, status, order_index')
+        .order('order_index', { ascending: true })
+    ]);
 
-      const issues = issuesRes.data || [];
-      const apmData = apmRes.data || [];
-      setStrategicIssues(issues);
-      setActionPlanMeasurements(apmData);
+    const issues = issuesRes.data || [];
+    const apmData = apmRes.data || [];
+    setStrategicIssues(issues);
+    setActionPlanMeasurements(apmData);
 
-      const issueMap: Record<string, any> = {};
-      issues.forEach(iss => { issueMap[iss.id] = iss; });
+    const issueMap: Record<string, any> = {};
+    issues.forEach(iss => { issueMap[iss.id] = iss; });
 
-      const dictMap: Record<string, any> = {};
-      (dictsRes.data || []).forEach((d: any) => {
-        if (d.key_result_id) dictMap[d.key_result_id] = d;
-      });
+    const dictMap: Record<string, any> = {};
+    (dictsRes.data || []).forEach((d: any) => {
+      if (d.key_result_id) dictMap[d.key_result_id] = d;
+    });
 
-      const measMap: Record<string, any[]> = {};
-      (measRes.data || []).forEach((m: any) => {
-        if (!measMap[m.key_result_id]) measMap[m.key_result_id] = [];
-        measMap[m.key_result_id].push(m);
-      });
+    const measMap: Record<string, any[]> = {};
+    (measRes.data || []).forEach((m: any) => {
+      if (!measMap[m.key_result_id]) measMap[m.key_result_id] = [];
+      measMap[m.key_result_id].push(m);
+    });
 
-      if (krsRes.data) {
-        const transformed = krsRes.data.map(kr => {
-          const dict = dictMap[kr.id] || {};
-          const tags = kr.tags?.map((t: any) => t.tag.name) || ['ยุทธศาสตร์สุขภาพ สระแก้ว'];
-          
-          let evalCriteria: any = {};
-          if (dict.evaluation_criteria_json) {
-            evalCriteria = typeof dict.evaluation_criteria_json === 'string'
-              ? JSON.parse(dict.evaluation_criteria_json)
-              : dict.evaluation_criteria_json;
-          }
-
-          // Resolve Strategic Issue
-          let matchedIssue = kr.strategic_issue_id ? issueMap[kr.strategic_issue_id] : kr.objective?.strategy?.issue;
-          if (!matchedIssue) {
-            const auto = kr.auto_id || '';
-            const code = auto.includes('1') ? 'S1' : auto.includes('2') ? 'S2' : auto.includes('3') ? 'S3' : auto.includes('4') ? 'S4' : 'S1';
-            matchedIssue = issues.find(i => i.auto_id === code) || { auto_id: code, name: 'ยุทธศาสตร์ ' + code, theme_color: '#0284c7' };
-          }
-
-          const kpiSubKrs = apmData.filter((a: any) => a.key_result_id === kr.id);
-          const effectiveKpiType = dict.kpi_type || (kr.id ? 'strategic' : 'standalone');
-
-          const calcType = dict.calculation_type || 'percentage';
-          const isProcess = calcType === 'process_status';
-
-          const apiConfig = dict.api_config_json
-            ? (typeof dict.api_config_json === 'string' ? JSON.parse(dict.api_config_json) : dict.api_config_json)
-            : {};
-
-          return {
-            id: kr.id,
-            auto_id: kr.auto_id,
-            name: kr.name,
-            tags: tags,
-            responsible_group: kr.responsible_group || dict.work_group || dict.responsible_person || 'ไม่ระบุกลุ่มงาน',
-            measurement_level: dict.measurement_level || 'province',
-            formula: isProcess ? 'เชิงกระบวนการ' : (dict.calculation_formula || 'ร้อยละ'),
-            calculation_formula: dict.calculation_formula,
-            calculation_type: calcType,
-            data_items: dict.data_items_json ? (typeof dict.data_items_json === 'string' ? JSON.parse(dict.data_items_json) : dict.data_items_json) : [],
-            target: kr.target_2570,
-            target_operator: dict.target_operator || '>=',
-            frequency: 'รายไตรมาส',
-            kpi_type: effectiveKpiType,
-            strategic_issue: matchedIssue,
-            evalCriteria,
-            rawMeasurements: measMap[kr.id] || [],
-            sub_krs: kpiSubKrs,
-            api_enabled: dict.api_enabled || false,
-            api_config: apiConfig,
-          };
-        });
+    if (krsRes.data) {
+      const transformed = krsRes.data.map(kr => {
+        const dict = dictMap[kr.id] || {};
+        const tags = kr.tags?.map((t: any) => t.tag.name) || ['ยุทธศาสตร์สุขภาพ สระแก้ว'];
         
-        setKpis(transformed);
-        if (transformed.length > 0) setSelectedKpiId(transformed[0].id);
-      }
-      setLoading(false);
+        let evalCriteria: any = {};
+        if (dict.evaluation_criteria_json) {
+          evalCriteria = typeof dict.evaluation_criteria_json === 'string'
+            ? JSON.parse(dict.evaluation_criteria_json)
+            : dict.evaluation_criteria_json;
+        }
+
+        // Resolve Strategic Issue
+        let matchedIssue = kr.strategic_issue_id ? issueMap[kr.strategic_issue_id] : kr.objective?.strategy?.issue;
+        if (!matchedIssue) {
+          const auto = kr.auto_id || '';
+          const code = auto.includes('1') ? 'S1' : auto.includes('2') ? 'S2' : auto.includes('3') ? 'S3' : auto.includes('4') ? 'S4' : 'S1';
+          matchedIssue = issues.find(i => i.auto_id === code) || { auto_id: code, name: 'ยุทธศาสตร์ ' + code, theme_color: '#0284c7' };
+        }
+
+        const kpiSubKrs = apmData.filter((a: any) => a.key_result_id === kr.id);
+        const effectiveKpiType = dict.kpi_type || (kr.id ? 'strategic' : 'standalone');
+
+        const calcType = dict.calculation_type || 'percentage';
+        const isProcess = calcType === 'process_status';
+
+        const apiConfig = dict.api_config_json
+          ? (typeof dict.api_config_json === 'string' ? JSON.parse(dict.api_config_json) : dict.api_config_json)
+          : {};
+
+        return {
+          id: kr.id,
+          auto_id: kr.auto_id,
+          name: kr.name,
+          tags: tags,
+          responsible_group: kr.responsible_group || dict.work_group || dict.responsible_person || 'ไม่ระบุกลุ่มงาน',
+          measurement_level: dict.measurement_level || 'province',
+          formula: isProcess ? 'เชิงกระบวนการ' : (dict.calculation_formula || 'ร้อยละ'),
+          calculation_formula: dict.calculation_formula,
+          calculation_type: calcType,
+          data_items: dict.data_items_json ? (typeof dict.data_items_json === 'string' ? JSON.parse(dict.data_items_json) : dict.data_items_json) : [],
+          target: kr.target_2570,
+          target_operator: dict.target_operator || '>=',
+          frequency: 'รายไตรมาส',
+          kpi_type: effectiveKpiType,
+          strategic_issue: matchedIssue,
+          evalCriteria,
+          rawMeasurements: measMap[kr.id] || [],
+          sub_krs: kpiSubKrs,
+          api_enabled: dict.api_enabled || false,
+          api_config: apiConfig,
+        };
+      });
+      
+      setKpis(transformed);
+      if (transformed.length > 0) setSelectedKpiId(transformed[0].id);
     }
-    fetchKPIs();
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchKPIs();
+  }, [fetchKPIs]);
+
+  const handleSyncMainHdc = async () => {
+    setSyncingAllHdc(true);
+    setSyncMsg('');
+    try {
+      const res = await fetch('/api/cron/sync-hdc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ period: selectedQuarter }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'ซิงค์ไม่สำเร็จ');
+      setSyncMsg(`✓ ดึงข้อมูล HDC สำเร็จ (${data.kpiCount} ตัวชี้วัด)`);
+      setTimeout(() => setSyncMsg(''), 6000);
+      await fetchKPIs();
+    } catch (err: any) {
+      alert(`ไม่สามารถดึงข้อมูล HDC ได้: ${err.message || err}`);
+    } finally {
+      setSyncingAllHdc(false);
+    }
+  };
 
   const quarterNum = useMemo(() => {
     return parseInt(selectedQuarter.replace('Q', ''), 10) || 1;
@@ -1280,6 +1304,35 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={handleSyncMainHdc}
+              disabled={syncingAllHdc}
+              title="ดึงข้อมูลจาก HDC Open Data สำหรับทุกตัวชี้วัดที่เชื่อมต่อไว้ (ระบบตั้งค่าดึงให้อัตโนมัติทุกวันเวลา 08.00 น.)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                backgroundColor: '#16a34a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: syncingAllHdc ? 'not-allowed' : 'pointer',
+                opacity: syncingAllHdc ? 0.7 : 1,
+                boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+              }}
+            >
+              {syncingAllHdc ? '⏳ กำลังซิงค์ HDC...' : '🔄 ดึงข้อมูล HDC สด'}
+            </button>
+            {syncMsg && (
+              <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 600, backgroundColor: '#dcfce7', padding: '0.3rem 0.6rem', borderRadius: '6px' }}>
+                {syncMsg}
+              </span>
+            )}
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
