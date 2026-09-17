@@ -153,7 +153,7 @@ export default function PrintBookPage() {
       </div>
 
       {/* A4 Paper Container */}
-      <div style={{ 
+      <div className="print-container" style={{ 
         maxWidth: '1000px', margin: '0 auto', backgroundColor: 'white', 
         padding: '3rem 4rem', boxShadow: '0 5px 15px rgba(0,0,0,0.08)',
         marginTop: '80px', // space for fixed header

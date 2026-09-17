@@ -5,6 +5,9 @@ import { supabase } from '@/lib/supabase';
 import { Plus, Trash2, Edit2, ArrowUp, ArrowDown, Folder, RefreshCw, Check } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { useEditor } from '@/components/EditorContext';
+import { useToast } from '@/components/ui/Toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 
 export const RESPONSIBLE_GROUPS = [
   "กลุ่มงานคุ้มครองผู้บริโภคและเภสัชสาธารณสุข",
@@ -27,6 +30,7 @@ export const RESPONSIBLE_GROUPS = [
 ];
 
 export default function WorkshopPage() {
+  const { toast } = useToast();
   const { districtId, profile, loading: ctxLoading } = useEditor();
   const isDistrictUser = profile?.role?.startsWith('district');
   const [strategicIssues, setStrategicIssues] = useState<any[]>([]);
@@ -35,6 +39,23 @@ export default function WorkshopPage() {
   const [activeIssue, setActiveIssue] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+
+  // Confirm Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    description?: string;
+    variant?: 'danger' | 'warning' | 'primary';
+    confirmLabel?: string;
+    onConfirm: () => Promise<void> | void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
 
   // Modals state
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
@@ -253,7 +274,11 @@ export default function WorkshopPage() {
       payload = { strategic_issue_id: null, objective_id: moveDestinationId };
     }
     const { error } = await supabase.from('key_results').update(payload).eq('id', movingKr.id);
-    if (error) alert('Error: ' + error.message);
+    if (error) {
+      toast.error('เกิดข้อผิดพลาด: ' + error.message);
+    } else {
+      toast.success('ย้ายสังกัดตัวชี้วัดเรียบร้อยแล้ว');
+    }
     await fetchData();
     setIsMoveModalOpen(false);
     setIsSaving(false);
@@ -263,7 +288,11 @@ export default function WorkshopPage() {
     e.preventDefault();
     setIsSaving(true);
     const { error } = await supabase.from('objectives').update({ strategy_id: moveObjDestStId }).eq('id', movingObj.id);
-    if (error) alert('Error: ' + error.message);
+    if (error) {
+      toast.error('เกิดข้อผิดพลาด: ' + error.message);
+    } else {
+      toast.success('ย้ายสังกัดเป้าประสงค์เรียบร้อยแล้ว');
+    }
     await fetchData();
     setIsMoveObjModalOpen(false);
     setIsSaving(false);
@@ -285,7 +314,11 @@ export default function WorkshopPage() {
         description: formData.description,
         theme_color: formData.theme_color
       }).eq('id', editingIssue.id);
-      if (error) alert('Error updating: ' + error.message);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        toast.success('แก้ไขประเด็นยุทธศาสตร์เรียบร้อยแล้ว');
+      }
     } else {
       const auto_id = `S${strategicIssues.length + 1}`;
       const { data, error } = await supabase.from('strategic_issues').insert([{ district_id: districtId,
@@ -295,21 +328,39 @@ export default function WorkshopPage() {
         theme_color: formData.theme_color,
         order_index: strategicIssues.length
       }]).select();
-      if (error) alert('Error inserting: ' + error.message);
-      if (data && data[0]) setActiveIssue(data[0].id);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        toast.success('เพิ่มประเด็นยุทธศาสตร์เรียบร้อยแล้ว');
+        if (data && data[0]) setActiveIssue(data[0].id);
+      }
     }
     await fetchData();
     setIsIssueModalOpen(false);
     setIsSaving(false);
   };
 
-  const deleteIssue = async (id: string) => {
-    if (!confirm('ยืนยันการลบยุทธศาสตร์นี้? ข้อมูลทั้งหมดภายใต้จะถูกลบไปด้วย')) return;
-    await supabase.from('strategic_issues').delete().eq('id', id);
-    if (activeIssue === id) setActiveIssue(null);
-    await fetchData();
+  const deleteIssue = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'ยืนยันการลบประเด็นยุทธศาสตร์',
+      message: 'ต้องการลบประเด็นยุทธศาสตร์นี้ใช่หรือไม่?',
+      description: 'ข้อมูลทั้งหมดภายใต้ประเด็นนี้ (กลยุทธ์, เป้าประสงค์, ตัวชี้วัด, โครงการ) จะถูกลบไปด้วยทั้งหมด',
+      confirmLabel: 'ยืนยันลบ',
+      variant: 'danger',
+      onConfirm: async () => {
+        const { error } = await supabase.from('strategic_issues').delete().eq('id', id);
+        if (error) {
+          toast.error('ไม่สามารถลบได้: ' + error.message);
+        } else {
+          toast.success('ลบประเด็นยุทธศาสตร์เรียบร้อยแล้ว');
+          if (activeIssue === id) setActiveIssue(null);
+          await fetchData();
+        }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
-
 
   // --- CRUD for Strategies ---
   const handleOpenStrategyModal = (strategy: any = null) => {
@@ -322,7 +373,12 @@ export default function WorkshopPage() {
     e.preventDefault();
     setIsSaving(true);
     if (editingStrategy?.id) {
-      await supabase.from('strategies').update({ name: formData.name }).eq('id', editingStrategy.id);
+      const { error } = await supabase.from('strategies').update({ name: formData.name }).eq('id', editingStrategy.id);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        toast.success('แก้ไขกลยุทธ์เรียบร้อยแล้ว');
+      }
     } else {
       const issueIdx = strategicIssues.findIndex(i => i.id === activeIssue);
       const currentIssue = strategicIssues[issueIdx];
@@ -330,23 +386,44 @@ export default function WorkshopPage() {
       const nextStNum = (currentIssue?.strategies?.length || 0) + 1;
       const auto_id = `ST${issueNum}.${nextStNum}`;
 
-      await supabase.from('strategies').insert([{ district_id: districtId,
+      const { error } = await supabase.from('strategies').insert([{ district_id: districtId,
         strategic_issue_id: activeIssue,
         auto_id,
         name: formData.name,
         order_index: currentIssue?.strategies?.length || 0
       }]);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        toast.success('เพิ่มกลยุทธ์เรียบร้อยแล้ว');
+      }
     }
     await fetchData();
     setIsStrategyModalOpen(false);
     setIsSaving(false);
   };
 
-  const deleteStrategy = async (id: string) => {
-    if (!confirm('ยืนยันการลบกลยุทธ์นี้? ข้อมูลทั้งหมดภายใต้จะถูกลบไปด้วย')) return;
-    await supabase.from('strategies').delete().eq('id', id);
-    await fetchData();
+  const deleteStrategy = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'ยืนยันการลบกลยุทธ์',
+      message: 'ต้องการลบกลยุทธ์นี้ใช่หรือไม่?',
+      description: 'เป้าประสงค์และตัวชี้วัดทั้งหมดภายใต้กลยุทธ์นี้จะถูกลบไปด้วยทั้งหมด',
+      confirmLabel: 'ยืนยันลบ',
+      variant: 'danger',
+      onConfirm: async () => {
+        const { error } = await supabase.from('strategies').delete().eq('id', id);
+        if (error) {
+          toast.error('ไม่สามารถลบได้: ' + error.message);
+        } else {
+          toast.success('ลบกลยุทธ์เรียบร้อยแล้ว');
+          await fetchData();
+        }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
+
 
   // --- CRUD for Objectives ---
   const handleOpenObjModal = (stAutoId: string, stId: string, obj: any = null) => {
@@ -396,7 +473,11 @@ export default function WorkshopPage() {
     };
     if (editingObj?.id) {
       const { error } = await supabase.from('objectives').update(iaPayload).eq('id', editingObj.id);
-      if (error) alert('Error: ' + error.message);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        toast.success('แก้ไขเป้าประสงค์เรียบร้อยแล้ว');
+      }
     } else {
       let order_index = 0;
       let issueNum = 1;
@@ -424,17 +505,36 @@ export default function WorkshopPage() {
         ...iaPayload,
         order_index
       }]);
-      if (error) alert('Error: ' + error.message);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        toast.success('เพิ่มเป้าประสงค์เรียบร้อยแล้ว');
+      }
     }
     await fetchData();
     setIsObjModalOpen(false);
     setIsSaving(false);
   };
 
-  const deleteObj = async (id: string) => {
-    if (!confirm('ยืนยันการลบเป้าประสงค์นี้? Key Results ทั้งหมดจะถูกลบไปด้วย')) return;
-    await supabase.from('objectives').delete().eq('id', id);
-    await fetchData();
+  const deleteObj = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'ยืนยันการลบเป้าประสงค์',
+      message: 'ต้องการลบเป้าประสงค์นี้ใช่หรือไม่?',
+      description: 'Key Results ทั้งหมดภายใต้เป้าประสงค์นี้จะถูกลบไปด้วยทั้งหมด',
+      confirmLabel: 'ยืนยันลบ',
+      variant: 'danger',
+      onConfirm: async () => {
+        const { error } = await supabase.from('objectives').delete().eq('id', id);
+        if (error) {
+          toast.error('ไม่สามารถลบได้: ' + error.message);
+        } else {
+          toast.success('ลบเป้าประสงค์เรียบร้อยแล้ว');
+          await fetchData();
+        }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   // --- CRUD for Key Results ---
@@ -463,7 +563,11 @@ export default function WorkshopPage() {
     };
     if (editingKr?.id) {
       const { error } = await supabase.from('key_results').update(payload).eq('id', editingKr.id);
-      if (error) alert('Error: ' + error.message);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        toast.success('แก้ไขตัวชี้วัดเรียบร้อยแล้ว');
+      }
     } else {
       let auto_id = '';
       let insertData: any = { ...payload, order_index: 0, district_id: districtId };
@@ -509,17 +613,35 @@ export default function WorkshopPage() {
       }
 
       const { error } = await supabase.from('key_results').insert([insertData]);
-      if (error) alert('Error: ' + error.message);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        toast.success('เพิ่มตัวชี้วัดเรียบร้อยแล้ว');
+      }
     }
     await fetchData();
     setIsKrModalOpen(false);
     setIsSaving(false);
   };
 
-  const deleteKr = async (id: string) => {
-    if (!confirm('ยืนยันการลบ Key Result นี้?')) return;
-    await supabase.from('key_results').delete().eq('id', id);
-    await fetchData();
+  const deleteKr = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'ยืนยันการลบตัวชี้วัด',
+      message: 'ต้องการลบตัวชี้วัด (Key Result) นี้ใช่หรือไม่?',
+      confirmLabel: 'ยืนยันลบ',
+      variant: 'danger',
+      onConfirm: async () => {
+        const { error } = await supabase.from('key_results').delete().eq('id', id);
+        if (error) {
+          toast.error('ไม่สามารถลบได้: ' + error.message);
+        } else {
+          toast.success('ลบตัวชี้วัดเรียบร้อยแล้ว');
+          await fetchData();
+        }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   // --- CRUD for Projects ---
@@ -541,11 +663,14 @@ export default function WorkshopPage() {
     let projectId = editingProject?.id;
 
     if (projectId) {
-      await supabase.from('projects').update({
+      const { error } = await supabase.from('projects').update({
         name: formData.name,
         description: formData.description,
         responsible_group: formData.responsible_group,
       }).eq('id', projectId);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+      }
       await supabase.from('project_strategies').delete().eq('project_id', projectId);
     } else {
       const issueProjects = projects.filter((p: any) => p.strategic_issue_id === activeIssue);
@@ -556,26 +681,48 @@ export default function WorkshopPage() {
         responsible_group: formData.responsible_group,
         order_index: issueProjects.length
       }]).select();
-      if (error) { alert('Error: ' + error.message); setIsSaving(false); return; }
+      if (error) {
+        toast.error('เกิดข้อผิดพลาด: ' + error.message);
+        setIsSaving(false);
+        return;
+      }
       projectId = data?.[0]?.id;
     }
 
     if (projectId && selectedStrategyIds.length > 0) {
       const links = selectedStrategyIds.map(sid => ({ project_id: projectId, strategy_id: sid }));
       const { error } = await supabase.from('project_strategies').insert(links);
-      if (error) alert('Error linking strategies: ' + error.message);
+      if (error) {
+        toast.error('เกิดข้อผิดพลาดในการเชื่อมโยงกลยุทธ์: ' + error.message);
+      }
     }
 
+    toast.success('บันทึกโครงการเรียบร้อยแล้ว');
     await fetchData();
     setIsProjectModalOpen(false);
     setIsSaving(false);
   };
 
-  const deleteProject = async (id: string) => {
-    if (!confirm('ยืนยันการลบโครงการนี้?')) return;
-    await supabase.from('projects').delete().eq('id', id);
-    await fetchData();
+  const deleteProject = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'ยืนยันการลบโครงการ',
+      message: 'ต้องการลบโครงการนี้ใช่หรือไม่?',
+      confirmLabel: 'ยืนยันลบ',
+      variant: 'danger',
+      onConfirm: async () => {
+        const { error } = await supabase.from('projects').delete().eq('id', id);
+        if (error) {
+          toast.error('ไม่สามารถลบได้: ' + error.message);
+        } else {
+          toast.success('ลบโครงการเรียบร้อยแล้ว');
+          await fetchData();
+        }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
+
 
   const toggleStrategySelection = (strategyId: string) => {
     setSelectedStrategyIds(prev =>
@@ -611,8 +758,19 @@ export default function WorkshopPage() {
   const currentIssueProjects = projects.filter((p: any) => p.strategic_issue_id === activeIssue);
   const themeColor = currentIssueData?.theme_color || 'var(--primary)';
 
-  const iconBtn = {
-    background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem'
+  const iconBtn: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.35rem',
+    minWidth: '28px',
+    minHeight: '28px',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--secondary-foreground)',
+    transition: 'background var(--transition-fast)',
   };
 
   return (
@@ -662,8 +820,8 @@ export default function WorkshopPage() {
                   {issue.name}
                 </button>
                 <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: activeIssue === issue.id ? 'var(--secondary)' : 'transparent' }}>
-                  <button disabled={idx === 0 || isSaving} onClick={() => moveItem('strategic_issues', issue, 'up', strategicIssues)} style={{ ...iconBtn, opacity: idx === 0 ? 0.3 : 1 }}><ArrowUp size={14} /></button>
-                  <button disabled={idx === strategicIssues.length - 1 || isSaving} onClick={() => moveItem('strategic_issues', issue, 'down', strategicIssues)} style={{ ...iconBtn, opacity: idx === strategicIssues.length - 1 ? 0.3 : 1 }}><ArrowDown size={14} /></button>
+                  <button aria-label={`เลื่อนยุทธศาสตร์ ${issue.auto_id} ขึ้น`} disabled={idx === 0 || isSaving} onClick={() => moveItem('strategic_issues', issue, 'up', strategicIssues)} style={{ ...iconBtn, opacity: idx === 0 ? 0.3 : 1 }}><ArrowUp size={14} /></button>
+                  <button aria-label={`เลื่อนยุทธศาสตร์ ${issue.auto_id} ลง`} disabled={idx === strategicIssues.length - 1 || isSaving} onClick={() => moveItem('strategic_issues', issue, 'down', strategicIssues)} style={{ ...iconBtn, opacity: idx === strategicIssues.length - 1 ? 0.3 : 1 }}><ArrowDown size={14} /></button>
                 </div>
               </div>
             ))
@@ -679,6 +837,15 @@ export default function WorkshopPage() {
           </div>
         ) : (
           <div>
+            {/* Breadcrumbs */}
+            <Breadcrumbs
+              items={[
+                { label: 'Workshop แผน 5 ปี', href: '/editor/workshop' },
+                { label: `${currentIssueData.auto_id}: ${currentIssueData.name}` },
+              ]}
+              style={{ marginBottom: '1.25rem' }}
+            />
+
             {/* Issue Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
               <div>
@@ -1368,8 +1535,18 @@ export default function WorkshopPage() {
         </form>
       </Modal>
 
-
-
+      {/* Accessible Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        description={confirmModal.description}
+        confirmLabel={confirmModal.confirmLabel || 'ยืนยัน'}
+        variant={confirmModal.variant || 'danger'}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
+

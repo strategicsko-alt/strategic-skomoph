@@ -186,92 +186,89 @@ export default async function DashboardPage(props: {
             </p>
           </div>
           <div>
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <DistrictSelector districts={districts} />
+              
               <a 
                 href="https://notebook.google.com/notebook/70fc7ef6-c30a-4b2f-a779-3df6bb2bd460" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="btn-secondary" 
+                aria-label="เปิดดูประกาศอัตราค่าใช้จ่ายสสจ.สระแก้วปี 2570"
                 style={{ 
-                  backgroundColor: 'rgba(255,255,255,0.9)', 
-                  borderColor: 'rgba(255,255,255,1)', 
-                  color: 'var(--primary)', 
-                  fontSize: '0.875rem', 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderColor: 'rgba(255,255,255,0.95)', 
+                  color: 'var(--primary-hover)', 
+                  fontSize: '0.85rem', 
                   fontWeight: 600,
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-                  transition: 'all 0.2s'
+                  padding: '0.5rem 1rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: 'var(--shadow-sm)',
+                  gap: '0.4rem',
                 }}
               >
-                <FileText size={16} /> ประกาศอัตราค่าใช้จ่ายสสจ.สระแก้วปี 2570
-                            </a>
+                <FileText size={15} /> 
+                <span>ประกาศอัตราค่าใช้จ่าย 2570</span>
+              </a>
               
               <Link 
                 href="/kpi/dashboard" 
                 className="btn-secondary" 
+                aria-label="ไปยังหน้ากำกับติดตามตัวชี้วัด KPIs"
                 style={{ 
-                  backgroundColor: 'rgba(255,255,255,0.9)', 
-                  borderColor: 'rgba(255,255,255,1)', 
-                  color: 'var(--primary)', 
-                  fontSize: '0.875rem', 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderColor: 'rgba(255,255,255,0.95)', 
+                  color: 'var(--primary-hover)', 
+                  fontSize: '0.85rem', 
                   fontWeight: 600,
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-                  transition: 'all 0.2s'
+                  padding: '0.5rem 1rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: 'var(--shadow-sm)',
+                  gap: '0.4rem',
                 }}
               >
-                <BarChart2 size={16} /> กำกับติดตามตัวชี้วัด (KPIs)
+                <BarChart2 size={15} /> 
+                <span>ติดตามตัวชี้วัด (KPIs)</span>
               </Link>
+
               <Link 
                 href="/manual" 
                 className="btn-secondary" 
+                aria-label="ไปยังหน้าคู่มือการใช้งาน"
                 style={{ 
-                  backgroundColor: 'rgba(255,255,255,0.9)', 
-                  borderColor: 'rgba(255,255,255,1)', 
-                  color: 'var(--primary)', 
-                  fontSize: '0.875rem', 
+                  backgroundColor: 'rgba(255,255,255,0.95)', 
+                  borderColor: 'rgba(255,255,255,0.95)', 
+                  color: 'var(--primary-hover)', 
+                  fontSize: '0.85rem', 
                   fontWeight: 600,
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-                  transition: 'all 0.2s'
+                  padding: '0.5rem 1rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: 'var(--shadow-sm)',
+                  gap: '0.4rem',
                 }}
               >
-                <BookOpen size={16} /> คู่มือการใช้งาน
+                <BookOpen size={15} /> 
+                <span>คู่มือ</span>
               </Link>
+
               <Link 
                 href="/editor/login" 
-                className="btn-secondary" 
+                className="btn-primary" 
+                aria-label="เข้าสู่ระบบจัดการข้อมูล"
                 style={{ 
-                  backgroundColor: 'rgba(255,255,255,0.18)', 
-                  borderColor: 'rgba(255,255,255,0.4)', 
-                  color: 'white', 
-                  fontSize: '0.875rem', 
+                  backgroundColor: 'rgba(15, 23, 42, 0.85)', 
+                  color: '#ffffff', 
+                  fontSize: '0.85rem', 
                   fontWeight: 600,
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-                  transition: 'all 0.2s'
+                  padding: '0.5rem 1.15rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: 'var(--shadow-sm)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  gap: '0.4rem',
                 }}
               >
-                <Lock size={16} />
-                เข้าสู่ระบบจัดการข้อมูล
+                <Lock size={15} />
+                <span>ระบบจัดการ</span>
               </Link>
             </div>
           </div>

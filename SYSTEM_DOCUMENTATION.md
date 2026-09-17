@@ -17,8 +17,11 @@
 7. [ขอบเขตพื้นที่และกลุ่มงาน (Geographical Scope & Work Groups)](#7-ขอบเขตพื้นที่และกลุ่มงาน-geographical-scope--work-groups)
 8. [ฟังก์ชันอัจฉริยะและการผสาน AI (Gemini AI Integration)](#8-ฟังก์ชันอัจฉริยะและการผสาน-ai-gemini-ai-integration)
 9. [ฟังก์ชันพิเศษอื่นๆ (Special Features & Utilities)](#9-ฟังก์ชันพิเศษอื่นๆ-special-features--utilities)
-10. [แผนผังไฟล์และโค้ดของระบบ (Source Code Structure)](#10-แผนผังไฟล์และโค้ดของระบบ-source-code-structure)
-11. [แนวทางการดูแลและพัฒนาต่อ (Development & Maintenance Guidelines)](#11-แนวทางการดูแลและพัฒนาต่อ-development--maintenance-guidelines)
+10. [ระบบแดชบอร์ดติดตามและประเมินผลตัวชี้วัดผู้บริหาร (Executive KPI Dashboard & Quarterly Performance)](#10-ระบบแดชบอร์ดติดตามและประเมินผลตัวชี้วัดผู้บริหาร-executive-kpi-dashboard--quarterly-performance)
+11. [มาตรฐานการออกแบบ UI/UX และคอมโพเนนต์ (UI/UX Design System & Accessibility Standards)](#11-มาตรฐานการออกแบบ-uiux-และคอมโพเนนต์-uiux-design-system--accessibility-standards)
+12. [แผนผังไฟล์และโค้ดของระบบ (Source Code Structure)](#12-แผนผังไฟล์และโค้ดของระบบ-source-code-structure)
+13. [แนวทางการดูแลและพัฒนาต่อ (Development & Maintenance Guidelines)](#13-แนวทางการดูแลและพัฒนาต่อ-development--maintenance-guidelines)
+
 
 ---
 
@@ -47,7 +50,8 @@
 | **AI Integration** | **Google Gemini API** (`@google/genai`) | ใช้โมเดล `gemini-3.5-flash-lite` ในการ Auto-generate พจนานุกรมตัวชี้วัด (KPI Dictionary) แบบ JSON |
 | **Data Visualization** | **Recharts 3.10.1** | ทำกราฟแท่งเปรียบเทียบผลงาน KPI รายอำเภอ พร้อม Reference Line เส้นเป้าหมายและเส้นเตือน |
 | **Excel Export** | **SheetJS (xlsx 0.18.5)** | ดึงโครงสร้างแผนแบบ Hierarchy แล้วแปลงเป็นตาราง Excel แบบหลายมิติ |
-| **Styling** | **Pure CSS Variables + Bento Grid** | ออกแบบธีมสะอาด ทันสมัย ใน `globals.css` ไม่พึ่ง CSS Framework ภายนอก ทำให้โหลดไวและควบคุมง่าย |
+| **Styling & Tokens** | **Pure CSS Variables + Bento Grid** | ออกแบบธีมสะอาด ทันสมัย ใน `globals.css` พร้อม Semantic Tokens, High Contrast และ Print Media Queries |
+| **UI/UX Design System** | **In-house Primitives (`@/components/ui`)** | Toast (non-blocking), ConfirmDialog (accessible modal), Skeleton, StatusBadge, Breadcrumbs ตามเกณฑ์ WCAG 2.2 AA |
 | **Icons** | **lucide-react** | ชุดไอคอน UI ทั้งหมด |
 
 ---
@@ -392,7 +396,52 @@ graph TD
 
 ---
 
-## 11. แผนผังไฟล์และโค้ดของระบบ (Source Code Structure)
+## 11. มาตรฐานการออกแบบ UI/UX และคอมโพเนนต์ (UI/UX Design System & Accessibility Standards)
+
+ระบบได้รับการยกระดับ UI/UX ตามมาตรฐาน **Design Intelligence & WCAG 2.2 AA Accessibility** โดยไม่กระทบฟังก์ชันการทำงานหรือฐานข้อมูลเดิม:
+
+### 1. โทเค็นและตัวแปรการออกแบบ (Semantic Tokens & Contrast)
+- **High-Contrast Colors:** อัตราความเปรียบต่างของสีตัวอักษรและพื้นหลัง ≥ 4.5:1 ตามเกณฑ์ WCAG AA (`--text-main`, `--text-muted`, `--border-subtle`, `--surface-hover`)
+- **Interactive Focus Rings:** คลาส `:focus-visible` แสดงเส้นขอบไฮไลต์ 2px `var(--primary)` พร้อม `outline-offset: 2px` เพื่อรองรับ Keyboard Accessibility (Tab Navigation)
+- **Touch Targets:** กำหนดขนาดปุ่มกดสัมผัสขั้นต่ำ ≥ 44px (`.touch-target`) สำหรับปุ่มหลัก และ ≥ 36px (`.touch-target-sm`) สำหรับ Action buttons บนตารางหรืออุปกรณ์พกพา
+- **Shimmer Keyframes:** เอนิเมชัน Shimmer แบบ hardware-accelerated สำหรับ Loading Placeholders
+
+### 2. คอมโพเนนต์มาตรฐานใน `src/components/ui/`
+1. **Toast System (`Toast.tsx` & `useToast()`):**
+   - การแจ้งเตือนแบบ Non-blocking ไม่ขัดจังหวะการทำงานของผู้ใช้ แทนที่การใช้ Native browser `alert()`
+   - รองรับ 4 ระดับ: `toast.success()`, `toast.error()`, `toast.warning()`, `toast.info()`
+   - ปิดอัตโนมัติใน 4 วินาที และมีปุ่มกดปิดเอง พร้อม Accessibility role `alert`
+2. **ConfirmDialog (`ConfirmDialog.tsx`):**
+   - โมดอลยืนยันการทำรายการที่ปลอดภัย แทนที่ `window.confirm()`
+   - รองรับ `variant="danger"` (สีแดงสำหรับลบ/กู้คืน) และ `variant="default"`
+   - มี Focus Trap, กดปุ่ม `Escape` เพื่อปิด, คลิกพื้นหลังเพื่อยกเลิก, และสถานะ `isLoading` ป้องกันการกดซ้ำ
+3. **Skeleton Loading (`Skeleton.tsx`):**
+   - คอมโพเนนต์ `Skeleton`, `TableSkeleton`, `CardSkeleton` แสดงโครงสร้างระหว่างโหลดข้อมูล ช่วยลด Cumulative Layout Shift (CLS)
+4. **StatusBadge (`StatusBadge.tsx`):**
+   - แสดงสถานะตัวชี้วัดแบบคู่ (Dual-indicator) ด้วยสี + สัญลักษณ์ + ข้อความ เช่น `✓ ผ่าน`, `▲ เฝ้าระวัง`, `✕ ไม่ผ่าน`, `— รอผล` ปลอดภัยสำหรับผู้มีภาวะตาบอดสี (Colorblind Ergonomics)
+5. **Breadcrumbs (`Breadcrumbs.tsx`):**
+   - แถบนำทางแสดงลำดับชั้นโฟลเดอร์ใน Editor Portal และแดชบอร์ด มี `aria-label="breadcrumb"` ถูกต้องตามหลัก WAI-ARIA
+
+### 3. โครงสร้างและการตอบสนองบนมือถือ (Responsive Shell & Tables)
+- **Mobile Navigation Drawer (`editor/layout.tsx`):**
+  - มีปุ่ม Hamburger สำหรับหน้าจอขนาดเล็ก (< 1024px) พร้อม Side Drawer เลื่อนเปิด-ปิดอย่างนุ่มนวล
+  - มีปุ่มยืนยันการออกจากระบบผ่าน `ConfirmDialog` ป้องกันการกดยกเลิกเซสชันโดยไม่ตั้งใจ
+- **Responsive Tables & Sticky Headers:**
+  - เพิ่มคลาส `.table-container` รองรับการเลื่อนในแนวนอน (Horizontal scroll) บนจอแคบ
+  - คลาส `.table-sticky-header` ตรึงหัวตารางขณะเลื่อนดูข้อมูลจำนวนมาก
+  - แถวสรุปผลระดับจังหวัด (`<tfoot>`) คำนวณแบบ Real-time และตรึงท้ายตาราง
+- **District Scoping Indicator (`DistrictSelector.tsx`):**
+  - แสดงชื่ออำเภอที่เลือกปัจจุบันแบบ Modern Pill พร้อมไอคอน Chevron และการเลือกที่เข้าถึงง่าย
+
+### 4. การจัดพิมพ์รูปเล่มรายงาน (Print & PDF Optimization)
+- จัดระเบียบ `@media print` มาตรฐาน A4 ใน `globals.css`:
+  - บังคับการขึ้นหน้าใหม่อย่างเป็นระเบียบด้วย `.page-break-before`
+  - ป้องกันการตัดขาดครึ่งของตารางและกล่องกิจกรรมด้วย `page-break-inside: avoid; break-inside: avoid;`
+  - ลบเงาและขอบส่วนเกิน ปรับสีให้คมชัดเพื่อการพิมพ์ขาว-ดำและสีผ่าน `-webkit-print-color-adjust: exact;`
+
+---
+
+## 12. แผนผังไฟล์และโค้ดของระบบ (Source Code Structure)
 
 ```
 strategicsko/
@@ -424,10 +473,16 @@ strategicsko/
 │   │   │   └── layout.tsx                # Layout ของส่วน KPI
 │   │   ├── manual/page.tsx               # หน้าคู่มือการใช้งานระบบแบบละเอียด (15 หมวดหมู่ พร้อมระบบค้นหา & กรอง และคู่มือ HDC รพ.สต.)
 │   │   ├── print-book/page.tsx           # หน้ารูปเล่มเอกสารสำหรับพิมพ์ / ส่งออก PDF
-│   │   ├── globals.css                   # Global CSS, Theme Variables, Bento Grid
-│   │   ├── layout.tsx                    # Root Layout (Noto Sans Thai & Geist Fonts)
+│   │   ├── globals.css                   # Global CSS, Theme Variables, Bento Grid, Print Styles
+│   │   ├── layout.tsx                    # Root Layout (Noto Sans Thai, Geist Fonts & ToastProvider)
 │   │   └── page.tsx                      # หน้าแรก (Public Strategic Roadmap & Bento Grid)
 │   ├── components/
+│   │   ├── ui/                           # UI Primitives & Accessibility Components
+│   │   │   ├── Toast.tsx                 # Non-blocking Toast notification system (useToast)
+│   │   │   ├── ConfirmDialog.tsx         # Accessible confirmation modal (แทน window.confirm)
+│   │   │   ├── Skeleton.tsx              # Shimmer loading placeholders (Card & Table Skeleton)
+│   │   │   ├── StatusBadge.tsx           # Multi-indicator badge (Colorblind-safe + Text)
+│   │   │   └── Breadcrumbs.tsx           # Accessible hierarchical navigation trail
 │   │   ├── vital-stats/                  # ชุดคอมโพเนนต์สถิติชีพ (ประชากร, เกิด, ตาย, e0)
 │   │   │   ├── PopulationVitalDashboard.tsx
 │   │   │   ├── PopulationTab.tsx
@@ -469,7 +524,7 @@ strategicsko/
 
 ---
 
-## 11. แนวทางการดูแลและพัฒนาต่อ (Development & Maintenance Guidelines)
+## 13. แนวทางการดูแลและพัฒนาต่อ (Development & Maintenance Guidelines)
 
 ### สิ่งสำคัญที่ต้องระวังในการแก้ไขโค้ด (Critical Best Practices)
 1. **Next.js 16 App Router Conventions:**

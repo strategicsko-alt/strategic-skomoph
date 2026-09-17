@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Plus, Trash2, Edit2, Check } from 'lucide-react';
 import { Modal } from '@/components/Modal';
+import { useToast } from '@/components/ui/Toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface QuarterlyPlanTableProps {
   districtId: string;
@@ -14,9 +16,12 @@ interface QuarterlyPlanTableProps {
 }
 
 export function QuarterlyPlanTable({ keyResult, themeColor, measurements, onUpdate, districtId }: QuarterlyPlanTableProps) {
+  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const getMeasurementsByQuarter = (q: number) => {
     return measurements.filter(m => m.quarter === q).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
@@ -61,28 +66,38 @@ export function QuarterlyPlanTable({ keyResult, themeColor, measurements, onUpda
       if (formData.id) {
         const { error } = await supabase.from('action_plan_measurements').update(payload).eq('id', formData.id);
         if (error) throw error;
+        toast.success('อัปเดตตัวชี้วัดรายไตรมาสเรียบร้อยแล้ว');
       } else {
         const { error } = await supabase.from('action_plan_measurements').insert([payload]);
         if (error) throw error;
+        toast.success('เพิ่มตัวชี้วัดรายไตรมาสสำเร็จ');
       }
       
       setIsModalOpen(false);
       onUpdate();
     } catch (err: any) {
-      alert('Error saving: ' + err.message);
+      toast.error('ไม่สามารถบันทึกข้อมูลได้: ' + err.message);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('คุณต้องการลบตัวชี้วัดรายไตรมาสนี้ใช่หรือไม่?')) {
-      const { error } = await supabase.from('action_plan_measurements').delete().eq('id', id);
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from('action_plan_measurements').delete().eq('id', itemToDelete);
       if (error) {
-        alert('Error deleting: ' + error.message);
+        toast.error('ไม่สามารถลบข้อมูลได้: ' + error.message);
       } else {
+        toast.success('ลบตัวชี้วัดรายไตรมาสเรียบร้อยแล้ว');
         onUpdate();
       }
+    } catch (err: any) {
+      toast.error('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+    } finally {
+      setIsDeleting(false);
+      setItemToDelete(null);
     }
   };
 
@@ -100,8 +115,22 @@ export function QuarterlyPlanTable({ keyResult, themeColor, measurements, onUpda
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
                 <span style={{ fontWeight: 600, color: themeColor }}>[{item.auto_id}]</span>
                 <div style={{ display: 'flex', gap: '0.25rem' }}>
-                  <button onClick={() => handleOpenModal(q, item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}><Edit2 size={12} /></button>
-                  <button onClick={() => handleDelete(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)' }}><Trash2 size={12} /></button>
+                  <button 
+                    onClick={() => handleOpenModal(q, item)} 
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', padding: '0.25rem' }}
+                    className="touch-target-sm"
+                    aria-label={`แก้ไข ${item.auto_id}`}
+                  >
+                    <Edit2 size={13} />
+                  </button>
+                  <button 
+                    onClick={() => setItemToDelete(item.id)} 
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', padding: '0.25rem' }}
+                    className="touch-target-sm"
+                    aria-label={`ลบ ${item.auto_id}`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </div>
               <div style={{ marginBottom: '0.25rem' }}><strong>KPI:</strong> {item.kpi_name}</div>
@@ -173,6 +202,18 @@ export function QuarterlyPlanTable({ keyResult, themeColor, measurements, onUpda
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!itemToDelete}
+        title="ยืนยันการลบตัวชี้วัดรายไตรมาส"
+        message="คุณต้องการลบตัวชี้วัดรายไตรมาสนี้ใช่หรือไม่? การกระทำนี้ไม่สามารถเรียกคืนได้"
+        confirmLabel="ยืนยันการลบ"
+        cancelLabel="ยกเลิก"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 }

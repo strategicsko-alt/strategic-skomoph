@@ -30,6 +30,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
+import { ToastProvider } from "@/components/ui/Toast";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,7 +39,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" className={`${notoSansThai.variable} ${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }
+

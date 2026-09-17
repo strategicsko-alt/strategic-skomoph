@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { CheckCircle, XCircle, Loader2, ShieldCheck, User, Edit } from 'lucide-react';
 import { Modal } from '@/components/Modal';
+import { useToast } from '@/components/ui/Toast';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 
 type UserProfile = {
   id: string;
@@ -37,6 +39,7 @@ const WORK_GROUPS = [
 ];
 
 export default function UsersManagementPage() {
+  const { toast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [myProfile, setMyProfile] = useState<any>(null);
@@ -102,12 +105,13 @@ export default function UsersManagementPage() {
       if (res.ok && resData.success) {
         setUsers(users.map(u => u.id === editingUser.id ? { ...u, approval_status: editStatus, role: editRole, work_group: editWorkGroup } : u));
         setIsEditModalOpen(false);
+        toast.success('อัปเดตสิทธิ์ผู้ใช้งานสำเร็จ');
       } else {
-        alert(resData.message || 'เกิดข้อผิดพลาดในการอัปเดตสิทธิ์');
+        toast.error(resData.message || 'เกิดข้อผิดพลาดในการอัปเดตสิทธิ์');
       }
     } catch (err) {
       console.error(err);
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อ');
     } finally {
       setIsSaving(false);
     }
@@ -154,6 +158,7 @@ export default function UsersManagementPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+      <Breadcrumbs items={[{ label: 'Editor Portal', href: '/editor/dashboard' }, { label: 'จัดการผู้ใช้งาน' }]} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '0.5rem' }}>

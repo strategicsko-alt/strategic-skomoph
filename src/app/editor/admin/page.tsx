@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Download, Upload, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
+import { useToast } from '@/components/ui/Toast';
 
 const TABLES_TO_BACKUP = [
   'core_organization',
@@ -16,9 +19,11 @@ const TABLES_TO_BACKUP = [
 ];
 
 export default function AdminPage() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [file, setFile] = useState<File | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
 
   const handleBackup = async () => {
     setLoading(true);
@@ -63,17 +68,18 @@ export default function AdminPage() {
     }
   };
 
-  const handleRestore = async () => {
+  const handleRestore = () => {
     if (!file) {
+      toast.warning('กรุณาเลือกไฟล์ Backup ก่อน');
       setMessage({ text: 'กรุณาเลือกไฟล์ Backup ก่อน', type: 'error' });
       return;
     }
+    setShowRestoreConfirm(true);
+  };
 
-    const confirmRestore = window.confirm(
-      'คำเตือน: การกู้คืนข้อมูลจะ *ลบข้อมูลปัจจุบันทั้งหมดในระบบ* และแทนที่ด้วยข้อมูลจากไฟล์ Backup นี้\n\nคุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ?'
-    );
-
-    if (!confirmRestore) return;
+  const executeRestore = async () => {
+    setShowRestoreConfirm(false);
+    if (!file) return;
 
     setLoading(true);
     setMessage({ text: 'กำลังอ่านไฟล์...', type: 'info' });
@@ -139,6 +145,7 @@ export default function AdminPage() {
 
   return (
     <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <Breadcrumbs items={[{ label: 'Editor Portal', href: '/editor/dashboard' }, { label: 'สำรองและกู้คืนข้อมูล' }]} />
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>สำรองและกู้คืนข้อมูล (Backup & Restore)</h1>
         <p style={{ color: 'var(--secondary-foreground)' }}>จัดการดาวน์โหลดไฟล์สำรองข้อมูล และอัปโหลดไฟล์เพื่อกู้คืนระบบ</p>
@@ -273,6 +280,18 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showRestoreConfirm}
+        title="คำเตือน: ยืนยันการกู้คืนข้อมูล"
+        message="การกู้คืนข้อมูลจะลบข้อมูลปัจจุบันทั้งหมดในระบบและแทนที่ด้วยข้อมูลจากไฟล์ Backup นี้ คุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ?"
+        confirmLabel="ยืนยันการกู้คืนข้อมูล"
+        cancelLabel="ยกเลิก"
+        variant="danger"
+        isLoading={loading}
+        onConfirm={executeRestore}
+        onCancel={() => setShowRestoreConfirm(false)}
+      />
     </div>
   );
 }

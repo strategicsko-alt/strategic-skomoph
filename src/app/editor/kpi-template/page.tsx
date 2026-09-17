@@ -9,6 +9,8 @@ import {
   SA_KAEO_DISTRICTS,
   SA_KAEO_HOSPITALS,
 } from '@/lib/hdc';
+import { useToast } from '@/components/ui/Toast';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 
 const WORK_GROUPS = [
   "กลุ่มงานคุ้มครองผู้บริโภคและเภสัชสาธารณสุข",
@@ -106,6 +108,7 @@ function emptyRow(overrides?: Partial<KpiRow>): KpiRow {
 }
 
 export default function TemplateManagerPage() {
+  const { toast } = useToast();
   const [kpis, setKpis] = useState<KpiRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -282,7 +285,7 @@ export default function TemplateManagerPage() {
     const tbl = (editingKpi.api_config.tableName || '').trim();
     const yr = (editingKpi.api_config.year || '2569').trim();
     if (!tbl) {
-      alert('กรุณากรอกชื่อตาราง HDC ก่อนทำการตรวจสอบ');
+      toast.warning('กรุณากรอกชื่อตาราง HDC ก่อนทำการตรวจสอบ');
       return;
     }
     setInspectingHdc(true);
@@ -303,8 +306,9 @@ export default function TemplateManagerPage() {
         ...editingKpi,
         api_config: { ...editingKpi.api_config, variables: curVars }
       });
+      toast.success(`ตรวจสอบคอลัมน์ของตาราง "${tbl}" สำเร็จ`);
     } catch (err: any) {
-      alert(`ไม่สามารถตรวจสอบคอลัมน์ได้: ${err.message || err}`);
+      toast.error(`ไม่สามารถตรวจสอบคอลัมน์ได้: ${err.message || err}`);
     } finally {
       setInspectingHdc(false);
     }
@@ -315,7 +319,7 @@ export default function TemplateManagerPage() {
     const tbl = (editingKpi.api_config.tableName || '').trim();
     const yr = (editingKpi.api_config.year || '2569').trim();
     if (!tbl) {
-      alert('กรุณากรอกชื่อตาราง HDC ก่อน');
+      toast.warning('กรุณากรอกชื่อตาราง HDC ก่อน');
       return;
     }
     setTestingHdc(true);
@@ -405,6 +409,7 @@ export default function TemplateManagerPage() {
     setSaving(false);
     setEditingKpi(null);
     setIsNewKpi(false);
+    toast.success(`บันทึก "${editingKpi.kr_name}" สำเร็จ`);
     setSuccessMsg(`บันทึก "${editingKpi.kr_name}" สำเร็จ`);
     setTimeout(() => setSuccessMsg(''), 4000);
     fetchKPIs();
@@ -497,6 +502,7 @@ export default function TemplateManagerPage() {
 
   return (
     <div style={{ paddingBottom: '3rem' }}>
+      <Breadcrumbs items={[{ label: 'Editor Portal', href: '/editor/dashboard' }, { label: 'ตั้งค่าตัวชี้วัด (KPI Template)' }]} />
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>

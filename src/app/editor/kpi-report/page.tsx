@@ -23,6 +23,8 @@ import {
   FileSpreadsheet,
   CalendarDays
 } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 
 const DISTRICTS = [
   "เมืองสระแก้ว","คลองหาด","ตาพระยา","วังน้ำเย็น",
@@ -113,6 +115,7 @@ function computeResult(formula: string, vals: Record<string, string>): string {
 }
 
 export default function ReportPage() {
+  const { toast } = useToast();
   const { profile, loading: ctxLoading } = useEditor();
   const isSuperAdmin = profile?.role === 'province_super_admin' || profile?.role === 'district_super_admin';
   const userWorkGroup = profile?.work_group || '';
@@ -327,9 +330,8 @@ export default function ReportPage() {
 
         if (error) {
           if (error.code === '42703') {
-            alert(
-              '⚠️ ฐานข้อมูล Supabase ยังไม่มีคอลัมน์ result_value และ status ในตาราง action_plan_measurements\n\n' +
-              'กรุณาเปิด Supabase Dashboard -> SQL Editor แล้วนำคำสั่งในไฟล์ supabase_add_action_plan_results.sql ไปรันก่อนบันทึกครับ'
+            toast.error(
+              'ฐานข้อมูลยังไม่มีคอลัมน์ result_value และ status ในตาราง action_plan_measurements กรุณาติดต่อผู้ดูแลระบบ'
             );
             setSavingSubKrs(false);
             return;
@@ -338,10 +340,11 @@ export default function ReportPage() {
         }
       }
 
+      toast.success(`บันทึกผล KR ย่อย (${selectedQuarter}) สำเร็จ`);
       setSubKrSaveMsg(`✓ บันทึกผล KR ย่อย (${selectedQuarter}) สำเร็จ`);
       setTimeout(() => setSubKrSaveMsg(''), 4000);
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาดในการบันทึก KR ย่อย: ' + (err.message || err));
+      toast.error('เกิดข้อผิดพลาดในการบันทึก KR ย่อย: ' + (err.message || err));
     } finally {
       setSavingSubKrs(false);
     }
@@ -403,7 +406,7 @@ export default function ReportPage() {
     };
 
     if (!tbl) {
-      alert('ตัวชี้วัดนี้ยังไม่ได้ระบุชื่อตาราง HDC ในหน้าตั้งค่า Template');
+      toast.warning('ตัวชี้วัดนี้ยังไม่ได้ระบุชื่อตาราง HDC ในหน้าตั้งค่า Template');
       return;
     }
 
@@ -424,10 +427,11 @@ export default function ReportPage() {
 
       setValues(newVals);
       const levelName = level === 'hospital' ? '9 โรงพยาบาล' : level === 'district' ? '9 อำเภอ' : 'ภาพรวมจังหวัด';
+      toast.success(`ดึงข้อมูลสดจาก HDC (${tbl}) สำเร็จ (${results.length} รายการ)`);
       setHdcSyncMsg(`✓ ดึงข้อมูลสดจาก HDC (${tbl} / ${yr}) สำหรับ ${levelName} สำเร็จแล้ว (${results.length} รายการ) กรุณาตรวจสอบแล้วกดบันทึก`);
       setTimeout(() => setHdcSyncMsg(''), 8000);
     } catch (err: any) {
-      alert(`ไม่สามารถดึงข้อมูลจาก HDC ได้: ${err.message || err}`);
+      toast.error(`ไม่สามารถดึงข้อมูลจาก HDC ได้: ${err.message || err}`);
     } finally {
       setSyncingHdc(false);
     }
@@ -435,7 +439,7 @@ export default function ReportPage() {
 
   const handleSave = async () => {
     if (!currentKpi?.kr_id) {
-      alert('ตัวชี้วัดนี้ไม่ได้เชื่อมกับ Key Result กรุณาเลือกตัวชี้วัดจากระบบแผน');
+      toast.warning('ตัวชี้วัดนี้ไม่ได้เชื่อมกับ Key Result กรุณาเลือกตัวชี้วัดจากระบบแผน');
       return;
     }
     setSaving(true);
@@ -529,6 +533,7 @@ export default function ReportPage() {
     }
 
     setSaving(false);
+    toast.success(`บันทึกผลยอดสะสม "${currentKpi.kr_name}" (${selectedQuarter}) สำเร็จ`);
     setSuccessMsg(`บันทึกผลยอดสะสม "${currentKpi.kr_name}" (${selectedQuarter}) สำเร็จ ✓`);
     setTimeout(() => setSuccessMsg(''), 4000);
   };
@@ -563,6 +568,7 @@ export default function ReportPage() {
 
   return (
     <div style={{ paddingBottom: '3rem' }}>
+      <Breadcrumbs items={[{ label: 'Editor Portal', href: '/editor/dashboard' }, { label: 'บันทึกผลการดำเนินงาน' }]} />
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -729,17 +735,36 @@ export default function ReportPage() {
           {/* Filter 4: ไตรมาส */}
           <div>
             <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>
-              ไตรมาส
+              ไตรมาส ({selectedQuarter})
             </label>
-            <select
-              className="input-field"
-              value={selectedQuarter}
-              onChange={e => setSelectedQuarter(e.target.value)}
-            >
-              {QUARTERS.map(q => (
-                <option key={q} value={q}>ไตรมาสที่ {q.replace('Q','')}</option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', gap: '0.35rem' }} role="group" aria-label="เลือกไตรมาส">
+              {QUARTERS.map(q => {
+                const active = selectedQuarter === q;
+                return (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setSelectedQuarter(q)}
+                    style={{
+                      flex: 1,
+                      padding: '0.55rem 0.25rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: active ? '2px solid var(--primary)' : '1px solid var(--border)',
+                      backgroundColor: active ? 'var(--primary)' : 'var(--card)',
+                      color: active ? '#ffffff' : 'var(--foreground)',
+                      fontWeight: active ? 700 : 500,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: active ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                    }}
+                    aria-pressed={active}
+                  >
+                    {q}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -836,8 +861,8 @@ export default function ReportPage() {
             </div>
           ) : (
             <div>
-              <div style={{ overflowX: 'auto', backgroundColor: '#fff', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div className="table-container" style={{ backgroundColor: '#fff', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                <table className="table-sticky-header" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid var(--border)' }}>
                       <th style={{ padding: '0.625rem 0.875rem', textAlign: 'left', width: '130px', fontSize: '0.85rem' }}>รหัส</th>
@@ -1024,8 +1049,8 @@ export default function ReportPage() {
               </div>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div className="table-container">
+              <table className="table-sticky-header" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border)', backgroundColor: 'var(--secondary)' }}>
                     <th style={{ padding: '0.625rem 0.875rem', textAlign: 'left', width: '220px', fontSize: '0.85rem' }}>พื้นที่ / หน่วยบริการ</th>
@@ -1081,6 +1106,42 @@ export default function ReportPage() {
                     );
                   })}
                 </tbody>
+                {currentKpi.measurement_level !== 'province' && areas.length > 1 && (() => {
+                  const provTotals: Record<string, number> = {};
+                  areas.forEach(areaId => {
+                    const areaVals = values[areaId] || {};
+                    Object.entries(areaVals).forEach(([k, v]) => {
+                      const num = parseFloat(String(v).replace(/,/g, ''));
+                      if (!isNaN(num)) {
+                        provTotals[k] = (provTotals[k] || 0) + num;
+                      }
+                    });
+                  });
+                  const provTotalsStr: Record<string, string> = {};
+                  Object.entries(provTotals).forEach(([k, v]) => {
+                    provTotalsStr[k] = String(v);
+                  });
+                  const provResult = computeResult(currentKpi.calc_formula, provTotalsStr);
+                  const provStatusColor = getStatusColor(provResult, currentKpi);
+
+                  return (
+                    <tfoot>
+                      <tr style={{ backgroundColor: 'var(--secondary)', borderTop: '2px solid var(--border)', fontWeight: 700 }}>
+                        <td style={{ padding: '0.75rem 0.875rem', color: 'var(--primary)' }}>
+                          🏛️ รวมยอดสะสมทั้งจังหวัด (คำนวณอัตโนมัติ)
+                        </td>
+                        {currentKpi.data_items.map(item => (
+                          <td key={item.id} style={{ padding: '0.75rem 0.875rem', color: 'var(--foreground)' }}>
+                            {(provTotals[item.id] || 0).toLocaleString()}
+                          </td>
+                        ))}
+                        <td style={{ padding: '0.75rem 0.875rem', textAlign: 'center', color: provStatusColor, fontSize: '1.05rem' }}>
+                          {provResult}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  );
+                })()}
               </table>
             </div>
           )}

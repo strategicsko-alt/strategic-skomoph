@@ -5,13 +5,19 @@ import { supabase } from '@/lib/supabase';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { useEditor } from '@/components/EditorContext';
+import { useToast } from '@/components/ui/Toast';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export default function CoreDataPage() {
+  const { toast } = useToast();
   const { districtId, loading: ctxLoading } = useEditor();
   const [coreData, setCoreData] = useState<any>(null);
   const [listItems, setListItems] = useState<any[]>([]);
   const [swotItems, setSwotItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'list' | 'swot'; id: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Modals state
   const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
@@ -92,10 +98,8 @@ export default function CoreDataPage() {
     setIsSaving(false);
   };
 
-  const deleteList = async (id: string) => {
-    if (!confirm('ยืนยันการลบข้อนี้?')) return;
-    await supabase.from('core_list_items').delete().eq('id', id);
-    fetchData();
+  const deleteList = (id: string) => {
+    setItemToDelete({ type: 'list', id });
   };
 
   // --- Handlers for SWOT / TOWS ---
@@ -130,10 +134,30 @@ export default function CoreDataPage() {
     setIsSaving(false);
   };
 
-  const deleteSwot = async (id: string) => {
-    if (!confirm('ยืนยันการลบข้อมูลข้อนี้?')) return;
-    await supabase.from('swot_items').delete().eq('id', id);
-    fetchData();
+  const deleteSwot = (id: string) => {
+    setItemToDelete({ type: 'swot', id });
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    try {
+      if (itemToDelete.type === 'list') {
+        const { error } = await supabase.from('core_list_items').delete().eq('id', itemToDelete.id);
+        if (error) throw error;
+        toast.success('ลบรายการเรียบร้อยแล้ว');
+      } else {
+        const { error } = await supabase.from('swot_items').delete().eq('id', itemToDelete.id);
+        if (error) throw error;
+        toast.success('ลบข้อมูล SWOT เรียบร้อยแล้ว');
+      }
+      await fetchData();
+    } catch (err: any) {
+      toast.error('ไม่สามารถลบข้อมูลได้: ' + err.message);
+    } finally {
+      setIsDeleting(false);
+      setItemToDelete(null);
+    }
   };
 
   // --- Render Helpers ---
@@ -194,6 +218,7 @@ export default function CoreDataPage() {
 
   return (
     <div>
+      <Breadcrumbs items={[{ label: 'Editor Portal', href: '/editor/dashboard' }, { label: 'ข้อมูลองค์กร (Core Data)' }]} />
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>ข้อมูลองค์กร (Core Data)</h1>
         <p style={{ color: 'var(--secondary-foreground)' }}>จัดการวิสัยทัศน์ พันธกิจ เป้าประสงค์ SWOT และ TOWS Matrix</p>
@@ -292,6 +317,17 @@ export default function CoreDataPage() {
         </form>
       </Modal>
 
+      <ConfirmDialog
+        isOpen={!!itemToDelete}
+        title={itemToDelete?.type === 'list' ? 'ยืนยันการลบรายการ' : 'ยืนยันการลบข้อมูล SWOT'}
+        message="คุณต้องการลบข้อมูลข้อนี้ใช่หรือไม่? การกระทำนี้ไม่สามารถเรียกคืนได้"
+        confirmLabel="ยืนยันการลบ"
+        cancelLabel="ยกเลิก"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 }

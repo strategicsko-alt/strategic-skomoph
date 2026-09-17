@@ -3,17 +3,40 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { BarChart2, LayoutDashboard, BookOpen, FileText, LogOut, Building, ExternalLink, ChevronLeft, ChevronRight, Settings, CalendarDays, Users, User } from 'lucide-react';
+import { 
+  BarChart2, 
+  LayoutDashboard, 
+  BookOpen, 
+  FileText, 
+  LogOut, 
+  Building, 
+  ExternalLink, 
+  ChevronLeft, 
+  ChevronRight, 
+  Settings, 
+  CalendarDays, 
+  Users, 
+  User,
+  Menu,
+  X
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { EditorProvider, useEditor } from '@/components/EditorContext';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 // We create an InnerLayout to use the hook, while the default export wraps it in the Provider.
 function EditorLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { profile, loading } = useEditor();
-  
+
+  // Close mobile drawer when pathname changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
 
   // Don't show sidebar on login/register/pending pages
   if (pathname === '/editor/login' || pathname === '/editor/register' || pathname === '/editor/pending-approval') {
@@ -63,152 +86,323 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
     return 'User อ.';
   };
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--background)' }}>
-      {/* Sidebar */}
-      <aside style={{
-        width: sidebarWidth,
-        minWidth: sidebarWidth,
-        backgroundColor: 'var(--card)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'width 0.25s ease, min-width 0.25s ease',
-        overflow: 'hidden',
-        position: 'relative'
-      }}>
-        {/* Header */}
-        <div style={{ padding: sidebarOpen ? '1.25rem 1rem' : '1.25rem 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', overflow: 'hidden', minHeight: '72px' }}>
-          {sidebarOpen && (
-            <div style={{ overflow: 'hidden', flex: 1, marginRight: '0.5rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Editor Portal</h2>
-              <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)', whiteSpace: 'nowrap' }}>ระบบจัดการยุทธศาสตร์</p>
-            </div>
-          )}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            title={sidebarOpen ? 'ซ่อนเมนู' : 'แสดงเมนู'}
-            style={{
-              background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
-              cursor: 'pointer', padding: '0.35rem', display: 'flex', alignItems: 'center',
-              color: 'var(--secondary-foreground)', flexShrink: 0,
-              transition: 'background 0.15s'
-            }}
-          >
-            {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-          </button>
-        </div>
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-        {/* User Info */}
-        {!loading && profile && (
-          <div style={{ padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem 0', display: 'flex', justifyContent: 'center', borderBottom: '1px solid var(--border)' }}>
-            {sidebarOpen ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', width: '100%' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
-                  <User size={18} />
-                </div>
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                    {profile.first_name} {profile.last_name}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
-                    {getRoleDisplay(profile.role)}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div title={`${profile.first_name}\n${getRoleDisplay(profile.role)}`} style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-                <User size={18} />
-              </div>
-            )}
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--background)' }}>
+      {/* Mobile Top Header (<= 768px) */}
+      <header className="editor-mobile-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="เปิดเมนูนำทาง"
+            className="btn-ghost touch-target-sm"
+            style={{ padding: '0.4rem' }}
+          >
+            <Menu size={22} />
+          </button>
+          <div>
+            <h1 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>Strategic SKO</h1>
+            <p style={{ fontSize: '0.7rem', color: 'var(--secondary-foreground)', margin: 0 }}>Editor Portal</p>
           </div>
+        </div>
+        {profile && (
+          <span className="badge badge-info">
+            {getRoleDisplay(profile.role)}
+          </span>
+        )}
+      </header>
+
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Mobile Drawer Overlay */}
+        {mobileMenuOpen && (
+          <div
+            role="presentation"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.5)',
+              backdropFilter: 'blur(2px)',
+              zIndex: 9990,
+              animation: 'modalFadeIn 0.15s ease-out',
+            }}
+          />
         )}
 
-        {/* Nav */}
-        <nav style={{ padding: sidebarOpen ? '0.75rem' : '0.75rem 0.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {loading ? (
-            // Skeleton loading placeholders
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{
-                height: '42px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--secondary)',
-                opacity: 0.5,
-                animation: 'pulse 1.5s ease-in-out infinite',
-              }} />
-            ))
-          ) : (
-            navItems.map((item) => {
+        {/* Mobile Drawer */}
+        <aside
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: '280px',
+            backgroundColor: 'var(--card)',
+            zIndex: 9995,
+            display: mobileMenuOpen ? 'flex' : 'none',
+            flexDirection: 'column',
+            boxShadow: 'var(--shadow-xl)',
+            animation: 'toastSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
+          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>Editor Portal</h2>
+              <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)', margin: 0 }}>สำนักงานสาธารณสุขจังหวัดสระแก้ว</p>
+            </div>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="ปิดเมนู"
+              className="btn-ghost touch-target-sm"
+              style={{ padding: '0.35rem' }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* User Info inside Drawer */}
+          {!loading && profile && (
+            <div style={{ padding: '0.85rem 1rem', borderBottom: '1px solid var(--border)', backgroundColor: 'var(--secondary)' }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{profile.first_name} {profile.last_name}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>{getRoleDisplay(profile.role)}</div>
+            </div>
+          )}
+
+          {/* Drawer Nav Links */}
+          <nav style={{ padding: '0.75rem', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  title={!sidebarOpen ? item.name : undefined}
+                  aria-current={isActive ? 'page' : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: sidebarOpen ? '0.75rem' : '0',
-                    justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                    padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
+                    gap: '0.75rem',
+                    padding: '0.75rem 1rem',
                     borderRadius: 'var(--radius-md)',
                     backgroundColor: isActive ? 'var(--primary)' : 'transparent',
                     color: isActive ? 'white' : 'var(--foreground)',
                     fontWeight: isActive ? 600 : 500,
-                    transition: 'all 0.15s',
                     textDecoration: 'none',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap'
+                    minHeight: '44px',
                   }}
                 >
                   <Icon size={20} style={{ flexShrink: 0 }} />
-                  {sidebarOpen && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>}
+                  <span>{item.name}</span>
                 </Link>
               );
-            })
+            })}
+          </nav>
+
+          {/* Drawer Footer */}
+          <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <Link
+              href="/"
+              target="_blank"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.65rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--primary)',
+                fontWeight: 500,
+                textDecoration: 'none',
+                minHeight: '44px',
+              }}
+            >
+              <ExternalLink size={20} />
+              <span>ดูหน้าเว็บหลัก</span>
+            </Link>
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.65rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'transparent',
+                color: 'var(--danger-text)',
+                border: 'none',
+                fontWeight: 500,
+                cursor: 'pointer',
+                textAlign: 'left',
+                minHeight: '44px',
+              }}
+            >
+              <LogOut size={20} />
+              <span>ออกจากระบบ</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* Desktop Sidebar (> 768px) */}
+        <aside
+          className="editor-sidebar-desktop"
+          style={{
+            width: sidebarWidth,
+            minWidth: sidebarWidth,
+            backgroundColor: 'var(--card)',
+            borderRight: '1px solid var(--border)',
+            flexDirection: 'column',
+            transition: 'width 0.25s ease, min-width 0.25s ease',
+            overflow: 'hidden',
+            position: 'relative'
+          }}
+        >
+          {/* Header */}
+          <div style={{ padding: sidebarOpen ? '1.25rem 1rem' : '1.25rem 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: sidebarOpen ? 'space-between' : 'center', overflow: 'hidden', minHeight: '72px' }}>
+            {sidebarOpen && (
+              <div style={{ overflow: 'hidden', flex: 1, marginRight: '0.5rem' }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Editor Portal</h2>
+                <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)', whiteSpace: 'nowrap' }}>ระบบจัดการยุทธศาสตร์</p>
+              </div>
+            )}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              title={sidebarOpen ? 'ซ่อนเมนู' : 'แสดงเมนู'}
+              aria-label={sidebarOpen ? 'ซ่อนเมนูด้านข้าง' : 'ขยายเมนูด้านข้าง'}
+              style={{
+                background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+                cursor: 'pointer', padding: '0.35rem', display: 'flex', alignItems: 'center',
+                color: 'var(--secondary-foreground)', flexShrink: 0,
+                transition: 'background 0.15s'
+              }}
+            >
+              {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            </button>
+          </div>
+
+          {/* User Info */}
+          {!loading && profile && (
+            <div style={{ padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem 0', display: 'flex', justifyContent: 'center', borderBottom: '1px solid var(--border)' }}>
+              {sidebarOpen ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', width: '100%' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
+                    <User size={18} />
+                  </div>
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      {profile.first_name} {profile.last_name}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)', whiteSpace: 'nowrap' }}>
+                      {getRoleDisplay(profile.role)}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div title={`${profile.first_name}\n${getRoleDisplay(profile.role)}`} style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                  <User size={18} />
+                </div>
+              )}
+            </div>
           )}
-        </nav>
 
-        {/* Footer */}
-        <div style={{ padding: sidebarOpen ? '0.75rem' : '0.75rem 0.5rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <Link
-            href="/"
-            target="_blank"
-            title={!sidebarOpen ? 'ดูหน้าเว็บหลัก' : undefined}
-            style={{
-              display: 'flex', alignItems: 'center',
-              gap: sidebarOpen ? '0.75rem' : '0', justifyContent: sidebarOpen ? 'flex-start' : 'center',
-              padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
-              borderRadius: 'var(--radius-md)', color: 'var(--primary)',
-              fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden'
-            }}
-          >
-            <ExternalLink size={20} style={{ flexShrink: 0 }} />
-            {sidebarOpen && <span>ดูหน้าเว็บหลัก</span>}
-          </Link>
-          <button
-            onClick={handleLogout}
-            title={!sidebarOpen ? 'ออกจากระบบ' : undefined}
-            style={{
-              display: 'flex', alignItems: 'center',
-              gap: sidebarOpen ? '0.75rem' : '0', justifyContent: sidebarOpen ? 'flex-start' : 'center',
-              padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
-              width: '100%', borderRadius: 'var(--radius-md)', backgroundColor: 'transparent',
-              color: 'var(--destructive)', border: 'none', fontWeight: 500, cursor: 'pointer', textAlign: 'left',
-              whiteSpace: 'nowrap', overflow: 'hidden'
-            }}
-          >
-            <LogOut size={20} style={{ flexShrink: 0 }} />
-            {sidebarOpen && <span>ออกจากระบบ</span>}
-          </button>
-        </div>
-      </aside>
+          {/* Nav */}
+          <nav style={{ padding: sidebarOpen ? '0.75rem' : '0.75rem 0.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={{
+                  height: '42px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--secondary)',
+                  opacity: 0.5,
+                  animation: 'shimmer 1.5s ease-in-out infinite',
+                }} />
+              ))
+            ) : (
+              navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    aria-current={isActive ? 'page' : undefined}
+                    title={!sidebarOpen ? item.name : undefined}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: sidebarOpen ? '0.75rem' : '0',
+                      justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                      padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: isActive ? 'var(--primary)' : 'transparent',
+                      color: isActive ? 'white' : 'var(--foreground)',
+                      fontWeight: isActive ? 600 : 500,
+                      transition: 'all 0.15s',
+                      textDecoration: 'none',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Icon size={20} style={{ flexShrink: 0 }} />
+                    {sidebarOpen && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>}
+                  </Link>
+                );
+              })
+            )}
+          </nav>
 
-      {/* Main Content */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '2rem', minWidth: 0 }}>
-        {children}
-      </main>
+          {/* Footer */}
+          <div style={{ padding: sidebarOpen ? '0.75rem' : '0.75rem 0.5rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <Link
+              href="/"
+              target="_blank"
+              title={!sidebarOpen ? 'ดูหน้าเว็บหลัก' : undefined}
+              style={{
+                display: 'flex', alignItems: 'center',
+                gap: sidebarOpen ? '0.75rem' : '0', justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
+                borderRadius: 'var(--radius-md)', color: 'var(--primary)',
+                fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden'
+              }}
+            >
+              <ExternalLink size={20} style={{ flexShrink: 0 }} />
+              {sidebarOpen && <span>ดูหน้าเว็บหลัก</span>}
+            </Link>
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              title={!sidebarOpen ? 'ออกจากระบบ' : undefined}
+              aria-label="ออกจากระบบ"
+              style={{
+                display: 'flex', alignItems: 'center',
+                gap: sidebarOpen ? '0.75rem' : '0', justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
+                width: '100%', borderRadius: 'var(--radius-md)', backgroundColor: 'transparent',
+                color: 'var(--danger-text)', border: 'none', fontWeight: 500, cursor: 'pointer', textAlign: 'left',
+                whiteSpace: 'nowrap', overflow: 'hidden'
+              }}
+            >
+              <LogOut size={20} style={{ flexShrink: 0 }} />
+              {sidebarOpen && <span>ออกจากระบบ</span>}
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="editor-main-container" style={{ flex: 1, overflowY: 'auto', padding: '2rem', minWidth: 0 }}>
+          {children}
+        </main>
+      </div>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="ยืนยันการออกจากระบบ"
+        message="ท่านต้องการออกจากระบบจัดการยุทธศาสตร์ใช่หรือไม่?"
+        confirmLabel="ออกจากระบบ"
+        cancelLabel="ยกเลิก"
+        variant="danger"
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 }

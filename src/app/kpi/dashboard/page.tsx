@@ -9,6 +9,8 @@ import realAnc5Data from '@/data/real_anc5_2569.json';
 import realAnc12Data from '@/data/real_anc12_2569.json';
 import PopulationVitalDashboard from '@/components/vital-stats/PopulationVitalDashboard';
 import { SA_KAEO_HOSPITALS } from '@/lib/hdc';
+import { useToast } from '@/components/ui/Toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,8 +116,10 @@ export const HDC_CATEGORIES: Record<string, string[]> = {
 };
 
 export default function DashboardPage() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'detail' | 'executive' | 'subdistrict' | 'vital'>('executive');
   const [selectedQuarter, setSelectedQuarter] = useState<'Q1' | 'Q2' | 'Q3' | 'Q4'>('Q4');
+  const [hdcKpiToDelete, setHdcKpiToDelete] = useState<string | null>(null);
   const [filterKpiType, setFilterKpiType] = useState<string>('strategic');
   const [statusQuickFilter, setStatusQuickFilter] = useState<'all' | 'success' | 'warning' | 'error' | 'pending'>('all');
   const [filterGroup, setFilterGroup] = useState('');
@@ -239,7 +243,7 @@ export default function DashboardPage() {
   const handleInspectHdcTable = async (tableName: string, year: string) => {
     const cleanTable = (tableName || '').trim();
     if (!cleanTable) {
-      alert('กรุณาระบุชื่อตาราง HDC ก่อนตรวจสอบ');
+      toast.warning('กรุณาระบุชื่อตาราง HDC ก่อนตรวจสอบ');
       return;
     }
     setInspectingHdc(true);
@@ -282,11 +286,12 @@ export default function DashboardPage() {
           sampleRow: sample,
           availableCols: numCols
         });
+        toast.success(`ตรวจสอบตาราง "${cleanTable}" สำเร็จ (พบ ${numCols.length} คอลัมน์)`);
       } else {
-        alert(`เชื่อมต่อได้ แต่ไม่พบข้อมูลในตาราง "${cleanTable}" ของจังหวัดสระแก้ว ประจำปี ${year}`);
+        toast.info(`เชื่อมต่อได้ แต่ไม่พบข้อมูลในตาราง "${cleanTable}" ของจังหวัดสระแก้ว ประจำปี ${year}`);
       }
     } catch (err: any) {
-      alert(`ไม่สามารถตรวจสอบตารางได้: ${err.message || err}`);
+      toast.error(`ไม่สามารถตรวจสอบตารางได้: ${err.message || err}`);
     } finally {
       setInspectingHdc(false);
     }
@@ -455,7 +460,7 @@ export default function DashboardPage() {
       if (result && Array.isArray(result.data)) {
         if (result.data.length === 0) {
           if (!silent) {
-            alert(`เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลในตาราง "${targetKpi.tableName}" ของจังหวัดสระแก้ว ประจำปี ${targetKpi.year}`);
+            toast.info(`เชื่อมต่อ HDC สำเร็จ แต่ไม่พบข้อมูลในตาราง "${targetKpi.tableName}" ของจังหวัดสระแก้ว ประจำปี ${targetKpi.year}`);
           }
           return;
         }
@@ -573,16 +578,16 @@ export default function DashboardPage() {
         });
 
         if (!silent) {
-          alert(`✅ ดึงข้อมูลสดจาก HDC Open Data สำเร็จ!\nตาราง: ${targetKpi.tableName} (ปี ${targetKpi.year})\nพบข้อมูลหน่วยบริการ: ${Object.keys(newResults).length} แห่ง`);
+          toast.success(`ดึงข้อมูลสดจาก HDC (${targetKpi.tableName}) สำเร็จ! (พบข้อมูล ${Object.keys(newResults).length} แห่ง)`);
         }
       } else {
         if (!silent) {
-          alert(`ไม่สามารถดึงข้อมูลจาก HDC ได้\n${result?.message || result?.error || 'กรุณาลองใหม่อีกครั้ง'}`);
+          toast.error(`ไม่สามารถดึงข้อมูลจาก HDC ได้: ${result?.message || result?.error || 'กรุณาลองใหม่อีกครั้ง'}`);
         }
       }
     } catch (err: any) {
       if (!silent) {
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ HDC:\n' + err.message);
+        toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อ HDC: ' + err.message);
       }
     } finally {
       setFetchingHdcId(null);
@@ -656,9 +661,9 @@ export default function DashboardPage() {
       localStorage.setItem('hdc_daily_last_sync_date', now.toISOString().slice(0, 10));
       localStorage.setItem('hdc_daily_last_sync_time', timeStr);
       setAutoSyncStatus(`✅ อัปเดตล่าสุด: วันนี้ ${timeStr} น.`);
-      alert(`✅ ซิงค์ข้อมูลสดจาก HDC Open Data ครบทั้ง ${hdcKpis.length} ตัวชี้วัดเรียบร้อยแล้ว!`);
+      toast.success(`ซิงค์ข้อมูลสดจาก HDC Open Data ครบทั้ง ${hdcKpis.length} ตัวชี้วัดเรียบร้อยแล้ว!`);
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาดขณะซิงค์ข้อมูล: ' + err.message);
+      toast.error('เกิดข้อผิดพลาดขณะซิงค์ข้อมูล: ' + err.message);
     } finally {
       setIsAutoSyncing(false);
     }
@@ -693,12 +698,12 @@ export default function DashboardPage() {
   const handleSaveEditHdcKpi = async () => {
     if (!editingHdcKpi) return;
     if (!editingHdcKpi.name.trim()) {
-      alert('กรุณากรอกชื่อตัวชี้วัด');
+      toast.warning('กรุณากรอกชื่อตัวชี้วัด');
       return;
     }
     const cleanTable = editingHdcKpi.tableName.trim();
     if (!cleanTable) {
-      alert('กรุณากรอกชื่อตาราง HDC Open Data');
+      toast.warning('กรุณากรอกชื่อตาราง HDC Open Data');
       return;
     }
 
@@ -780,18 +785,18 @@ export default function DashboardPage() {
       try {
         localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(finalUpdatedList));
       } catch (e) {}
-      alert('✅ บันทึกการแก้ไขตัวชี้วัดเรียบร้อยแล้ว');
+      toast.success('บันทึกการแก้ไขตัวชี้วัดเรียบร้อยแล้ว');
     }
   };
 
   const handleCreateHdcKpi = async () => {
     if (!newHdcForm.name.trim()) {
-      alert('กรุณากรอกชื่อตัวชี้วัด');
+      toast.warning('กรุณากรอกชื่อตัวชี้วัด');
       return;
     }
     const cleanTable = newHdcForm.tableName.trim();
     if (!cleanTable) {
-      alert('กรุณากรอกชื่อตาราง HDC Open Data (เช่น s_labor_hct, s_anc5)');
+      toast.warning('กรุณากรอกชื่อตาราง HDC Open Data (เช่น s_labor_hct, s_anc5)');
       return;
     }
     const isLess = newHdcForm.targetOperator === '<=';
@@ -835,18 +840,24 @@ export default function DashboardPage() {
       resultColumn: 'result2',
       targetColumn: 'target'
     });
+    toast.success('เพิ่มตัวชี้วัดใหม่เรียบร้อยแล้ว กำลังดึงข้อมูลจาก HDC...');
     // Auto-fetch data from HDC right away!
     handleFetchHdcData(newKpi.id, newKpi);
   };
 
   const handleDeleteHdcKpi = (kpiId: string) => {
-    if (confirm('คุณต้องการลบตัวชี้วัดนี้ออกจากตารางหรือไม่?')) {
-      const updated = hdcKpis.filter(k => k.id !== kpiId);
-      setHdcKpis(updated);
-      try {
-        localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(updated));
-      } catch (e) {}
-    }
+    setHdcKpiToDelete(kpiId);
+  };
+
+  const confirmDeleteHdcKpi = () => {
+    if (!hdcKpiToDelete) return;
+    const updated = hdcKpis.filter(k => k.id !== hdcKpiToDelete);
+    setHdcKpis(updated);
+    try {
+      localStorage.setItem('hdc_kpis_custom_v1', JSON.stringify(updated));
+    } catch (e) {}
+    toast.success('ลบตัวชี้วัดออกจากตารางเรียบร้อยแล้ว');
+    setHdcKpiToDelete(null);
   };
 
   const fetchKPIs = useCallback(async () => {
@@ -994,7 +1005,7 @@ export default function DashboardPage() {
       setTimeout(() => setSyncMsg(''), 6000);
       await fetchKPIs();
     } catch (err: any) {
-      alert(`ไม่สามารถดึงข้อมูล HDC ได้: ${err.message || err}`);
+      toast.error(`ไม่สามารถดึงข้อมูล HDC ได้: ${err.message || err}`);
     } finally {
       setSyncingAllHdc(false);
     }
@@ -2687,12 +2698,16 @@ export default function DashboardPage() {
                                     display: 'flex', 
                                     alignItems: 'center', 
                                     justifyContent: 'center',
+                                    gap: '0.2rem',
                                     fontWeight: 700, 
-                                    fontSize: '0.875rem',
+                                    fontSize: '0.85rem',
                                     letterSpacing: '0.02em',
                                     textShadow: status !== 'pending' ? '0 1px 2px rgba(0,0,0,0.2)' : 'none'
                                   }}>
-                                    {valDisplay}
+                                    {status === 'success' && <span style={{ fontSize: '0.75rem', opacity: 0.9 }} aria-hidden="true">✓</span>}
+                                    {status === 'warning' && <span style={{ fontSize: '0.75rem', opacity: 0.9 }} aria-hidden="true">▲</span>}
+                                    {status === 'error' && <span style={{ fontSize: '0.75rem', opacity: 0.9 }} aria-hidden="true">✕</span>}
+                                    <span>{valDisplay}</span>
                                   </div>
                                 </td>
                               );
@@ -3888,8 +3903,19 @@ export default function DashboardPage() {
                                   textAnchor={isHospitalLevel ? 'end' : 'middle'} 
                                   height={isHospitalLevel ? 70 : 30} 
                                 />
-                                <YAxis />
-                                <Tooltip />
+                                <Tooltip
+                                  contentStyle={{
+                                    backgroundColor: 'var(--card)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--border)',
+                                    boxShadow: 'var(--shadow-md)',
+                                    padding: '0.65rem 0.85rem',
+                                    fontSize: '0.85rem',
+                                    color: 'var(--foreground)',
+                                  }}
+                                  formatter={(value: any) => [`${value}`, 'ผลงาน']}
+                                  labelFormatter={(label) => `${label}`}
+                                />
                                 {selectedKpi.target_val !== null && (
                                   <ReferenceLine y={selectedKpi.target_val} label={{ position: 'top', value: `เป้าหมาย: ${selectedKpi.target_operator} ${selectedKpi.target_val}`, fill: '#166534', fontSize: 12, fontWeight: 'bold' }} stroke="#166534" strokeWidth={2} strokeDasharray="5 5" />
                                 )}
@@ -3955,6 +3981,17 @@ export default function DashboardPage() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!hdcKpiToDelete}
+        title="ยืนยันการลบตัวชี้วัด"
+        message="คุณต้องการลบตัวชี้วัดนี้ออกจากตารางหรือไม่?"
+        confirmLabel="ยืนยันการลบ"
+        cancelLabel="ยกเลิก"
+        variant="danger"
+        onConfirm={confirmDeleteHdcKpi}
+        onCancel={() => setHdcKpiToDelete(null)}
+      />
     </div>
   );
 }

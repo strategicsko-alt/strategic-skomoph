@@ -18,21 +18,50 @@
   --success: #10b981;
   --warning: #f59e0b;
 
+  /* Accessible High-Contrast Semantic Tokens (WCAG 2.2 AA Contrast >= 4.5:1) */
+  --success-bg: #ecfdf5;
+  --success-border: #a7f3d0;
+  --success-text: #065f46;
+  
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --warning-text: #92400e;
+  
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-text: #991b1b;
+  
+  --info-bg: #f0f9ff;
+  --info-border: #bae6fd;
+  --info-text: #075985;
+  
+  --neutral-bg: #f1f5f9;
+  --neutral-border: #e2e8f0;
+  --neutral-text: #475569;
+
   --card: #ffffff;
   --card-foreground: #0f172a;
   
   --border: #e2e8f0;
   --input: #e2e8f0;
-  --ring: #38bdf8;
+  --ring: #0284c7;
+  --ring-focus: 0 0 0 3px rgba(2, 132, 199, 0.25);
 
   --radius-lg: 1rem;
   --radius-md: 0.75rem;
   --radius-sm: 0.5rem;
+  --radius-full: 9999px;
   
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.08);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.06);
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 
 
 
@@ -142,40 +171,188 @@ button {
   background-color: var(--border);
 }
 
-/* Print Styles */
-@media print {
-  /* ซ่อนเมนูนำทางและปุ่มที่ไม่จำเป็นในกระดาษพิมพ์ */
-  .hide-on-print, nav, header, button {
-    display: none !important;
-  }
+.btn-danger {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
 
-  /* จัดสีพื้นหลังให้เป็นสีขาว และข้อความเป็นสีดำเพื่อประหยัดหมึก */
-  body, .container {
-    background: white !important;
-    color: black !important;
-  }
+.btn-danger:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+}
 
-  /* ปรับเงาและเส้นขอบให้พิมพ์ชัดเจนขึ้น */
-  * {
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
 
-  /* ปรับการขึ้นหน้าใหม่ เพื่อไม่ให้ตารางหรือ Section ถูกตัดขาดครึ่ง */
-  .collapsible-section, .kr-card {
-    page-break-inside: avoid;
-    break-inside: avoid;
-    margin-bottom: 1rem !important;
-    border: 1px solid #ddd !important;
-  }
+.btn-ghost:hover {
+  background-color: var(--secondary);
+}
 
-  /* เปิดแสดงเนื้อหาทั้งหมดโดยบังคับให้ไม่ซ่อนในเวลาพิมพ์ */
-  .collapsible-content {
-    display: block !important;
-    height: auto !important;
-    overflow: visible !important;
+/* Accessible Focus States (WCAG 2.2 AA) */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+/* Touch Target Sizes (WCAG 2.2 / Apple / Material) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.touch-target-sm {
+  min-height: 36px;
+  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Status Badges with Dual Indicators (Color + Icon) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.badge-success {
+  background-color: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+
+.badge-warning {
+  background-color: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
+
+.badge-danger {
+  background-color: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+.badge-info {
+  background-color: var(--info-bg);
+  border-color: var(--info-border);
+  color: var(--info-text);
+}
+
+.badge-neutral {
+  background-color: var(--neutral-bg);
+  border-color: var(--neutral-border);
+  color: var(--neutral-text);
+}
+
+/* Skeleton Loading Shimmer (CLS Prevention) */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--secondary) 25%,
+    rgba(255, 255, 255, 0.6) 50%,
+    var(--secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
+
+/* Table Ergonomics */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.table-sticky-header th {
+  position: sticky;
+  top: 0;
+  background-color: var(--secondary);
+  z-index: 10;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.table-sticky-col-left {
+  position: sticky;
+  left: 0;
+  background-color: var(--card);
+  z-index: 5;
+  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08);
+}
+
+/* Animations */
+@keyframes toastSlideIn {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+
 
 /* Responsive Utility Classes */
 .responsive-layout {
@@ -220,6 +397,36 @@ button {
   }
 }
 
+/* Responsive Editor Layout */
+.editor-mobile-bar {
+  display: none;
+}
+
+.editor-sidebar-desktop {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .editor-mobile-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background-color: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+  .editor-sidebar-desktop {
+    display: none !important;
+  }
+  .editor-main-container {
+    padding: 1rem !important;
+  }
+}
+
+
 .strategy-card { padding: 1rem; }
 .objective-block { padding-left: 1rem; }
 .roadmap-section {
@@ -247,40 +454,101 @@ button {
   }
 }
 
-/* Print Styles for Book View */
+/* Print Styles for Book View & Reports */
 @media print {
-  /* Force background colors to print */
+  /* Force exact background colors and graphics */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 
-  /* Hide navigation, buttons, and other non-book elements */
-  .hide-on-print {
+  /* Hide navigation, buttons, toast, and non-printable UI elements */
+  .hide-on-print,
+  nav,
+  header,
+  button,
+  .toast-container,
+  .breadcrumbs,
+  .mobile-nav-toggle,
+  [data-no-print="true"] {
     display: none !important;
   }
 
-  /* Page breaks */
-  .page-break-before {
-    page-break-before: always;
-  }
-  
-  .page-break-avoid {
-    page-break-inside: avoid;
-  }
-
-  /* Basic reset for margins */
+  /* Page setup: Standard A4 with comfortable margins */
   @page {
+    size: A4;
     margin: 1.5cm;
   }
-  
+
   body {
-    background-color: white;
-    color: black;
+    background: white !important;
+    background-color: white !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
   }
 
-  .card {
+  /* Reset container spacing when printed to avoid awkward offsets */
+  .print-container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     box-shadow: none !important;
-    border: 1px solid #ccc !important;
+    border: none !important;
+  }
+
+  /* Hyperlinks: Clean black text without underline clutter */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  /* Page break rules */
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .page-break-avoid,
+  tr,
+  table,
+  .card,
+  .strategy-card,
+  .objective-block,
+  .collapsible-section,
+  .kr-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Always expand collapsible blocks for full printable documentation */
+  .collapsible-content {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Clean print borders for cards and tables */
+  .card {
+    border: 1px solid #cbd5e1 !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 0.5rem !important;
+  }
+
+  thead {
+    display: table-header-group !important;
   }
 }
+

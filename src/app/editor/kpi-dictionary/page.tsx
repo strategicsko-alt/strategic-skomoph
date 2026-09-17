@@ -2,11 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Edit2, Plus, ChevronDown, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
+import { Edit2, Plus, ChevronDown, CheckCircle2, Sparkles, Loader2, AlertCircle, FileText } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { useEditor } from '@/components/EditorContext';
+import { useToast } from '@/components/ui/Toast';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 
 export default function KPIDictionaryPage() {
+  const { toast } = useToast();
   const { districtId, loading: ctxLoading } = useEditor();
   const [keyResults, setKeyResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +22,7 @@ export default function KPIDictionaryPage() {
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+
 
   const RESPONSIBLE_GROUPS = [
     "กลุ่มงานคุ้มครองผู้บริโภคและเภสัชสาธารณสุข",
@@ -117,11 +123,21 @@ export default function KPIDictionaryPage() {
     if (existingKpi?.id) {
       // Update
       const { error } = await supabase.from('kpi_dictionaries').update(payload).eq('id', existingKpi.id);
-      if (error) alert('Error updating: ' + error.message);
+      if (error) {
+        toast.error('ไม่สามารถอัปเดตข้อมูลได้: ' + error.message);
+        setIsSaving(false);
+        return;
+      }
+      toast.success('อัปเดตข้อมูลพจนานุกรมตัวชี้วัดเรียบร้อยแล้ว');
     } else {
       // Insert
       const { error } = await supabase.from('kpi_dictionaries').insert([payload]);
-      if (error) alert('Error inserting: ' + error.message);
+      if (error) {
+        toast.error('ไม่สามารถบันทึกข้อมูลได้: ' + error.message);
+        setIsSaving(false);
+        return;
+      }
+      toast.success('บันทึกข้อมูลพจนานุกรมตัวชี้วัดสำเร็จ');
     }
     
     await fetchData();
@@ -151,10 +167,10 @@ export default function KPIDictionaryPage() {
         proposed_target: prev.proposed_target,
         baseline: prev.baseline
       }));
-      
+      toast.success('AI ช่วยร่างข้อมูลพจนานุกรมตัวชี้วัดสำเร็จ');
     } catch (error) {
       console.error(error);
-      alert('เกิดข้อผิดพลาดในการสร้างข้อมูลด้วย AI กรุณาลองใหม่อีกครั้ง');
+      toast.error('เกิดข้อผิดพลาดในการสร้างข้อมูลด้วย AI กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsGenerating(false);
     }
@@ -162,7 +178,8 @@ export default function KPIDictionaryPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <Breadcrumbs items={[{ label: 'Editor Portal', href: '/editor/dashboard' }, { label: 'KPI Dictionary' }]} />
+      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>KPI Dictionary</h1>
           <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการพจนานุกรมตัวชี้วัด 14 ฟิลด์ (ผูกกับ Key Results)</p>
@@ -182,78 +199,78 @@ export default function KPIDictionaryPage() {
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
-          <p style={{ padding: '2rem', textAlign: 'center' }}>กำลังโหลดข้อมูล...</p>
+          <div style={{ padding: '1.5rem' }}>
+            <TableSkeleton rows={6} cols={5} />
+          </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--secondary)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                <th style={{ padding: '1rem', width: '100px' }}>รหัส KR</th>
-                <th style={{ padding: '1rem' }}>ชื่อเป้าหมาย (Key Result)</th>
-                <th style={{ padding: '1rem', width: '200px' }}>กลุ่มงานรับผิดชอบ</th>
-                <th style={{ padding: '1rem', width: '130px' }}>สถานะ KPI</th>
-                <th style={{ padding: '1rem', width: '130px', textAlign: 'right' }}>จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(selectedGroup ? keyResults.filter(kr => kr.responsible_group === selectedGroup) : keyResults).map((kr) => {
-                const kpi = Array.isArray(kr.kpi_dictionaries) ? kr.kpi_dictionaries[0] : kr.kpi_dictionaries;
-                const hasKpi = !!kpi;
-                
-                let isComplete = false;
-                if (hasKpi) {
-                  const fields = [
-                    kpi.definition, kpi.numerator, kpi.denominator, kpi.inclusion_criteria,
-                    kpi.exclusion_criteria, kpi.data_source, kpi.data_collection_method,
-                    kpi.cutoff_date, kpi.frequency, kpi.responsible_person,
-                    kpi.proposed_target, kpi.baseline, kpi.rationale, kpi.risk_warning, kpi.prerequisite
-                  ];
-                  // Consider complete only if all fields have some text
-                  isComplete = fields.every(field => field && String(field).trim() !== '');
-                }
-                
-                return (
-                  <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary)' }}>{kr.auto_id}</td>
-                    <td style={{ padding: '1rem' }}>{kr.name}</td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ backgroundColor: 'var(--secondary)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}>
-                        {kr.responsible_group || '-'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      {hasKpi ? (
-                        isComplete ? (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--success)', fontWeight: 500 }}>
-                            <CheckCircle2 size={16} /> สมบูรณ์
-                          </span>
-                        ) : (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#eab308', fontWeight: 500 }}>
-                            <Edit2 size={14} /> ไม่สมบูรณ์
-                          </span>
-                        )
-                      ) : (
-                        <span style={{ color: 'var(--secondary-foreground)' }}>ยังไม่ระบุ</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                      <button 
-                        onClick={() => handleOpenModal(kr)}
-                        className={hasKpi ? "btn-secondary" : "btn-primary"} 
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-                      >
-                        {hasKpi ? <><Edit2 size={16} style={{marginRight: '0.5rem'}} /> แก้ไข KPI</> : <><Plus size={16} style={{marginRight: '0.5rem'}} /> สร้าง KPI</>}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {keyResults.length === 0 && (
-                <tr>
-                  <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>ไม่พบข้อมูล Key Result กรุณาไปเพิ่มที่หน้า Workshop ก่อน</td>
+          <div className="table-container">
+            <table className="table-sticky-header" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--secondary)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                  <th style={{ padding: '1rem', width: '100px' }}>รหัส KR</th>
+                  <th style={{ padding: '1rem' }}>ชื่อเป้าหมาย (Key Result)</th>
+                  <th style={{ padding: '1rem', width: '200px' }}>กลุ่มงานรับผิดชอบ</th>
+                  <th style={{ padding: '1rem', width: '130px' }}>สถานะ KPI</th>
+                  <th style={{ padding: '1rem', width: '130px', textAlign: 'right' }}>จัดการ</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(selectedGroup ? keyResults.filter(kr => kr.responsible_group === selectedGroup) : keyResults).map((kr) => {
+                  const kpi = Array.isArray(kr.kpi_dictionaries) ? kr.kpi_dictionaries[0] : kr.kpi_dictionaries;
+                  const hasKpi = !!kpi;
+                  
+                  let isComplete = false;
+                  if (hasKpi) {
+                    const fields = [
+                      kpi.definition, kpi.numerator, kpi.denominator, kpi.inclusion_criteria,
+                      kpi.exclusion_criteria, kpi.data_source, kpi.data_collection_method,
+                      kpi.cutoff_date, kpi.frequency, kpi.responsible_person,
+                      kpi.proposed_target, kpi.baseline, kpi.rationale, kpi.risk_warning, kpi.prerequisite
+                    ];
+                    // Consider complete only if all fields have some text
+                    isComplete = fields.every(field => field && String(field).trim() !== '');
+                  }
+                  
+                  return (
+                    <tr key={kr.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary)' }}>{kr.auto_id}</td>
+                      <td style={{ padding: '1rem' }}>{kr.name}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ backgroundColor: 'var(--secondary)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}>
+                          {kr.responsible_group || '-'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        {hasKpi ? (
+                          isComplete ? (
+                            <StatusBadge variant="success" label="สมบูรณ์" />
+                          ) : (
+                            <StatusBadge variant="warning" label="ไม่สมบูรณ์" />
+                          )
+                        ) : (
+                          <StatusBadge variant="neutral" label="ยังไม่ระบุ" />
+                        )}
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right' }}>
+                        <button 
+                          onClick={() => handleOpenModal(kr)}
+                          className={hasKpi ? "btn-secondary" : "btn-primary"} 
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                        >
+                          {hasKpi ? <><Edit2 size={16} style={{marginRight: '0.5rem'}} /> แก้ไข KPI</> : <><Plus size={16} style={{marginRight: '0.5rem'}} /> สร้าง KPI</>}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {keyResults.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>ไม่พบข้อมูล Key Result กรุณาไปเพิ่มที่หน้า Workshop ก่อน</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
