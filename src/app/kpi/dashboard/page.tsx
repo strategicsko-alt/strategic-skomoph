@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
@@ -855,18 +856,23 @@ export default function DashboardPage() {
         .eq('type', 'province')
         .maybeSingle();
 
-      const [krsRes, issuesRes, apmRes] = await Promise.all([
+      const [krsRes, dictsRes, measRes, issuesRes, apmRes] = await Promise.all([
         supabase
           .from('key_results')
           .select(`
             id, name, auto_id, target_2570, measurement_status, responsible_group, strategic_issue_id,
             objective:objectives(name, strategy:strategies(issue:strategic_issues(id, auto_id, name, theme_color))),
-            kpi_dict:kpi_dictionaries(*),
-            tags:key_result_tags(tag:kpi_tags(name)),
-            measurements:kpi_measurements(*)
+            tags:key_result_tags(tag:kpi_tags(name))
           `)
           .eq('district_id', provDist?.id || '')
           .order('order_index', { ascending: true }),
+        supabase
+          .from('kpi_dictionaries')
+          .select('*')
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('kpi_measurements')
+          .select('*'),
         supabase
           .from('strategic_issues')
           .select('id, auto_id, name, theme_color, order_index')
@@ -886,9 +892,20 @@ export default function DashboardPage() {
       const issueMap: Record<string, any> = {};
       issues.forEach(iss => { issueMap[iss.id] = iss; });
 
+      const dictMap: Record<string, any> = {};
+      (dictsRes.data || []).forEach((d: any) => {
+        if (d.key_result_id) dictMap[d.key_result_id] = d;
+      });
+
+      const measMap: Record<string, any[]> = {};
+      (measRes.data || []).forEach((m: any) => {
+        if (!measMap[m.key_result_id]) measMap[m.key_result_id] = [];
+        measMap[m.key_result_id].push(m);
+      });
+
       if (krsRes.data) {
         const transformed = krsRes.data.map(kr => {
-          const dict = kr.kpi_dict?.[0] || {};
+          const dict = dictMap[kr.id] || {};
           const tags = kr.tags?.map((t: any) => t.tag.name) || ['ยุทธศาสตร์สุขภาพ สระแก้ว'];
           
           let evalCriteria: any = {};
@@ -909,6 +926,13 @@ export default function DashboardPage() {
           const kpiSubKrs = apmData.filter((a: any) => a.key_result_id === kr.id);
           const effectiveKpiType = dict.kpi_type || (kr.id ? 'strategic' : 'standalone');
 
+          const calcType = dict.calculation_type || 'percentage';
+          const isProcess = calcType === 'process_status';
+
+          const apiConfig = dict.api_config_json
+            ? (typeof dict.api_config_json === 'string' ? JSON.parse(dict.api_config_json) : dict.api_config_json)
+            : {};
+
           return {
             id: kr.id,
             auto_id: kr.auto_id,
@@ -916,9 +940,9 @@ export default function DashboardPage() {
             tags: tags,
             responsible_group: kr.responsible_group || dict.work_group || dict.responsible_person || 'ไม่ระบุกลุ่มงาน',
             measurement_level: dict.measurement_level || 'province',
-            formula: dict.calculation_type === 'process_status' ? 'เชิงกระบวนการ' : (dict.calculation_formula || 'ร้อยละ'),
+            formula: isProcess ? 'เชิงกระบวนการ' : (dict.calculation_formula || 'ร้อยละ'),
             calculation_formula: dict.calculation_formula,
-            calculation_type: dict.calculation_type || 'process_status',
+            calculation_type: calcType,
             data_items: dict.data_items_json ? (typeof dict.data_items_json === 'string' ? JSON.parse(dict.data_items_json) : dict.data_items_json) : [],
             target: kr.target_2570,
             target_operator: dict.target_operator || '>=',
@@ -926,8 +950,10 @@ export default function DashboardPage() {
             kpi_type: effectiveKpiType,
             strategic_issue: matchedIssue,
             evalCriteria,
-            rawMeasurements: kr.measurements || [],
+            rawMeasurements: measMap[kr.id] || [],
             sub_krs: kpiSubKrs,
+            api_enabled: dict.api_enabled || false,
+            api_config: apiConfig,
           };
         });
         
@@ -960,12 +986,22 @@ export default function DashboardPage() {
       return 'pending';
     }
 
-    if (!prov_m || prov_m.result_value === null || prov_m.result_value === undefined || target === null || target === undefined) {
+    let val: number | null = null;
+    if (prov_m && prov_m.result_value !== null && prov_m.result_value !== undefined) {
+      val = Number(prov_m.result_value);
+    } else {
+      const isHosp = kpi.measurement_level === 'hospital';
+      const areaList = isHosp ? (kpi.hospital_results || []) : (kpi.district_results || []);
+      const rep = (areaList || []).filter((x: any) => x.hasData);
+      if (rep.length > 0) {
+        val = rep.reduce((sum: number, x: any) => sum + x.result, 0) / rep.length;
+      }
+    }
+
+    if (val === null || isNaN(val) || target === null || target === undefined) {
       return 'pending';
     }
 
-    const val = Number(prov_m.result_value);
-    if (isNaN(val)) return 'pending';
     const targetNum = Number(target);
     const warningNum = warning !== null && warning !== undefined ? Number(warning) : null;
     const op = kpi.target_operator || '>=';
@@ -1002,9 +1038,6 @@ export default function DashboardPage() {
       const targetWarning = ev[`${qKey}_warning`] ?? ev.yellow_target ?? null;
 
       const prov_m = (k.rawMeasurements || []).find((x: any) => x.period === selectedQuarter && x.area_id === 'province');
-      const provResult = prov_m 
-        ? (k.calculation_type === 'process_status' ? (prov_m.values_json?.description || prov_m.result_value || 'รอดำเนินการ') : Number(prov_m.result_value) || 0)
-        : (k.calculation_type === 'process_status' ? 'รอดำเนินการ' : 0);
 
       const district_results = DISTRICTS.map(d => {
         const m = (k.rawMeasurements || []).find((x: any) => x.area_id === d && x.period === selectedQuarter);
@@ -1019,15 +1052,35 @@ export default function DashboardPage() {
         return { name: h.name, code5: h.code5, districtName: h.districtName, result: m ? Number(m.result_value) || 0 : 0, hasData: !!m };
       });
 
+      const isHospitalLevel = k.measurement_level === 'hospital';
+      const activeAreaResults = isHospitalLevel ? hospital_results : district_results;
+      const reportedAreas = activeAreaResults.filter(a => a.hasData);
+
+      let provResult: any;
+      if (prov_m) {
+        provResult = k.calculation_type === 'process_status'
+          ? (prov_m.values_json?.description || prov_m.result_value || 'รอดำเนินการ')
+          : Number(prov_m.result_value) || 0;
+      } else if (k.calculation_type !== 'process_status' && reportedAreas.length > 0) {
+        const avg = reportedAreas.reduce((sum, a) => sum + a.result, 0) / reportedAreas.length;
+        provResult = Math.round(avg * 100) / 100;
+      } else {
+        provResult = k.calculation_type === 'process_status' ? 'รอดำเนินการ' : 0;
+      }
+
       const currentSubKrs = (k.sub_krs || []).filter((s: any) => s.quarter === quarterNum);
-      const currentStatus = evaluateKpiStatus(k, selectedQuarter);
+      const currentStatus = evaluateKpiStatus({
+        ...k,
+        district_results,
+        hospital_results,
+      }, selectedQuarter);
 
       return {
         ...k,
         target_val: targetVal,
         target_warning_val: targetWarning,
         provincial_result: provResult,
-        hasProvData: !!prov_m,
+        hasProvData: !!prov_m || reportedAreas.length > 0,
         status: currentStatus,
         district_results,
         hospital_results,
@@ -3641,12 +3694,60 @@ export default function DashboardPage() {
 
                     return (
                       <>
-                        {activeAreaResults.length > 0 && selectedKpi.target_val !== null && (
+                        {/* HDC Connection Banner if api_enabled and no measurements saved yet */}
+                        {selectedKpi.api_enabled && activeAreaResults.every((d: any) => !d.hasData) && !selectedKpi.hasProvData && (
+                          <div style={{
+                            padding: '1rem 1.25rem',
+                            backgroundColor: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            borderRadius: 'var(--radius-md)',
+                            marginBottom: '1.5rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '1rem'
+                          }}>
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#166534', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span>⚡ ตัวชี้วัดนี้ผูกสูตร HDC OpenData แล้ว (ตาราง: <code>{selectedKpi.api_config?.tableName || '-'}</code>)</span>
+                              </div>
+                              <div style={{ fontSize: '0.84rem', color: '#15803d', marginTop: '0.25rem' }}>
+                                ยังไม่มีการบันทึกผลงานสะสมรอบ {selectedQuarter} ลงฐานข้อมูล · ท่านสามารถกดดึงข้อมูลสดจาก HDC และบันทึกผลได้ที่เมนู &quot;บันทึกผล KPI&quot;
+                              </div>
+                            </div>
+                            <Link
+                              href="/editor/kpi-report"
+                              style={{
+                                backgroundColor: '#16a34a',
+                                color: '#fff',
+                                padding: '0.45rem 0.95rem',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.84rem',
+                                fontWeight: 700,
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+                              }}
+                            >
+                              <span>📝 ไปบันทึกผล KPI (ดึง HDC)</span>
+                            </Link>
+                          </div>
+                        )}
+
+                        {activeAreaResults.length > 0 && (
                           <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1.5rem', marginBottom: '1.5rem', height: isHospitalLevel ? '380px' : '350px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                               <h4 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--primary)', margin: 0 }}>
-                                แผนภูมิผลงานราย{areaLabel}เทียบกับเป้าหมาย
+                                แผนภูมิผลงานราย{areaLabel}{selectedKpi.target_val !== null ? 'เทียบกับเป้าหมาย' : ''}
                               </h4>
+                              {selectedKpi.api_enabled && (
+                                <span style={{ fontSize: '0.78rem', backgroundColor: '#dcfce7', color: '#166534', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                                  ⚡ HDC: {selectedKpi.api_config?.tableName || 'OpenData'}
+                                </span>
+                              )}
                             </div>
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={activeAreaResults} margin={{ top: 20, right: 30, left: 0, bottom: isHospitalLevel ? 40 : 5 }}>
@@ -3661,7 +3762,9 @@ export default function DashboardPage() {
                                 />
                                 <YAxis />
                                 <Tooltip />
-                                <ReferenceLine y={selectedKpi.target_val} label={{ position: 'top', value: `เป้าหมาย: ${selectedKpi.target_operator} ${selectedKpi.target_val}`, fill: '#166534', fontSize: 12, fontWeight: 'bold' }} stroke="#166534" strokeWidth={2} strokeDasharray="5 5" />
+                                {selectedKpi.target_val !== null && (
+                                  <ReferenceLine y={selectedKpi.target_val} label={{ position: 'top', value: `เป้าหมาย: ${selectedKpi.target_operator} ${selectedKpi.target_val}`, fill: '#166534', fontSize: 12, fontWeight: 'bold' }} stroke="#166534" strokeWidth={2} strokeDasharray="5 5" />
+                                )}
                                 {selectedKpi.target_warning_val !== null && (
                                    <ReferenceLine y={selectedKpi.target_warning_val} label={{ position: 'top', value: `เฝ้าระวัง: ${selectedKpi.target_operator} ${selectedKpi.target_warning_val}`, fill: '#854d0e', fontSize: 11 }} stroke="#eab308" strokeWidth={1} strokeDasharray="3 3" />
                                 )}

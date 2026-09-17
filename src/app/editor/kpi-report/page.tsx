@@ -483,6 +483,51 @@ export default function ReportPage() {
       if (currentKpi.calc_type === 'process_status') break;
     }
 
+    // หากเป็นการรายงานระดับอำเภอหรือโรงพยาบาล ให้คำนวณและบันทึกผลงานรวมระดับจังหวัด (area_id = 'province') ด้วย
+    if (currentKpi.calc_type !== 'process_status' && currentKpi.measurement_level !== 'province' && areas.length > 0) {
+      const provVals: Record<string, number> = {};
+      areas.forEach(areaId => {
+        const areaVals = values[areaId] || {};
+        Object.entries(areaVals).forEach(([k, v]) => {
+          const num = parseFloat(String(v).replace(/,/g, ''));
+          if (!isNaN(num)) {
+            provVals[k] = (provVals[k] || 0) + num;
+          }
+        });
+      });
+
+      const provValsStr: Record<string, string> = {};
+      Object.entries(provVals).forEach(([k, v]) => {
+        provValsStr[k] = String(v);
+      });
+
+      const provResultValue = computeResult(currentKpi.calc_formula, provValsStr);
+
+      const provPayload = {
+        key_result_id: currentKpi.kr_id,
+        period: selectedQuarter,
+        area_id: 'province',
+        result_value: provResultValue,
+        values_json: provValsStr,
+        reported_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: existingProv } = await supabase
+        .from('kpi_measurements')
+        .select('id')
+        .eq('key_result_id', currentKpi.kr_id)
+        .eq('period', selectedQuarter)
+        .eq('area_id', 'province')
+        .maybeSingle();
+
+      if (existingProv) {
+        await supabase.from('kpi_measurements').update(provPayload).eq('id', existingProv.id);
+      } else {
+        await supabase.from('kpi_measurements').insert(provPayload);
+      }
+    }
+
     setSaving(false);
     setSuccessMsg(`บันทึกผลยอดสะสม "${currentKpi.kr_name}" (${selectedQuarter}) สำเร็จ ✓`);
     setTimeout(() => setSuccessMsg(''), 4000);
