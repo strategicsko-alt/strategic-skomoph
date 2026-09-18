@@ -61,11 +61,18 @@ export async function updateSession(request: NextRequest) {
           return NextResponse.redirect(url)
         }
 
+        // 3. Root /editor redirect to /editor/dashboard
+        if (pathname === '/editor' || pathname === '/editor/') {
+          const url = request.nextUrl.clone()
+          url.pathname = '/editor/dashboard'
+          return NextResponse.redirect(url)
+        }
+
         const isSuperAdmin =
           profile.role === 'province_super_admin' ||
           profile.role === 'district_super_admin'
 
-        // 3. Regular users cannot access super-admin-only pages
+        // 4. Regular users cannot access super-admin-only pages
         const superAdminOnlyPaths = [
           '/editor/core-data',
           '/editor/admin',
@@ -75,20 +82,20 @@ export async function updateSession(request: NextRequest) {
         if (!isSuperAdmin) {
           const isRestricted = superAdminOnlyPaths.some(p => pathname.startsWith(p))
           if (isRestricted) {
-            // Redirect to Workshop (first allowed page for regular users)
+            // Redirect to Dashboard (main allowed page for regular users)
             const url = request.nextUrl.clone()
-            url.pathname = '/editor/workshop'
+            url.pathname = '/editor/dashboard'
             return NextResponse.redirect(url)
           }
         }
 
-        // 4. Only province_super_admin can access Backup
+        // 5. Only province_super_admin can access Backup
         if (
           pathname.startsWith('/editor/admin') &&
           profile.role !== 'province_super_admin'
         ) {
           const url = request.nextUrl.clone()
-          url.pathname = '/editor/workshop'
+          url.pathname = '/editor/dashboard'
           return NextResponse.redirect(url)
         }
       }

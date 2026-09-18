@@ -7,13 +7,20 @@ import { getSupabaseAdmin } from '@/utils/supabase/admin'
 export async function register(formData: FormData) {
   const supabase = await createClient()
 
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  const rawEmail = formData.get('email') as string
+  const rawPassword = formData.get('password') as string
+  const email = rawEmail ? rawEmail.trim().toLowerCase() : ''
+  const password = rawPassword ? rawPassword.trim() : ''
+
   const first_name = (formData.get('first_name') as string)?.trim()
   const last_name = (formData.get('last_name') as string)?.trim()
   const district_id = formData.get('district_id') as string
   const role = formData.get('role') as string
   const work_group = (formData.get('work_group') as string)?.trim() || null
+
+  if (!email || !password) {
+    return { error: 'กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน' }
+  }
 
   const { data: signUpData, error } = await supabase.auth.signUp({
     email,
