@@ -140,6 +140,11 @@ export default function KPIDictionaryPage() {
       toast.success('บันทึกข้อมูลพจนานุกรมตัวชี้วัดสำเร็จ');
     }
     
+    // Sync responsible_group back to key_results
+    if (formData.responsible_person !== undefined) {
+      await supabase.from('key_results').update({ responsible_group: formData.responsible_person }).eq('id', activeKr.id);
+    }
+
     await fetchData();
     setIsModalOpen(false);
     setIsSaving(false);
@@ -215,9 +220,14 @@ export default function KPIDictionaryPage() {
                 </tr>
               </thead>
               <tbody>
-                {(selectedGroup ? keyResults.filter(kr => kr.responsible_group === selectedGroup) : keyResults).map((kr) => {
+                {(selectedGroup ? keyResults.filter(kr => {
+                  const kpi = Array.isArray(kr.kpi_dictionaries) ? kr.kpi_dictionaries[0] : kr.kpi_dictionaries;
+                  const group = (kpi?.responsible_person || kr.responsible_group || '').trim();
+                  return group === selectedGroup;
+                }) : keyResults).map((kr) => {
                   const kpi = Array.isArray(kr.kpi_dictionaries) ? kr.kpi_dictionaries[0] : kr.kpi_dictionaries;
                   const hasKpi = !!kpi;
+                  const displayGroup = kpi?.responsible_person || kr.responsible_group || '-';
                   
                   let isComplete = false;
                   if (hasKpi) {
@@ -237,7 +247,7 @@ export default function KPIDictionaryPage() {
                       <td style={{ padding: '1rem' }}>{kr.name}</td>
                       <td style={{ padding: '1rem' }}>
                         <span style={{ backgroundColor: 'var(--secondary)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}>
-                          {kr.responsible_group || '-'}
+                          {displayGroup}
                         </span>
                       </td>
                       <td style={{ padding: '1rem' }}>
@@ -265,7 +275,7 @@ export default function KPIDictionaryPage() {
                 })}
                 {keyResults.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>ไม่พบข้อมูล Key Result กรุณาไปเพิ่มที่หน้า Workshop ก่อน</td>
+                    <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>ไม่พบข้อมูล Key Result กรุณาไปเพิ่มที่หน้า ประเด็นยุทธศาสตร์ ก่อน</td>
                   </tr>
                 )}
               </tbody>

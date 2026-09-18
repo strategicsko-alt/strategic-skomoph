@@ -56,7 +56,7 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
   const baseNavItems = [
     { name: 'Dashboard แผนงาน', href: '/editor/dashboard', icon: LayoutDashboard },
     { name: 'Dashboard ตัวชี้วัด (KPIs)', href: '/kpi/dashboard', icon: BarChart2 },
-    { name: 'Workshop (แผนยุทธศาสตร์ 5 ปี)', href: '/editor/workshop', icon: BookOpen },
+    { name: 'ประเด็นยุทธศาสตร์', href: '/editor/workshop', icon: BookOpen },
     { name: 'แผนปฏิบัติการ 1 ปี', href: '/editor/action-plan', icon: CalendarDays },
     { name: 'KPI Dictionary', href: '/editor/kpi-dictionary', icon: FileText },
   ];

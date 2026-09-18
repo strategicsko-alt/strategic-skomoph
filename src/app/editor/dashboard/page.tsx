@@ -3,10 +3,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { useEditor } from '@/components/EditorContext';
 import { Activity, Target, Briefcase, GitBranch, Folder, AlertCircle, BarChart2 } from 'lucide-react';
 import { ExportButton } from '@/components/ExportButton';
 
 export default function EditorDashboard() {
+  const { districtId, loading: ctxLoading } = useEditor();
+  const [districtName, setDistrictName] = useState<string>('');
   const [stats, setStats] = useState({
     issues: 0,
     strategies: 0,
@@ -19,15 +22,22 @@ export default function EditorDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (ctxLoading) return;
+    if (!districtId) {
+      setLoading(false);
+      return;
+    }
+
     const fetchStats = async () => {
       setLoading(true);
       
-      const [issueCount, stCount, objCount, krCount, projCount, treeRes, kpiDictRes] = await Promise.all([
-        supabase.from('strategic_issues').select('id', { count: 'exact', head: true }),
-        supabase.from('strategies').select('id', { count: 'exact', head: true }),
-        supabase.from('objectives').select('id', { count: 'exact', head: true }),
-        supabase.from('key_results').select('id', { count: 'exact', head: true }),
-        supabase.from('projects').select('id', { count: 'exact', head: true }),
+      const [distRes, issueCount, stCount, objCount, krCount, projCount, treeRes, kpiDictRes] = await Promise.all([
+        supabase.from('districts').select('name').eq('id', districtId).single(),
+        supabase.from('strategic_issues').select('id', { count: 'exact', head: true }).eq('district_id', districtId),
+        supabase.from('strategies').select('id', { count: 'exact', head: true }).eq('district_id', districtId),
+        supabase.from('objectives').select('id', { count: 'exact', head: true }).eq('district_id', districtId),
+        supabase.from('key_results').select('id', { count: 'exact', head: true }).eq('district_id', districtId),
+        supabase.from('projects').select('id', { count: 'exact', head: true }).eq('district_id', districtId),
         supabase.from('strategic_issues').select(`
           id, auto_id, name, order_index,
           outcome_indicators:key_results!strategic_issue_id ( id, auto_id, name ),
@@ -39,9 +49,15 @@ export default function EditorDashboard() {
             )
           ),
           projects ( id )
-        `).order('order_index', { ascending: true }),
+        `)
+        .eq('district_id', districtId)
+        .order('order_index', { ascending: true }),
         supabase.from('kpi_dictionaries').select('id, key_result_id, definition, numerator, denominator, inclusion_criteria, data_source')
       ]);
+
+      if (distRes.data) {
+        setDistrictName(distRes.data.name);
+      }
 
       // Map kpi_dictionaries by key_result_id
       const dictMap = new Map<string, any[]>();
@@ -156,14 +172,14 @@ export default function EditorDashboard() {
     };
 
     fetchStats();
-  }, []);
+  }, [ctxLoading, districtId]);
 
   return (
     <div>
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>ยินดีต้อนรับสู่ Editor Portal</h1>
-          <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการและบันทึกข้อมูลยุทธศาสตร์สุขภาพ 5 ปี จังหวัดสระแก้ว</p>
+          <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการและบันทึกข้อมูลยุทธศาสตร์สุขภาพ 5 ปี {districtName ? `(${districtName})` : 'จังหวัดสระแก้ว'}</p>
         </div>
         <div>
           <Link
@@ -359,7 +375,7 @@ export default function EditorDashboard() {
             <div style={{ width: '2rem', height: '2rem', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>1</div>
             <div>
               <p style={{ fontWeight: 600 }}>จัดการข้อมูลโครงสร้างยุทธศาสตร์</p>
-              <p style={{ fontSize: '0.875rem', color: 'var(--secondary-foreground)' }}>ไปที่เมนู <strong>Workshop</strong> เพื่อเพิ่ม ยุทธศาสตร์, กลยุทธ์ (O) และเป้าหมาย (KR)</p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--secondary-foreground)' }}>ไปที่เมนู <strong>ประเด็นยุทธศาสตร์</strong> เพื่อเพิ่ม ยุทธศาสตร์, กลยุทธ์ (O) และเป้าหมาย (KR)</p>
             </div>
           </li>
           <li style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>

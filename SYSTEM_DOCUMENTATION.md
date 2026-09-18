@@ -478,7 +478,7 @@ strategicsko/
 │   │   │   ├── register/                 # หน้าสมัครสมาชิกและ Server Action
 │   │   │   ├── pending-approval/page.tsx # หน้าแสดงสถานะรอแอดมินอนุมัติสิทธิ์
 │   │   │   ├── users/page.tsx            # หน้าจัดการอนุมัติผู้ใช้และสิทธิ์สำหรับแอดมิน
-│   │   │   ├── workshop/page.tsx         # เวิร์กช็อปแก้ไขโครงสร้างยุทธศาสตร์ 5 ปี
+│   │   │   ├── workshop/page.tsx         # จัดการประเด็นยุทธศาสตร์ 5 ปี (Strategic Issues)
 │   │   │   └── layout.tsx                # Layout หลักของ Editor Portal (Sidebar & Guard)
 │   │   ├── kpi/
 │   │   │   ├── [id]/page.tsx             # หน้ารายละเอียด KPI รายตัว (Public)

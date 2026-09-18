@@ -779,8 +779,8 @@ export default function WorkshopPage() {
       <div className="responsive-sidebar">
         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h3 style={{ fontWeight: 600 }}>ยุทธศาสตร์</h3>
-            <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>เรียงตามลำดับ S1 - S4</span>
+            <h3 style={{ fontWeight: 600 }}>ประเด็นยุทธศาสตร์</h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>เรียงตามลำดับ S1 - S{strategicIssues.length || 4}</span>
           </div>
           <div style={{ display: 'flex', gap: '0.35rem' }}>
             <button 
@@ -840,7 +840,8 @@ export default function WorkshopPage() {
             {/* Breadcrumbs */}
             <Breadcrumbs
               items={[
-                { label: 'Workshop แผน 5 ปี', href: '/editor/workshop' },
+                { label: 'Editor Portal', href: '/editor/dashboard' },
+                { label: 'ประเด็นยุทธศาสตร์', href: '/editor/workshop' },
                 { label: `${currentIssueData.auto_id}: ${currentIssueData.name}` },
               ]}
               style={{ marginBottom: '1.25rem' }}
