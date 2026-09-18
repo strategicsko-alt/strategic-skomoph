@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    const { userId, status, role, workGroup } = await request.json();
+    const { userId, status, role, workGroup, firstName, lastName } = await request.json();
 
     // Check target user's profile
     const { data: targetProfile } = await supabaseAdmin
@@ -62,8 +62,15 @@ export async function POST(request: Request) {
       }
       updatePayload.approval_status = status;
     }
-    if (workGroup !== undefined) updatePayload.work_group = workGroup; if (role) {
+    if (workGroup !== undefined) updatePayload.work_group = workGroup;
+    if (role) {
       updatePayload.role = role;
+    }
+    if (firstName !== undefined && firstName.trim() !== '') {
+      updatePayload.first_name = firstName.trim();
+    }
+    if (lastName !== undefined && lastName.trim() !== '') {
+      updatePayload.last_name = lastName.trim();
     }
 
     // Update the profile

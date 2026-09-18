@@ -82,10 +82,13 @@ export default function RegisterPage() {
           
           <div style={{ display: 'flex', gap: '1rem' }}>
             <div style={{ flex: 1, textAlign: 'left' }}>
-              <label htmlFor="firstName" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ชื่อ</label>
+              <label htmlFor="firstName" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                ชื่อ (ภาษาไทย)
+              </label>
               <input 
                 type="text" 
                 id="firstName"
+                placeholder="เช่น สมชาย"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 className="input-field" 
@@ -93,10 +96,13 @@ export default function RegisterPage() {
               />
             </div>
             <div style={{ flex: 1, textAlign: 'left' }}>
-              <label htmlFor="lastName" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>นามสกุล</label>
+              <label htmlFor="lastName" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                นามสกุล (ภาษาไทย)
+              </label>
               <input 
                 type="text" 
                 id="lastName"
+                placeholder="เช่น ใจดี"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 className="input-field" 
@@ -104,6 +110,9 @@ export default function RegisterPage() {
               />
             </div>
           </div>
+          <p style={{ textAlign: 'left', fontSize: '0.75rem', color: 'var(--secondary-foreground)', marginTop: '-0.5rem', marginBottom: '0.25rem' }}>
+            💡 กรุณากรอกชื่อ-นามสกุลเป็น <strong>ภาษาไทย</strong> เพื่อความถูกต้องในการแสดงผลในระบบและรายงาน
+          </p>
 
           <div style={{ textAlign: 'left' }}>
             <label htmlFor="email" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>อีเมล (Username)</label>

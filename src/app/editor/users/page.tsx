@@ -46,12 +46,12 @@ export default function UsersManagementPage() {
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
   const [editRole, setEditRole] = useState('');
   const [editWorkGroup, setEditWorkGroup] = useState('');
   const [editStatus, setEditStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-
-  
 
   useEffect(() => {
     fetchUsers();
@@ -83,6 +83,8 @@ export default function UsersManagementPage() {
 
   const handleOpenEdit = (user: UserProfile) => {
     setEditingUser(user);
+    setEditFirstName(user.first_name || '');
+    setEditLastName(user.last_name || '');
     setEditRole(user.role || 'district_user');
     setEditWorkGroup(user.work_group || '');
     setEditStatus(user.approval_status || 'pending');
@@ -98,14 +100,28 @@ export default function UsersManagementPage() {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: editingUser.id, status: editStatus, role: editRole, workGroup: editWorkGroup }),
+        body: JSON.stringify({ 
+          userId: editingUser.id, 
+          firstName: editFirstName,
+          lastName: editLastName,
+          status: editStatus, 
+          role: editRole, 
+          workGroup: editRole.includes('province') ? editWorkGroup : null 
+        }),
       });
       
       const resData = await res.json();
       if (res.ok && resData.success) {
-        setUsers(users.map(u => u.id === editingUser.id ? { ...u, approval_status: editStatus, role: editRole, work_group: editWorkGroup } : u));
+        setUsers(users.map(u => u.id === editingUser.id ? { 
+          ...u, 
+          first_name: editFirstName.trim(),
+          last_name: editLastName.trim(),
+          approval_status: editStatus, 
+          role: editRole, 
+          work_group: editRole.includes('province') ? editWorkGroup : undefined 
+        } : u));
         setIsEditModalOpen(false);
-        toast.success('อัปเดตสิทธิ์ผู้ใช้งานสำเร็จ');
+        toast.success('อัปเดตข้อมูลและสิทธิ์ผู้ใช้งานสำเร็จ');
       } else {
         toast.error(resData.message || 'เกิดข้อผิดพลาดในการอัปเดตสิทธิ์');
       }
@@ -198,8 +214,39 @@ export default function UsersManagementPage() {
         )}
       </div>
 
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="จัดการสิทธิ์ผู้ใช้งาน">
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="จัดการข้อมูลและสิทธิ์ผู้ใช้งาน">
         <form onSubmit={handleSaveUser}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                ชื่อ (First Name)
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                value={editFirstName}
+                onChange={e => setEditFirstName(e.target.value)}
+                placeholder="ชื่อ (ภาษาไทย)"
+                required
+                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                นามสกุล (Last Name)
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                value={editLastName}
+                onChange={e => setEditLastName(e.target.value)}
+                placeholder="นามสกุล (ภาษาไทย)"
+                required
+                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+              />
+            </div>
+          </div>
+
           <div style={{ marginBottom: '1.25rem' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>ระดับสิทธิ์ (Role)</label>
             <select
