@@ -77,6 +77,16 @@ export default function KpiPrototypeLayout({ children }: { children: React.React
             <span>📘</span>
             <span>คู่มือ</span>
           </Link>
+
+          <Link 
+            href="/editor/dashboard" 
+            className="btn-secondary" 
+            title="เข้าสู่ระบบจัดการและบันทึกข้อมูลยุทธศาสตร์"
+            style={{ padding: '0.45rem 0.85rem', textDecoration: 'none', fontSize: '0.82rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            <span>⚙️</span>
+            <span>ระบบจัดการ</span>
+          </Link>
         </div>
       </nav>
       <main style={{ padding: '1.5rem 2rem', maxWidth: '1800px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>

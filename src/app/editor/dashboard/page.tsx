@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Activity, Target, Briefcase, GitBranch, Folder, AlertCircle } from 'lucide-react';
+import { Activity, Target, Briefcase, GitBranch, Folder, AlertCircle, BarChart2 } from 'lucide-react';
 import { ExportButton } from '@/components/ExportButton';
 
 export default function EditorDashboard() {
@@ -160,9 +160,34 @@ export default function EditorDashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>ยินดีต้อนรับสู่ Editor Portal</h1>
-        <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการและบันทึกข้อมูลยุทธศาสตร์สุขภาพ 5 ปี จังหวัดสระแก้ว</p>
+      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>ยินดีต้อนรับสู่ Editor Portal</h1>
+          <p style={{ color: 'var(--secondary-foreground)' }}>ระบบจัดการและบันทึกข้อมูลยุทธศาสตร์สุขภาพ 5 ปี จังหวัดสระแก้ว</p>
+        </div>
+        <div>
+          <Link
+            href="/kpi/dashboard"
+            className="btn-primary"
+            title="เปิดไปยังหน้า Dashboard กำกับติดตามตัวชี้วัด (KPIs)"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.6rem 1.25rem',
+              borderRadius: 'var(--radius-md)',
+              textDecoration: 'none',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              backgroundColor: 'var(--primary)',
+              color: '#fff',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <BarChart2 size={18} />
+            <span>Dashboard ตัวชี้วัด (KPIs) ↗</span>
+          </Link>
+        </div>
       </div>
 
       <div className="bento-grid" style={{ padding: 0, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>

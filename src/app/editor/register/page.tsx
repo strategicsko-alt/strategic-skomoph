@@ -4,6 +4,26 @@ import { useState, useEffect } from 'react';
 import { register } from './actions';
 import { supabase } from '@/lib/supabase'; // Using the client-side supabase for fetching districts
 
+const WORK_GROUPS = [
+  "คุ้มครองผู้บริโภคและเภสัชสาธารณสุข",
+  "บริหารทรัพยากรบุคคล",
+  "กลุ่มกฎหมาย",
+  "พัฒนายุทธศาสตร์สาธารณสุข",
+  "สุขภาพดิจิทัล",
+  "คุ้มครองผู้บริโภค",
+  "พัฒนาคุณภาพและรูปแบบบริการ",
+  "ควบคุมโรคติดต่อ",
+  "ประกันสุขภาพ",
+  "ส่งเสริมสุขภาพ",
+  "ทันตสาธารณสุข",
+  "บริหารทั่วไป",
+  "อนามัยสิ่งแวดล้อมและอาชีวอนามัย",
+  "ควบคุมโรคไม่ติดต่อ",
+  "ปฐมภูมิและเครือข่ายสุขภาพ",
+  "การแพทย์แผนไทยและการแพทย์ทางเลือก",
+  "พัฒนาทรัพยากรบุคคล"
+];
+
 export default function RegisterPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -11,6 +31,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [districtId, setDistrictId] = useState('');
   const [role, setRole] = useState('district_user'); // Default role
+  const [workGroup, setWorkGroup] = useState('');
   
   const [districts, setDistricts] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -32,9 +53,18 @@ export default function RegisterPage() {
     fetchDistricts();
   }, []);
 
+  const selectedDistrict = districts.find(d => d.id === districtId);
+  const isProvince = selectedDistrict?.type === 'province' || role.includes('province');
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (isProvince && !workGroup) {
+      setError('กรุณาเลือกกลุ่มงานสำหรับผู้ใช้งานระดับจังหวัด');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -44,9 +74,9 @@ export default function RegisterPage() {
       formData.append('email', email);
       formData.append('password', password);
       formData.append('district_id', districtId);
+      formData.append('work_group', isProvince ? workGroup : '');
       
       // Determine role based on selected district
-      const selectedDistrict = districts.find(d => d.id === districtId);
       let assignedRole = role;
       
       if (selectedDistrict && selectedDistrict.type === 'province') {
@@ -171,6 +201,30 @@ export default function RegisterPage() {
             </select>
             <small style={{ color: 'var(--muted-foreground)' }}>ต้องรอการอนุมัติจาก Admin ก่อนจึงจะใช้งานได้</small>
           </div>
+
+          {isProvince && (
+            <div style={{ textAlign: 'left', backgroundColor: '#f0f9ff', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #bae6fd' }}>
+              <label htmlFor="workGroup" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#0369a1' }}>
+                กลุ่มงาน (สำหรับบุคลากร สสจ.สระแก้ว) <span style={{ color: 'var(--destructive)' }}>*</span>
+              </label>
+              <select 
+                id="workGroup"
+                value={workGroup}
+                onChange={(e) => setWorkGroup(e.target.value)}
+                className="input-field"
+                required={isProvince}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: '#fff' }}
+              >
+                <option value="">-- กรุณาเลือกกลุ่มงาน --</option>
+                {WORK_GROUPS.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+              <small style={{ color: '#0369a1', display: 'block', marginTop: '0.35rem', fontSize: '0.75rem' }}>
+                * สิทธิ์ระดับจังหวัดจำเป็นต้องระบุกลุ่มงาน เพื่อจัดสรรตัวชี้วัดที่ท่านรับผิดชอบ
+              </small>
+            </div>
+          )}
 
           {error && <div style={{ color: 'var(--destructive)', fontSize: '0.875rem', textAlign: 'left' }}>{error}</div>}
           
