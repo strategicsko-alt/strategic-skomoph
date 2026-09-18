@@ -231,6 +231,33 @@ export default async function DashboardPage(props: {
                 <span>ติดตามตัวชี้วัด (KPIs)</span>
               </Link>
 
+              <a 
+                href="https://sakaeo-epiwatch-ai.web.app/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="btn-secondary" 
+                aria-label="เปิดระบบวิเคราะห์และเฝ้าระวังระบาดวิทยาอัจฉริยะ สสจ.สระแก้ว"
+                title="ระบบวิเคราะห์และเฝ้าระวังระบาดวิทยาอัจฉริยะ สำนักงานสาธารณสุขจังหวัดสระแก้ว (Sakaeo EpiWatch AI)"
+                style={{ 
+                  backgroundColor: '#fff1f2', 
+                  borderColor: '#fecdd3', 
+                  color: '#be123c', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 700,
+                  padding: '0.5rem 1rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: 'var(--shadow-sm)',
+                  gap: '0.4rem',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}
+              >
+                <Activity size={15} /> 
+                <span>ระบาดวิทยาอัจฉริยะ (EpiWatch AI)</span>
+                <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>↗</span>
+              </a>
+
               <Link 
                 href="/manual" 
                 className="btn-secondary" 

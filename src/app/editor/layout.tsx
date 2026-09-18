@@ -18,7 +18,8 @@ import {
   Users, 
   User,
   Menu,
-  X
+  X,
+  Activity
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { EditorProvider, useEditor } from '@/components/EditorContext';
@@ -219,6 +220,27 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
               <ExternalLink size={20} />
               <span>ดูหน้าเว็บหลัก</span>
             </Link>
+            <a
+              href="https://sakaeo-epiwatch-ai.web.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="ระบบวิเคราะห์และเฝ้าระวังระบาดวิทยาอัจฉริยะ สำนักงานสาธารณสุขจังหวัดสระแก้ว"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.65rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                color: '#be123c',
+                fontWeight: 600,
+                textDecoration: 'none',
+                minHeight: '44px',
+                backgroundColor: '#fff1f2',
+              }}
+            >
+              <Activity size={20} />
+              <span>ระบาดวิทยาอัจฉริยะ (EpiWatch) ↗</span>
+            </a>
             <button
               onClick={() => setShowLogoutConfirm(true)}
               style={{
@@ -367,6 +389,23 @@ function EditorLayoutInner({ children }: { children: React.ReactNode }) {
               <ExternalLink size={20} style={{ flexShrink: 0 }} />
               {sidebarOpen && <span>ดูหน้าเว็บหลัก</span>}
             </Link>
+            <a
+              href="https://sakaeo-epiwatch-ai.web.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title={!sidebarOpen ? 'ระบาดวิทยาอัจฉริยะ (EpiWatch AI)' : 'ระบบวิเคราะห์และเฝ้าระวังระบาดวิทยาอัจฉริยะ สำนักงานสาธารณสุขจังหวัดสระแก้ว'}
+              style={{
+                display: 'flex', alignItems: 'center',
+                gap: sidebarOpen ? '0.75rem' : '0', justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                padding: sidebarOpen ? '0.65rem 0.875rem' : '0.65rem',
+                borderRadius: 'var(--radius-md)', color: '#be123c',
+                backgroundColor: sidebarOpen ? '#fff1f2' : 'transparent',
+                fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden'
+              }}
+            >
+              <Activity size={20} style={{ flexShrink: 0 }} />
+              {sidebarOpen && <span>เฝ้าระวังระบาดวิทยา (EpiWatch) ↗</span>}
+            </a>
             <button
               onClick={() => setShowLogoutConfirm(true)}
               title={!sidebarOpen ? 'ออกจากระบบ' : undefined}

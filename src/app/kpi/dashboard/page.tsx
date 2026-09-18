@@ -1383,6 +1383,29 @@ export default function DashboardPage() {
               >
                 สถิติประชากร เกิด ตาย
               </button>
+              <a
+                href="https://sakaeo-epiwatch-ai.web.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="ระบบวิเคราะห์และเฝ้าระวังระบาดวิทยาอัจฉริยะ สำนักงานสาธารณสุขจังหวัดสระแก้ว (Sakaeo EpiWatch AI)"
+                style={{
+                  padding: '0.35rem 0.8rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  backgroundColor: '#be123c',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  boxShadow: '0 1px 3px rgba(190, 18, 60, 0.4)'
+                }}
+              >
+                <span>🦠 EpiWatch AI</span>
+                <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>↗</span>
+              </a>
             </div>
 
             {/* Quarter switcher if on executive or detail */}
@@ -1446,7 +1469,7 @@ export default function DashboardPage() {
                 ปีงบประมาณ 2568
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <button onClick={() => setActiveTab('executive')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'executive' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'executive' ? 700 : 500, color: activeTab === 'executive' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
                 สรุปสำหรับผู้บริหาร (Executive Summary)
               </button>
@@ -1459,6 +1482,32 @@ export default function DashboardPage() {
               <button onClick={() => setActiveTab('vital')} style={{ padding: '0.45rem 0.9rem', borderBottom: activeTab === 'vital' ? '3px solid var(--primary)' : '3px solid transparent', fontWeight: activeTab === 'vital' ? 700 : 500, color: activeTab === 'vital' ? 'var(--primary)' : 'var(--secondary-foreground)', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
                 สถิติประชากร เกิด ตาย (Vital Statistics)
               </button>
+              <a
+                href="https://sakaeo-epiwatch-ai.web.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="ระบบวิเคราะห์และเฝ้าระวังระบาดวิทยาอัจฉริยะ สำนักงานสาธารณสุขจังหวัดสระแก้ว (Sakaeo EpiWatch AI)"
+                style={{
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '8px',
+                  backgroundColor: '#fff1f2',
+                  border: '1px solid #fecdd3',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  color: '#be123c',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  marginLeft: '0.25rem',
+                  boxShadow: '0 1px 2px rgba(225, 29, 72, 0.08)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>🦠</span>
+                <span>ระบาดวิทยาอัจฉริยะ (EpiWatch AI)</span>
+                <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>↗</span>
+              </a>
             </div>
           </div>
           
